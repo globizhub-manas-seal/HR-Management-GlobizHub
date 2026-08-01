@@ -1,28 +1,19 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  importFileExtension = ""
+  moduleFormat        = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// hrms-backend-v1/prisma/schema.prisma
-
-// ... (keep the generator and datasource blocks at the top) ...
-
 model Company {
   id          String       @id @default(uuid())
   name        String
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  
-  // Relations
   departments Department[]
   employees   Employee[]
 }
@@ -30,8 +21,6 @@ model Company {
 model Department {
   id        String     @id @default(uuid())
   name      String
-  
-  // Foreign Keys & Relations
   companyId String
   company   Company    @relation(fields: [companyId], references: [id])
   employees Employee[]
@@ -42,15 +31,11 @@ model Employee {
   email        String      @unique
   firstName    String
   lastName     String
-  password     String      // We will hash this later for security!
-  
-  // Foreign Keys & Relations
+  password     String
   companyId    String
-  company      Company     @relation(fields: [companyId], references: [id])
-  
-  departmentId String?     // The '?' makes this optional (e.g., a CEO might not be in a specific department)
-  department   Department? @relation(fields: [departmentId], references: [id])
-  
+  departmentId String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  company      Company     @relation(fields: [companyId], references: [id])
+  department   Department? @relation(fields: [departmentId], references: [id])
 }
