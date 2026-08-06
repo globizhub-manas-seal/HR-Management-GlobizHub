@@ -9,33 +9,164 @@ datasource db {
   provider = "postgresql"
 }
 
+
+
+
+
+
+
+
+
+
+// 1. Enums for fixed values
+enum SubscriptionPlan {
+  FREE_TRIAL
+  NORMAL
+  PRO
+  ENTERPRISE
+}
+
+enum EmployeeRole {
+  SUPER_ADMIN
+  HR_HEAD
+  OWNER
+  MANAGER
+  EMPLOYEE
+}
+
+// 2. The Core Company (Tenant) Table
 model Company {
-  id          String       @id @default(uuid())
-  name        String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  departments Department[]
+  id              String           @id @default(uuid())
+  name            String
+  industry        String?
+  size            String?
+  email           String           @unique
+  phone           String?
+  website         String?
+  
+  // Compliance & Tax
+  gstin           String?
+  pan             String?
+  cin             String?
+  
+  // Address Data
+  address         String?
+  country         String?
+  state           String?
+  city            String?
+  pincode         String?
+  
+  subscription    SubscriptionPlan @default(FREE_TRIAL)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Multi-tenant relations (Everything belongs to a company)
+  employees       Employee[]
+  departments     Department[]
+  roles           Role[]
+  settings        CompanySettings?
+
+
+  attendances     Attendance[]
+}
+
+// 3. The Employee Table (Includes the Administrator)
+model Employee {
+  id              String       @id @default(uuid())
+  companyId       String
+  firstName       String
+  lastName        String
+  email           String       @unique
+  phone           String?
+  password        String       // Hashed
+  role            EmployeeRole @default(EMPLOYEE)
+  inviteToken   String?  @unique
+  
+  // Prefix ID (e.g., ABC-0001)
+  employeeCode    String?      @unique
+
+  departmentId    String?
+  department      Department?  @relation(fields: [departmentId], references: [id])
+  
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attendances     Attendance[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+ 
+}
+
+// 4. Departments (Auto-generated during registration)
+model Department {
+  id          String     @id @default(uuid())
+  companyId   String
+  name        String     // e.g., "HR", "Finance", "IT"
+  headId      String?    // ID of the Employee who is the head
+  
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees   Employee[]
 }
 
-model Department {
-  id        String     @id @default(uuid())
-  name      String
-  companyId String
-  company   Company    @relation(fields: [companyId], references: [id])
-  employees Employee[]
+// 5. Custom Roles & Designations
+model Role {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String   // e.g., "Senior Developer", "Manager"
+  
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
-model Employee {
-  id           String      @id @default(uuid())
-  email        String      @unique
-  firstName    String
-  lastName     String
-  password     String
-  companyId    String
-  departmentId String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  company      Company     @relation(fields: [companyId], references: [id])
-  department   Department? @relation(fields: [departmentId], references: [id])
+// 6. Company Settings (From the Setup Wizard)
+model CompanySettings {
+  id                 String   @id @default(uuid())
+  companyId          String   @unique
+ 
+  
+  themeColor         String   @default("#10b981") // Emerald default
+  logoUrl            String?
+  
+  // NEW: Geolocation Attendance Settings
+  officeLatitude      Float?   // e.g., 28.6139
+  officeLongitude     Float?   // e.g., 77.2090
+  allowedRadiusMeters Int      @default(100) // Default 100-meter radius
+
+  // NEW: Network Attendance Settings
+  officeIpAddress     String?  // e.g., "198.51.100.1" (Public IP of the office router)
+  isIpRestrictionOn   Boolean  @default(false)
+  isGpsRestrictionOn  Boolean  @default(true)
+
+
+  // Working Hours (Step 2)
+  workDays           String[] // e.g., ["Monday", "Tuesday", ...]
+  shiftStartTime     String   @default("09:00")
+  shiftEndTime       String   @default("18:00")
+  attendanceMethod   String   @default("MANUAL") // MANUAL, GPS, BIOMETRIC
+  
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id                 String   @id @default(uuid())
+  date               DateTime
+  
+  // These are optional (?) because ABSENT employees won't have them
+  checkInTime        DateTime? 
+  checkOutTime       DateTime? 
+  verificationMethod String?   
+  
+  status             String    @default("PRESENT")
+  
+  // Stores the calculated hours from the Cron Job
+  workingHours       Float?    
+
+  employeeId         String
+  employee           Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  companyId          String
+  company            Company   @relation(fields: [companyId], references: [id])
+  
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([employeeId, companyId, date])
 }
