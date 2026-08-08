@@ -43,31 +43,36 @@ model Company {
   email           String           @unique
   phone           String?
   website         String?
-  
-  // Compliance & Tax
+
   gstin           String?
   pan             String?
   cin             String?
-  
-  // Address Data
+
   address         String?
   country         String?
   state           String?
   city            String?
   pincode         String?
-  
+
   subscription    SubscriptionPlan @default(FREE_TRIAL)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  // Multi-tenant relations (Everything belongs to a company)
-  employees       Employee[]
-  departments     Department[]
-  roles           Role[]
-  settings        CompanySettings?
+  // Existing Relations
+  employees        Employee[]
+  departments      Department[]
+  roles            Role[]
+  settings         CompanySettings?
+  attendances      Attendance[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  schedules        Schedule[]
+  shifts           Shift[]
 
-
-  attendances     Attendance[]
+  // ✅ Add these
+  branches         Branch[]
+  leavePolicies    LeavePolicy[]
+  salaryStructures SalaryStructure[]
 }
 
 // 3. The Employee Table (Includes the Administrator)
@@ -93,56 +98,128 @@ model Employee {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  leaveBalance   LeaveBalance?
+  leaveRequests  LeaveRequest[]
+  schedules Schedule[]
+
+  
+  profilePhoto         String?
+  bloodGroup           BloodGroup?
+  gender               Gender?
+  themePreference      String    @default("SYSTEM") // LIGHT, DARK, SYSTEM
+  timeFormat           String    @default("12h")
+  joiningDate          DateTime  @default(now())
+  documents            EmployeeDocument[]
+  devices              EmployeeDevice[]
+  notificationSettings NotificationSettings?
  
 }
 
+
 // 4. Departments (Auto-generated during registration)
 model Department {
-  id          String     @id @default(uuid())
+  id          String @id @default(uuid())
   companyId   String
-  name        String     // e.g., "HR", "Finance", "IT"
-  headId      String?    // ID of the Employee who is the head
-  
-  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employees   Employee[]
+  name        String
+  headId      String?
+
+  branchId    String?
+  branch      Branch? @relation(fields: [branchId], references: [id])
+
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees    Employee[]
+  roles        Role[]
+
+  createdAt    DateTime @default(now())
 }
+
 
 // 5. Custom Roles & Designations
 model Role {
-  id          String   @id @default(uuid())
-  companyId   String
-  name        String   // e.g., "Senior Developer", "Manager"
-  
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id           String @id @default(uuid())
+  companyId    String
+  name         String
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
 }
 
 // 6. Company Settings (From the Setup Wizard)
 model CompanySettings {
-  id                 String   @id @default(uuid())
-  companyId          String   @unique
+  id                   String   @id @default(uuid())
+  companyId            String   @unique
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // General
+  companyName          String?
+  companyLogo          String?
+  officeAddress        String?
+  timeZone             String   @default("UTC")
+  workingDays          String[] // e.g. ["MONDAY", "TUESDAY", ...]
+  fiscalYear           String   @default("Jan - Dec")
+
+  // Attendance Configuration
+  attendanceMethod     String   @default("GPS_OR_WIFI") // GPS_ONLY, WIFI_ONLY, GPS_AND_WIFI
+  officeLatitude       Float?
+  officeLongitude      Float?
+  allowedRadiusMeters  Int      @default(100)
+  officeWifiSsids      String[] // Array of allowed Wi-Fi network names
+  enableGps            Boolean  @default(true)
+  enableWifi           Boolean  @default(false)
+  enableMockLocation   Boolean  @default(true) // Block fake GPS apps
+  requireSelfie        Boolean  @default(false)
+  oneDevicePerEmployee Boolean  @default(true)
+
+  // Shift Settings
+  officeStartTime      String   @default("09:00")
+  officeEndTime        String   @default("18:00")
+  gracePeriodMinutes   Int      @default(15)
+  minimumHoursForFullDay Float  @default(8.0)
+  halfDayMinHours      Float    @default(4.0)
+
+  // Leave Defaults (Default quotas for the company)
+  defaultCasualLeaves  Int      @default(12)
+  defaultSickLeaves    Int      @default(10)
+  defaultEarnedLeaves  Int      @default(15)
+
+  // Security & Notifications
+  allowMultipleDevices Boolean  @default(false)
+  sessionTimeoutHours  Int      @default(24)
+  auditLogsEnabled     Boolean  @default(true)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  isIpRestrictionOn Boolean @default(false)
+  officeIpAddress   String? // The IP address of the office Wi-Fi
+
+  // --- NEW: Corporate Identity ---
+  
+  legalName             String?
+  industry              String?
+  registrationNumber    String?  // CIN / Company Reg No.
+  taxId                 String?  // GSTIN / VAT / EIN
+  website               String?
+  incorporationDate     String?  // Stored as YYYY-MM-DD
+  
+  // --- NEW: Contact & Location ---
+  officialEmail         String?
+  officialPhone         String?
+  
+  city                  String?
+  state                 String?
+  country               String?
+  zipCode               String?
+  
+  // --- NEW FIELDS FROM WIZARD ---
+  themeColor           String?    @default("#10b981") // Default emerald
  
-  
-  themeColor         String   @default("#10b981") // Emerald default
-  logoUrl            String?
-  
-  // NEW: Geolocation Attendance Settings
-  officeLatitude      Float?   // e.g., 28.6139
-  officeLongitude     Float?   // e.g., 77.2090
-  allowedRadiusMeters Int      @default(100) // Default 100-meter radius
 
-  // NEW: Network Attendance Settings
-  officeIpAddress     String?  // e.g., "198.51.100.1" (Public IP of the office router)
-  isIpRestrictionOn   Boolean  @default(false)
-  isGpsRestrictionOn  Boolean  @default(true)
-
-
-  // Working Hours (Step 2)
-  workDays           String[] // e.g., ["Monday", "Tuesday", ...]
-  shiftStartTime     String   @default("09:00")
-  shiftEndTime       String   @default("18:00")
-  attendanceMethod   String   @default("MANUAL") // MANUAL, GPS, BIOMETRIC
-  
-  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+   
 }
 
 model Attendance {
@@ -169,4 +246,183 @@ model Attendance {
   updatedAt          DateTime  @updatedAt
 
   @@index([employeeId, companyId, date])
+}
+
+enum LeaveType {
+  CASUAL
+  MEDICAL
+  EARNED
+  MATERNITY
+  PATERNITY
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveBalance {
+  id          String   @id @default(uuid())
+  employeeId  String   @unique
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  casual      Int      @default(12)
+  medical     Int      @default(10)
+  earned      Int      @default(15)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+}
+
+model LeaveRequest {
+  id          String      @id @default(uuid())
+  employeeId  String
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id])
+  type        LeaveType
+  startDate   DateTime
+  endDate     DateTime
+  reason      String
+  status      LeaveStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+}
+
+// --- NEW ENUMS ---
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodGroup {
+  A_POS
+  A_NEG
+  B_POS
+  B_NEG
+  AB_POS
+  AB_NEG
+  O_POS
+  O_NEG
+}
+
+enum DocumentType {
+  PAN
+  AADHAAR
+  PASSPORT
+  DRIVERS_LICENSE
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DeviceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+
+// --- NEW MODELS ---
+model EmployeeDocument {
+  id             String         @id @default(uuid())
+  employeeId     String
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type           DocumentType
+  documentNumber String         // The actual ID string
+  fileUrl        String?        // Link to the uploaded image/PDF
+  status         DocumentStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model EmployeeDevice {
+  id               String       @id @default(uuid())
+  employeeId       String
+  employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  deviceName       String       // e.g., "Windows Chrome", "iPhone 14"
+  deviceIdentifier String       @unique // A browser fingerprint or MAC address
+  status           DeviceStatus @default(PENDING)
+  lastUsedAt       DateTime     @default(now())
+}
+
+model NotificationSettings {
+  id                   String   @id @default(uuid())
+  employeeId           String   @unique
+  employee             Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendanceReminder   Boolean  @default(true)
+  checkoutReminder     Boolean  @default(true)
+  leaveUpdates         Boolean  @default(true)
+  companyAnnouncements Boolean  @default(true)
+  emailNotifications   Boolean  @default(true)
+  pushNotifications    Boolean  @default(false)
+}
+
+model Shift {
+  id           String     @id @default(uuid())
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String     // e.g., "Morning", "Night Shift"
+  startTime    String     // e.g., "09:00"
+  endTime      String     // e.g., "17:00"
+  isNightShift Boolean    @default(false)
+  schedules    Schedule[]
+  createdAt    DateTime   @default(now())
+}
+
+model Schedule {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  shiftId     String?   // Optional because it could be a Day Off
+  shift       Shift?    @relation(fields: [shiftId], references: [id])
+  
+  date        DateTime  // The specific calendar date
+  isDayOff    Boolean   @default(false)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, date]) // An employee can only have one schedule record per day
+}
+
+
+// --- NEW ORGANIZATIONAL MODELS ---
+
+model Branch {
+  id          String       @id @default(uuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String       // e.g., "Headquarters", "Bangalore Tech Hub"
+  address     String?
+  departments Department[]
+  createdAt   DateTime     @default(now())
+}
+
+
+model LeavePolicy {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String   // e.g., "Standard Annual Leave", "Maternity Leave"
+  daysAllowed Int      // e.g., 15
+  isPaid      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model SalaryStructure {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String   // e.g., "Standard Tier 1", "Executive Tier"
+  basicPayPct Float    // Percentage of total CTC (e.g., 50%)
+  hraPct      Float    // e.g., 20%
+  createdAt   DateTime @default(now())
 }

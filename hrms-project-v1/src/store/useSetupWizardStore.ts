@@ -4,13 +4,14 @@ import { create } from 'zustand';
 // Define the shape of our massive data collection
 interface SetupWizardData {
   // Step 1: Basic Info
- companyName: string;
+  companyName: string;
   industry: string;
   companySize: string;
   email: string;
   phone: string;
   website: string;
-  adminFullName: string;
+  adminFirstName: string;
+  adminLastName: string;
   adminEmail: string;
   adminPhone: string;
   holidayRegion: string;
@@ -21,9 +22,6 @@ interface SetupWizardData {
   shifts: string[];
   branches: string[];
   inviteEmails: string;
-  
-  // Admin Info
-
   
   // Step 2: Settings
   themeColor: string;
@@ -52,7 +50,8 @@ const initialData: SetupWizardData = {
   email: '',
   phone: '',
   website: '',
-  adminFullName: '',
+  adminFirstName: '',
+  adminLastName: '',
   adminEmail: '',
   adminPhone: '',
   holidayRegion: 'INDIA',
@@ -87,8 +86,6 @@ const initialData: SetupWizardData = {
     "Remote"
   ],
   inviteEmails: "",
-
-
 
   // Step 2 Defaults
   themeColor: '#10b981', // Default emerald

@@ -78,10 +78,7 @@ export default function EmployeeDirectoryPage() {
           <p className="text-slate-500 mt-1">Manage your team members and their roles.</p>
         </div>
        <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Employee Directory</h1>
-          <p className="text-slate-500 mt-1">Manage your team members and their roles.</p>
-        </div>
+       
         
         {/* Replace the old button with our new Component! */}
         <AddEmployeeModal />

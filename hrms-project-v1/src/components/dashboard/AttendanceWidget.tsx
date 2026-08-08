@@ -27,7 +27,8 @@ export function AttendanceWidget() {
     onSuccess: (data) => {
       setSuccessMessage(data.message || "Successfully clocked in!");
       setLocationError("");
-      queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+      queryClient.invalidateQueries({ queryKey: ["myDashboardStats"] });
+      queryClient.invalidateQueries({ queryKey: ["adminDashboardStats"] });
     },
    onError: (error: any) => {
       setLocationError(error.response?.data?.message || "Failed to clock in. Please try again.");
@@ -49,7 +50,8 @@ export function AttendanceWidget() {
     onSuccess: (data) => {
       setSuccessMessage(data.message || "Successfully clocked out!");
       setLocationError("");
-      queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+      queryClient.invalidateQueries({ queryKey: ["myDashboardStats"] });
+      queryClient.invalidateQueries({ queryKey: ["adminDashboardStats"] });
     },
     onError: (error: any) => {
       setLocationError(error.response?.data?.message || "Failed to clock out.");

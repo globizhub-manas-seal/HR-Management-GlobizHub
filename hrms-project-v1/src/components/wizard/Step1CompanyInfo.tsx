@@ -24,7 +24,8 @@ const step1Schema = z.object({
   email: z.string().email("Invalid company email address"),
   phone: z.string().min(10, "Valid phone number required"),
   website: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  adminFullName: z.string().min(2, "Admin full name is required"),
+  adminFirstName: z.string().min(2, "Admin first name is required"),
+  adminLastName: z.string().min(2, "Admin last name is required"),
   adminEmail: z.string().email("Invalid admin email address"),
   adminPhone: z.string().min(10, "Valid admin phone required"),
 });
@@ -43,7 +44,8 @@ export default function Step1CompanyInfo() {
       email: formData.email || "",
       phone: formData.phone || "",
       website: formData.website || "",
-      adminFullName: formData.adminFullName || "",
+      adminFirstName: formData.adminFirstName || "",
+      adminLastName: formData.adminLastName || "",
       adminEmail: formData.adminEmail || "",
       adminPhone: formData.adminPhone || "",
     },
@@ -150,12 +152,25 @@ export default function Step1CompanyInfo() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="adminFullName"
+              name="adminFirstName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Admin Full Name</FormLabel>
+                  <FormLabel>Admin First Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Alex Morgan" {...field} />
+                    <Input placeholder="Alex" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="adminLastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Admin Last Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Morgan" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -1,5 +1,9 @@
 // src/auth/auth.service.ts
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -26,12 +30,10 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash('SecurePassword123!', 10);
 
     // 3. Split the full name into first and last
-    const nameParts = dto.adminFullName.split(' ');
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(' ') || 'Admin';
 
     // 4. THE MASSIVE TRANSACTION
     // We create the Company, the Settings, the Departments, the Roles, and the Admin Employee all at once!
+    // Inside registerWizard function:
     const company = await this.prisma.company.create({
       data: {
         name: dto.companyName,
@@ -40,52 +42,89 @@ export class AuthService {
         email: dto.email,
         phone: dto.phone,
         website: dto.website,
-        
-        // Auto-create related settings
-        settings: {
-          create: {
-            themeColor: dto.themeColor,
-            workDays: dto.workDays,
-            shiftStartTime: dto.shiftStartTime,
-            shiftEndTime: dto.shiftEndTime,
-            attendanceMethod: dto.attendanceMethod,
-          },
-        },
-        
-        // Auto-create all standard departments
-        departments: {
-          create: dto.departments.map((deptName) => ({ name: deptName })),
-        },
-        
-        // Auto-create all standard roles
-        roles: {
-          create: dto.roles.map((roleName) => ({ name: roleName })),
-        },
+        gstin: dto.gstin,
+        pan: dto.pan,
+        cin: dto.cin,
+        subscription: 'FREE_TRIAL',
 
-        // Auto-create the Super Admin employee
         employees: {
           create: {
-            firstName,
-            lastName,
+            firstName: dto.adminFirstName,
+            lastName: dto.adminLastName,
             email: dto.adminEmail,
             phone: dto.adminPhone,
-            password: hashedPassword,
+            password: hashedPassword, // <-- Changed from passwordHash to password
             role: 'SUPER_ADMIN',
           },
         },
+        settings: {
+          create: {
+            companyName: dto.companyName,
+            industry: dto.industry,
+            website: dto.website,
+            officialEmail: dto.email,
+            officialPhone: dto.phone,
+            timeZone: 'Asia/Kolkata',
+            themeColor: dto.themeColor || '#10b981',
+            attendanceMethod: dto.attendanceMethod || 'GPS_OR_WIFI',
+            workingDays: dto.workDays || [
+              'Monday',
+              'Tuesday',
+              'Wednesday',
+              'Thursday',
+              'Friday',
+            ],
+            officeStartTime: dto.shiftStartTime || '09:00',
+            officeEndTime: dto.shiftEndTime || '18:00',
+            enableGps: dto.attendanceMethod
+              ? dto.attendanceMethod === 'GPS' ||
+                dto.attendanceMethod === 'GPS_OR_WIFI'
+              : true,
+          },
+        },
+
+        // 2. Auto-create Organizational Lists
+        departments: {
+          create: dto.departments?.map((name) => ({ name })) || [],
+        },
+        roles: {
+          create: dto.roles?.map((name) => ({ name })) || [],
+        },
+        branches: {
+          create: dto.branches?.map((name) => ({ name })) || [],
+        },
+        leavePolicies: {
+          create:
+            dto.leavePolicies?.map((name) => ({ name, daysAllowed: 12 })) || [],
+        },
+        shifts: {
+          create:
+            dto.shifts?.map((name) => ({
+              name,
+              startTime: dto.shiftStartTime || '09:00',
+              endTime: dto.shiftEndTime || '18:00',
+            })) || [],
+        },
       },
+
+      // MUST BE OUTSIDE THE 'data' BLOCK!
       include: {
-        employees: true, // Return the newly created employee so we can log them in
+        employees: true,
       },
     });
 
     const newAdmin = company.employees[0];
 
-    // Note: The extra arrays (leavePolicies, branches, shifts, etc.) from the DTO 
+    // Note: The extra arrays (leavePolicies, branches, shifts, etc.) from the DTO
     // are successfully received! We will create the Prisma tables for those in our upcoming Payroll/Leave modules.
 
     // 5. Generate their JWT token to log them in automatically
-    const payload = { sub: newAdmin.id, email: newAdmin.email, companyId: company.id, role: newAdmin.role };
+    const payload = {
+      sub: newAdmin.id,
+      email: newAdmin.email,
+      companyId: company.id,
+      role: newAdmin.role,
+    };
     return {
       access_token: await this.jwtService.signAsync(payload),
       message: 'Workspace successfully configured!',
@@ -98,7 +137,12 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
-    const payload = { sub: user.id, email: user.email, companyId: user.companyId, role: user.role };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      companyId: user.companyId,
+      role: user.role,
+    };
     return { access_token: await this.jwtService.signAsync(payload) };
   }
 
@@ -146,12 +190,17 @@ export class AuthService {
       where: { id: employee.id },
       data: {
         password: hashedPassword,
-        inviteToken: null, 
+        inviteToken: null,
       },
     });
 
     // 4. Generate a JWT token so they are logged in instantly
-    const payload = { sub: updatedEmployee.id, email: updatedEmployee.email, companyId: updatedEmployee.companyId, role: updatedEmployee.role };
+    const payload = {
+      sub: updatedEmployee.id,
+      email: updatedEmployee.email,
+      companyId: updatedEmployee.companyId,
+      role: updatedEmployee.role,
+    };
     return {
       access_token: await this.jwtService.signAsync(payload),
       message: 'Password set successfully!',

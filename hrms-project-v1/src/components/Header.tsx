@@ -1,88 +1,212 @@
-// src/components/Header.tsx
 "use client";
 
-import { Search, Globe, Bell, LogOut } from "lucide-react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  Search,
+  Bell,
+  LogOut,
+  Loader2,
+  User,
+  Shield,
+  Menu,
+} from "lucide-react";
+
 import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import Sidebar from "./Sidebar";
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
+
+  const [open, setOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setOpen(false);
+  }
+
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["userProfile"],
+    queryFn: async () => {
+      const token = localStorage.getItem("hrms_token");
+
+      const res = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      return res.data;
+    },
+  });
 
   const handleLogout = () => {
     localStorage.removeItem("hrms_token");
-    queryClient.clear(); // Flushes the React Query cache!
+    queryClient.clear();
     router.push("/login");
   };
 
+  const getInitials = (firstName?: string, lastName?: string) => {
+    if (!firstName) return "U";
+
+    return `${firstName.charAt(0)}${lastName?.charAt(0) || ""}`.toUpperCase();
+  };
+
+  const formatBreadcrumb = () => {
+    const paths = pathname.split("/").filter(Boolean);
+
+    if (paths.length < 2) return "Dashboard";
+
+    const current = paths[paths.length - 1];
+
+    return current
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   return (
-    <header className="h-20 bg-white border-b flex items-center justify-between px-8 flex-shrink-0">
-      
-      {/* Left Side: Greeting */}
-      <div>
-        <p className="text-sm text-slate-500">Hello Davis!</p>
-        <h1 className="text-2xl font-bold text-slate-900">Good Morning</h1>
+    <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
+      <div className="flex items-center space-x-4">
+        {/* Mobile Hamburger */}
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger className="md:hidden p-2 hover:bg-slate-100 rounded-md">
+            <Menu className="h-5 w-5" />
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-64 data-[side=left]:w-64 data-[side=left]:sm:max-w-64">
+            <Sidebar role={user?.role} className="flex h-full" />
+          </SheetContent>
+        </Sheet>
+
+        {/* Breadcrumb */}
+        <div className="hidden md:flex text-sm font-medium text-slate-500">
+          <span className="text-slate-400">Workspace</span>
+          <span className="mx-2">/</span>
+          <span className="text-slate-900">{formatBreadcrumb()}</span>
+        </div>
       </div>
 
-      {/* Right Side: Search, Icons, Profile */}
-      <div className="flex items-center space-x-6">
-        
-        {/* Search Bar */}
-        <div className="relative w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input 
-            placeholder="Search anything" 
-            className="pl-10 bg-slate-50 border-none rounded-full focus-visible:ring-emerald-500"
+      {/* Right Side */}
+      <div className="flex items-center space-x-4 lg:space-x-6">
+        {/* Search */}
+        <div className="hidden md:flex relative w-72">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+
+          <Input
+            placeholder="Search employees... (Ctrl + K)"
+            className="pl-10 rounded-full bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
           />
         </div>
 
-        {/* Icon Buttons */}
-        <div className="flex items-center space-x-3 text-slate-400">
-          <button className="hover:text-slate-600 transition-colors p-2 bg-slate-50 rounded-full">
-            <Globe className="h-5 w-5" />
-          </button>
-          <button className="relative hover:text-slate-600 transition-colors p-2 bg-slate-50 rounded-full">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-          </button>
-        </div>
+        {/* Notification */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative text-slate-500 hover:text-slate-900"
+        >
+          <Bell className="h-5 w-5" />
 
-        {/* Profile Dropdown */}
-        <div className="pl-4 border-l">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center outline-none cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex-shrink-0 overflow-hidden">
-                <img src="https://i.pravatar.cc/150?u=davis" alt="Profile" className="w-full h-full object-cover" />
-              </div>
-              <div className="ml-3 hidden md:block text-left">
-                <p className="text-sm font-semibold text-slate-900 leading-none">Davis Levin</p>
-                <p className="text-xs text-slate-500 mt-1">User</p>
-              </div>
-            </DropdownMenuTrigger>
-            
-            <DropdownMenuContent align="end" className="w-48 mt-2">
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 border-2 border-white" />
+        </Button>
+
+        {/* Profile */}
+        <DropdownMenu>
+         <DropdownMenuTrigger 
+            className={buttonVariants({ 
+              variant: "ghost", 
+              className: "flex items-center gap-2 hover:bg-transparent cursor-pointer border-0 outline-none" 
+            })}
+          >
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            ) : (
+              <>
+                <div className="hidden lg:flex flex-col items-end">
+                  <span className="text-sm font-semibold text-slate-900">
+                    {user?.firstName} {user?.lastName}
+                  </span>
+                  <span className="mt-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    {user?.role === "SUPER_ADMIN"
+                      ? "CEO / Admin"
+                      : user?.role === "HR_HEAD"
+                      ? "HR Manager"
+                      : user?.role}
+                  </span>
+                </div>
+
+                <Avatar className="h-9 w-9 border border-slate-200">
+                  <AvatarImage
+                    src={user?.profileImage || ""}
+                    alt={user?.firstName}
+                  />
+                  <AvatarFallback className="bg-emerald-100 text-emerald-700 font-bold">
+                    {getInitials(user?.firstName, user?.lastName)}
+                  </AvatarFallback>
+                </Avatar>
+              </>
+            )}
+          </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="end" className="w-60">
+            {/* Wrap the label in a group to satisfy the UI context */}
+            <DropdownMenuGroup>
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={handleLogout} 
-                className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+            </DropdownMenuGroup>
 
+            <DropdownMenuSeparator />
+
+            <DropdownMenuGroup>
+              {/* Profile Settings (Fixed Navigation) */}
+              <DropdownMenuItem
+                onClick={() => router.push("/workspace/profile")}
+                className="flex items-center cursor-pointer"
+              >
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile Settings</span>
+              </DropdownMenuItem>
+
+              {/* Manage Sessions (Fixed Navigation) */}
+              <DropdownMenuItem
+                onClick={() => router.push("/workspace/manage-sessions")}
+                className="flex items-center cursor-pointer"
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                <span>Manage Sessions</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-rose-600 focus:text-rose-600 cursor-pointer"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

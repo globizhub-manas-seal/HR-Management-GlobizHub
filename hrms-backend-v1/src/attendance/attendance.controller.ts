@@ -1,5 +1,5 @@
 import { Controller, Post, Body, UseGuards, Request, Ip, Get } from '@nestjs/common';
-import { AttendanceService } from './attendence.service';
+import { AttendanceService } from './attendance.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ClockInDto } from './dto/clock-in.dto';
 

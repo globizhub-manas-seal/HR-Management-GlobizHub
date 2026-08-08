@@ -1,35 +1,43 @@
-// src/auth/dto/register-wizard.dto.ts
-import { IsString, IsArray, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsArray } from 'class-validator';
 
 export class RegisterWizardDto {
-  // Step 1: Basic Info
   @IsString() companyName: string;
-  @IsString() industry: string;
-  @IsString() companySize: string;
+  @IsString() @IsOptional() industry?: string;
+  @IsString() @IsOptional() companySize?: string;
   @IsEmail() email: string;
-  @IsString() phone: string;
-  @IsOptional() @IsString() website?: string;
+  @IsString() @IsOptional() phone?: string;
+  @IsString() @IsOptional() website?: string;
   
-  @IsString() adminFullName: string;
+  // Missing Company Details
+  @IsString() @IsOptional() gstin?: string;
+  @IsString() @IsOptional() pan?: string;
+  @IsString() @IsOptional() cin?: string;
+  
+  // Missing Admin Details
+  @IsString() adminFirstName: string;
+  @IsString() adminLastName: string;
   @IsEmail() adminEmail: string;
-  @IsString() adminPhone: string;
+  @IsString() @IsOptional() adminPhone?: string;
+
   
-  // Step 2: Settings
-  @IsString() themeColor: string;
-  @IsArray() workDays: string[];
-  @IsString() shiftStartTime: string;
-  @IsString() shiftEndTime: string;
-  @IsString() attendanceMethod: string;
+ 
+  
+  
+  
 
-  // Organizational Structure
-  @IsArray() departments: string[];
-  @IsArray() roles: string[];
-
-  // Data for future modules (Payroll, Leaves, etc.)
-  @IsOptional() @IsString() holidayRegion?: string;
-  @IsArray() leavePolicies: string[];
-  @IsArray() shifts: string[];
-  @IsArray() branches: string[];
-  @IsArray() salaryComponents: string[];
-  @IsOptional() @IsString() inviteEmails?: string;
+  @IsArray() @IsString({ each: true }) @IsOptional() departments?: string[];
+  @IsArray() @IsString({ each: true }) @IsOptional() roles?: string[];
+  @IsArray() @IsString({ each: true }) @IsOptional() salaryComponents?: string[];
+  @IsArray() @IsString({ each: true }) @IsOptional() leavePolicies?: string[];
+  @IsArray() @IsString({ each: true }) @IsOptional() shifts?: string[];
+  @IsArray() @IsString({ each: true }) @IsOptional() branches?: string[];
+  
+  @IsString() @IsOptional() holidayRegion?: string;
+  @IsString() @IsOptional() inviteEmails?: string;
+  
+  @IsString() @IsOptional() themeColor?: string;
+  @IsArray() @IsString({ each: true }) @IsOptional() workDays?: string[];
+  @IsString() @IsOptional() shiftStartTime?: string;
+  @IsString() @IsOptional() shiftEndTime?: string;
+  @IsString() @IsOptional() attendanceMethod?: string;
 }
