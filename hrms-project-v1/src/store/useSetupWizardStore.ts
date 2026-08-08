@@ -1,0 +1,112 @@
+// src/store/useSetupWizardStore.ts
+import { create } from 'zustand';
+
+// Define the shape of our massive data collection
+interface SetupWizardData {
+  // Step 1: Basic Info
+  companyName: string;
+  industry: string;
+  companySize: string;
+  email: string;
+  phone: string;
+  website: string;
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+  adminPhone: string;
+  holidayRegion: string;
+  departments: string[];
+  roles: string[];
+  salaryComponents: string[];
+  leavePolicies: string[];
+  shifts: string[];
+  branches: string[];
+  inviteEmails: string;
+  
+  // Step 2: Settings
+  themeColor: string;
+  workDays: string[];
+  shiftStartTime: string;
+  shiftEndTime: string;
+  attendanceMethod: string;
+}
+
+interface SetupWizardState {
+  currentStep: number;
+  formData: SetupWizardData;
+  
+  // Actions
+  nextStep: () => void;
+  prevStep: () => void;
+  updateFormData: (data: Partial<SetupWizardData>) => void;
+  resetForm: () => void;
+}
+
+// Initial empty state (UPDATED)
+const initialData: SetupWizardData = {
+  companyName: '',
+  industry: '',
+  companySize: '',
+  email: '',
+  phone: '',
+  website: '',
+  adminFirstName: '',
+  adminLastName: '',
+  adminEmail: '',
+  adminPhone: '',
+  holidayRegion: 'INDIA',
+  departments: ['HR', 'Finance', 'IT', 'Sales', 'Support'], // Sensible defaults
+  roles: ["Intern", "Junior Developer", "Developer", "Senior Developer", "Lead", "Manager", "Director"],
+  salaryComponents: [
+    "Basic", 
+    "HRA", 
+    "Medical", 
+    "Travel", 
+    "Special Allowance", 
+    "Bonus", 
+    "PF", 
+    "ESI", 
+    "Professional Tax"
+  ],
+  leavePolicies: [
+    "Casual", 
+    "Earned", 
+    "Medical", 
+    "Maternity", 
+    "Paternity", 
+    "Unpaid"
+  ],
+  shifts: [
+    "General", 
+    "Morning", 
+    "Flexible"
+  ],
+  branches: [
+    "Head Office", 
+    "Remote"
+  ],
+  inviteEmails: "",
+
+  // Step 2 Defaults
+  themeColor: '#10b981', // Default emerald
+  workDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+  shiftStartTime: '09:00',
+  shiftEndTime: '18:00',
+  attendanceMethod: 'MANUAL',
+};
+
+
+export const useSetupWizardStore = create<SetupWizardState>((set) => ({
+  currentStep: 1,
+  formData: initialData,
+  
+  nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
+  prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
+  
+  updateFormData: (newData) => 
+    set((state) => ({
+      formData: { ...state.formData, ...newData }
+    })),
+    
+  resetForm: () => set({ currentStep: 1, formData: initialData }),
+}));
