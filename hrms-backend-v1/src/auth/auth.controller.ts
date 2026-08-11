@@ -8,11 +8,13 @@ import {
   UseGuards,
   Request,
   Get,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterWizardDto } from './dto/register-wizard.dto';
 import { AuthGuard } from './auth.guard';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,6 +37,12 @@ export class AuthController {
   getProfile(@Request() req) {
     // req.user is populated by the AuthGuard using your JWT token
     return this.authService.getProfile(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('change-password')
+  async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.sub, dto);
   }
 
   @Post('set-password')
