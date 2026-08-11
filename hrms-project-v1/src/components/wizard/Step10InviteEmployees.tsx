@@ -46,7 +46,8 @@ export default function Step10InviteEmployees() {
     
     try {
       // 1. Send the massive payload to NestJS
-      const response = await axios.post('http://localhost:5000/auth/register', finalPayload);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const response = await axios.post(`${apiUrl}/auth/register`, finalPayload);
       
       // 2. Save the JWT token to local storage so the user is logged in
       localStorage.setItem('hrms_token', response.data.access_token);
