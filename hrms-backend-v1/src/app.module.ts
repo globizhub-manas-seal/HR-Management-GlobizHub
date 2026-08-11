@@ -10,9 +10,18 @@ import { LeaveModule } from './leave/leave.module';
 import { SettingsModule } from './settings/settings.module';
 import { ScheduleModule } from './schedule/schedule.module'; // Local Shift Engine
 import { OrganizationModule } from './organization/organization.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { PayrollModule } from './payroll/payroll.module';
+import { S3Module } from './s3/s3.module';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads', // The URL prefix
+    }),
+
     CronModule.forRoot(), // Initializes the background cron job timer
     ScheduleModule, // Initializes your custom employee shift schedule module
     PrismaModule,
@@ -22,6 +31,8 @@ import { OrganizationModule } from './organization/organization.module';
     LeaveModule,
     SettingsModule,
     OrganizationModule,
+    PayrollModule,
+    S3Module,
   ],
   controllers: [AppController],
   providers: [AppService],

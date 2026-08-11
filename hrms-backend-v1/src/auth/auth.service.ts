@@ -3,12 +3,14 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { RegisterWizardDto } from './dto/register-wizard.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -155,6 +157,21 @@ export class AuthService {
         lastName: true,
         email: true,
         role: true,
+        phone: true,
+        bloodGroup: true,
+        profilePhoto: true,
+        employeeCode: true,
+        joiningDate: true,
+        themePreference: true,
+        timeFormat: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        notificationSettings: true,
+        devices: true,
         company: {
           include: {
             settings: true,
@@ -169,7 +186,16 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return profile;
+    // Format profileImage URL
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const profileImage = profile.profilePhoto
+      ? `${backendUrl}${profile.profilePhoto}`
+      : null;
+
+    return {
+      ...profile,
+      profileImage,
+    };
   }
 
   async setPassword(dto: SetPasswordDto) {
@@ -205,5 +231,28 @@ export class AuthService {
       access_token: await this.jwtService.signAsync(payload),
       message: 'Password set successfully!',
     };
+  }
+
+  async changePassword(employeeId: string, dto: ChangePasswordDto) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+    });
+
+    if (!employee) {
+      throw new UnauthorizedException('Employee not found');
+    }
+
+    const isMatch = await bcrypt.compare(dto.currentPassword, employee.password);
+    if (!isMatch) {
+      throw new BadRequestException('Incorrect current password');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.employee.update({
+      where: { id: employeeId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password updated successfully' };
   }
 }

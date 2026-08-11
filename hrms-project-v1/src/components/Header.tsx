@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery,useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -12,6 +12,7 @@ import {
   User,
   Shield,
   Menu,
+  Check, Trash
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -119,16 +120,24 @@ export default function Header() {
           />
         </div>
 
-        {/* Notification */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative text-slate-500 hover:text-slate-900"
-        >
-          <Bell className="h-5 w-5" />
+        {/* Notification Dropdown */}
+        <DropdownMenu>
+          {/* Removed asChild and Button. Applied styles directly to the Trigger */}
+          <DropdownMenuTrigger className="relative flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors focus:outline-none">
+            <Bell className="h-5 w-5" />
+            <NotificationDot /> 
+          </DropdownMenuTrigger>
 
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 border-2 border-white" />
-        </Button>
+          <DropdownMenuContent align="end" className="w-80 p-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+              <span className="font-semibold text-slate-800">Notifications</span>
+              <MarkAllReadButton />
+            </div>
+            
+            <NotificationList />
+            
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Profile */}
         <DropdownMenu>
@@ -209,5 +218,72 @@ export default function Header() {
         </DropdownMenu>
       </div>
     </header>
+  );
+}
+
+// Helper components to keep Header clean
+const fetchNotifications = async () => {
+  const token = localStorage.getItem("hrms_token");
+  if (!token) return [];
+  const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/notifications/unread`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+function NotificationDot() {
+  const { data: notifications } = useQuery({ queryKey: ["notifications"], queryFn: fetchNotifications, refetchInterval: 30000 }); // Polls every 30s
+  if (!notifications || notifications.length === 0) return null;
+  return <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 border-2 border-white" />;
+}
+
+function MarkAllReadButton() {
+  const queryClient = useQueryClient();
+  const markAllMutation = useMutation({
+    mutationFn: async () => {
+      const token = localStorage.getItem("hrms_token");
+      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/notifications/read-all`, {}, { headers: { Authorization: `Bearer ${token}` }});
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] })
+  });
+
+  return (
+    <button onClick={() => markAllMutation.mutate()} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center">
+      <Check className="w-3 h-3 mr-1" /> Mark all read
+    </button>
+  );
+}
+
+function NotificationList() {
+  const queryClient = useQueryClient();
+  const { data: notifications, isLoading } = useQuery({ queryKey: ["notifications"], queryFn: fetchNotifications });
+
+  const readMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const token = localStorage.getItem("hrms_token");
+      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/notifications/${id}/read`, {}, { headers: { Authorization: `Bearer ${token}` }});
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] })
+  });
+
+  if (isLoading) return <div className="p-8 text-center text-sm text-slate-500">Loading...</div>;
+  if (!notifications || notifications.length === 0) {
+    return <div className="p-8 text-center text-sm text-slate-500">You're all caught up! 🎉</div>;
+  }
+
+  return (
+    <div className="max-h-[300px] overflow-y-auto">
+      {notifications.map((notif: any) => (
+        <div key={notif.id} className="p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors flex items-start justify-between group cursor-pointer" onClick={() => readMutation.mutate(notif.id)}>
+          <div className="space-y-1 pr-4">
+            <p className="text-sm font-semibold text-slate-800">{notif.title}</p>
+            <p className="text-xs text-slate-600 line-clamp-2">{notif.message}</p>
+            <p className="text-[10px] text-slate-400 mt-2">{new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+          <div className="w-2 h-2 mt-1 rounded-full bg-emerald-500 shrink-0 group-hover:hidden" />
+          <Check className="w-4 h-4 text-slate-300 hidden group-hover:block shrink-0" />
+        </div>
+      ))}
+    </div>
   );
 }

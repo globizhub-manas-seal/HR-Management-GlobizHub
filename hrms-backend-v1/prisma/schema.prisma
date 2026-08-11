@@ -9,15 +9,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
-
-
-
-
-
-
-
-
 // 1. Enums for fixed values
 enum SubscriptionPlan {
   FREE_TRIAL
@@ -36,131 +27,154 @@ enum EmployeeRole {
 
 // 2. The Core Company (Tenant) Table
 model Company {
-  id              String           @id @default(uuid())
-  name            String
-  industry        String?
-  size            String?
-  email           String           @unique
-  phone           String?
-  website         String?
+  id       String  @id @default(uuid())
+  name     String
+  industry String?
+  size     String?
+  email    String  @unique
+  phone    String?
+  website  String?
 
-  gstin           String?
-  pan             String?
-  cin             String?
+  gstin String?
+  pan   String?
+  cin   String?
 
-  address         String?
-  country         String?
-  state           String?
-  city            String?
-  pincode         String?
+  address String?
+  country String?
+  state   String?
+  city    String?
+  pincode String?
 
-  subscription    SubscriptionPlan @default(FREE_TRIAL)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  subscription SubscriptionPlan @default(FREE_TRIAL)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   // Existing Relations
-  employees        Employee[]
-  departments      Department[]
-  roles            Role[]
-  settings         CompanySettings?
-  attendances      Attendance[]
-  leaveBalances    LeaveBalance[]
-  leaveRequests    LeaveRequest[]
-  schedules        Schedule[]
-  shifts           Shift[]
+  employees     Employee[]
+  departments   Department[]
+  roles         Role[]
+  settings      CompanySettings?
+  attendances   Attendance[]
+  leaveBalances LeaveBalance[]
+  leaveRequests LeaveRequest[]
+  schedules     Schedule[]
+  shifts        Shift[]
 
   // ✅ Add these
   branches         Branch[]
   leavePolicies    LeavePolicy[]
   salaryStructures SalaryStructure[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  holidays         Holiday[]
+  payrollRecords   PayrollRecord[]
 }
 
 // 3. The Employee Table (Includes the Administrator)
 model Employee {
-  id              String       @id @default(uuid())
-  companyId       String
-  firstName       String
-  lastName        String
-  email           String       @unique
-  phone           String?
-  password        String       // Hashed
-  role            EmployeeRole @default(EMPLOYEE)
-  inviteToken   String?  @unique
-  
-  // Prefix ID (e.g., ABC-0001)
-  employeeCode    String?      @unique
-
-  departmentId    String?
-  department      Department?  @relation(fields: [departmentId], references: [id])
-  
-  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  attendances     Attendance[]
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  leaveBalance   LeaveBalance?
-  leaveRequests  LeaveRequest[]
-  schedules Schedule[]
-
-  
-  profilePhoto         String?
-  bloodGroup           BloodGroup?
-  gender               Gender?
-  themePreference      String    @default("SYSTEM") // LIGHT, DARK, SYSTEM
-  timeFormat           String    @default("12h")
-  joiningDate          DateTime  @default(now())
-  documents            EmployeeDocument[]
-  devices              EmployeeDevice[]
-  notificationSettings NotificationSettings?
- 
-}
-
-
-// 4. Departments (Auto-generated during registration)
-model Department {
-  id          String @id @default(uuid())
+  id          String       @id @default(uuid())
   companyId   String
-  name        String
-  headId      String?
+  firstName   String
+  lastName    String
+  email       String       @unique
+  phone       String?
+  password    String // Hashed
+  role        EmployeeRole @default(EMPLOYEE)
+  inviteToken String?      @unique
 
-  branchId    String?
-  branch      Branch? @relation(fields: [branchId], references: [id])
-
-  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employees    Employee[]
-  roles        Role[]
-
-  createdAt    DateTime @default(now())
-}
-
-
-// 5. Custom Roles & Designations
-model Role {
-  id           String @id @default(uuid())
-  companyId    String
-  name         String
+  // Prefix ID (e.g., ABC-0001)
+  employeeCode String? @unique
 
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
 
-  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attendances Attendance[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  createdAt     DateTime @default(now())
+  leaveBalance  LeaveBalance?
+  leaveRequests LeaveRequest[]
+  schedules     Schedule[]
+
+  profilePhoto         String?
+  bloodGroup           BloodGroup?
+  gender               Gender?
+  themePreference      String                @default("SYSTEM") // LIGHT, DARK, SYSTEM
+  timeFormat           String                @default("12h")
+  joiningDate          DateTime              @default(now())
+  documents            EmployeeDocument[]
+  devices              EmployeeDevice[]
+  notificationSettings NotificationSettings?
+
+  emergencyContacts EmergencyContact[]
+  skills            EmployeeSkill[]
+  employmentHistory EmploymentHistory[]
+
+  // An employee only has one exit record (1-to-1 relationship)
+  exitRecord EmployeeExit?
+
+  roleId     String?
+  customRole Role?   @relation(fields: [roleId], references: [id])
+
+  // ... rest of your relations ...
+  attendanceCorrections AttendanceCorrection[]
+  notifications         Notification[]
+
+  auditLogs       AuditLog[]
+  salaryStructure SalaryStructure?
+  payrollRecords  PayrollRecord[]
+}
+
+// 4. Departments (Auto-generated during registration)
+model Department {
+  id        String  @id @default(uuid())
+  companyId String
+  name      String
+  headId    String?
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees Employee[]
+  roles     Role[]
+
+  createdAt DateTime @default(now())
+}
+
+// 5. Custom Roles & Designations
+model Role {
+  id        String @id @default(uuid())
+  companyId String
+  name      String
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  permissions String[] @default([]) // e.g., ["employee.create", "leave.approve"]
+
+  // --- NEW: Link back to employees ---
+  employees Employee[]
 }
 
 // 6. Company Settings (From the Setup Wizard)
 model CompanySettings {
-  id                   String   @id @default(uuid())
-  companyId            String   @unique
-  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(uuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   // General
-  companyName          String?
-  companyLogo          String?
-  officeAddress        String?
-  timeZone             String   @default("UTC")
-  workingDays          String[] // e.g. ["MONDAY", "TUESDAY", ...]
-  fiscalYear           String   @default("Jan - Dec")
+  companyName   String?
+  companyLogo   String?
+  officeAddress String?
+  timeZone      String   @default("UTC")
+  workingDays   String[] // e.g. ["MONDAY", "TUESDAY", ...]
+  fiscalYear    String   @default("Jan - Dec")
 
   // Attendance Configuration
   attendanceMethod     String   @default("GPS_OR_WIFI") // GPS_ONLY, WIFI_ONLY, GPS_AND_WIFI
@@ -175,75 +189,79 @@ model CompanySettings {
   oneDevicePerEmployee Boolean  @default(true)
 
   // Shift Settings
-  officeStartTime      String   @default("09:00")
-  officeEndTime        String   @default("18:00")
-  gracePeriodMinutes   Int      @default(15)
+  officeStartTime        String @default("09:00")
+  officeEndTime          String @default("18:00")
+  gracePeriodMinutes     Int    @default(15)
   minimumHoursForFullDay Float  @default(8.0)
-  halfDayMinHours      Float    @default(4.0)
+  halfDayMinHours        Float  @default(4.0)
 
   // Leave Defaults (Default quotas for the company)
-  defaultCasualLeaves  Int      @default(12)
-  defaultSickLeaves    Int      @default(10)
-  defaultEarnedLeaves  Int      @default(15)
+  defaultCasualLeaves Int @default(12)
+  defaultSickLeaves   Int @default(10)
+  defaultEarnedLeaves Int @default(15)
 
   // Security & Notifications
-  allowMultipleDevices Boolean  @default(false)
-  sessionTimeoutHours  Int      @default(24)
-  auditLogsEnabled     Boolean  @default(true)
+  allowMultipleDevices Boolean @default(false)
+  sessionTimeoutHours  Int     @default(24)
+  auditLogsEnabled     Boolean @default(true)
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   isIpRestrictionOn Boolean @default(false)
   officeIpAddress   String? // The IP address of the office Wi-Fi
 
   // --- NEW: Corporate Identity ---
-  
-  legalName             String?
-  industry              String?
-  registrationNumber    String?  // CIN / Company Reg No.
-  taxId                 String?  // GSTIN / VAT / EIN
-  website               String?
-  incorporationDate     String?  // Stored as YYYY-MM-DD
-  
-  // --- NEW: Contact & Location ---
-  officialEmail         String?
-  officialPhone         String?
-  
-  city                  String?
-  state                 String?
-  country               String?
-  zipCode               String?
-  
-  // --- NEW FIELDS FROM WIZARD ---
-  themeColor           String?    @default("#10b981") // Default emerald
- 
 
-   
+  legalName          String?
+  industry           String?
+  registrationNumber String? // CIN / Company Reg No.
+  taxId              String? // GSTIN / VAT / EIN
+  website            String?
+  incorporationDate  String? // Stored as YYYY-MM-DD
+
+  // --- NEW: Contact & Location ---
+  officialEmail String?
+  officialPhone String?
+
+  city    String?
+  state   String?
+  country String?
+  zipCode String?
+
+  // --- NEW FIELDS FROM WIZARD ---
+  themeColor String? @default("#10b981") // Default emerald
 }
 
 model Attendance {
-  id                 String   @id @default(uuid())
-  date               DateTime
-  
-  // These are optional (?) because ABSENT employees won't have them
-  checkInTime        DateTime? 
-  checkOutTime       DateTime? 
-  verificationMethod String?   
-  
-  status             String    @default("PRESENT")
-  
-  // Stores the calculated hours from the Cron Job
-  workingHours       Float?    
+  id   String   @id @default(uuid())
+  date DateTime
 
-  employeeId         String
-  employee           Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  
-  companyId          String
-  company            Company   @relation(fields: [companyId], references: [id])
-  
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  // These are optional (?) because ABSENT employees won't have them
+  checkInTime        DateTime?
+  checkOutTime       DateTime?
+  verificationMethod String?
+
+  status String @default("PRESENT")
+
+  // Stores the calculated hours from the Cron Job
+  workingHours Float?
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  overtimeHours Float?  @default(0) // Hours worked beyond the shift
+  isLate        Boolean @default(false)
+  isHalfDay     Boolean @default(false)
+
+  // Link to corrections
+  corrections AttendanceCorrection[]
 
   @@index([employeeId, companyId, date])
 }
@@ -264,28 +282,28 @@ enum LeaveStatus {
 }
 
 model LeaveBalance {
-  id          String   @id @default(uuid())
-  employeeId  String   @unique
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  casual      Int      @default(12)
-  medical     Int      @default(10)
-  earned      Int      @default(15)
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  casual     Int      @default(12)
+  medical    Int      @default(10)
+  earned     Int      @default(15)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
 }
 
 model LeaveRequest {
-  id          String      @id @default(uuid())
-  employeeId  String
-  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  companyId   String
-  company     Company     @relation(fields: [companyId], references: [id])
-  type        LeaveType
-  startDate   DateTime
-  endDate     DateTime
-  reason      String
-  status      LeaveStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
+  id         String      @id @default(uuid())
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id])
+  type       LeaveType
+  startDate  DateTime
+  endDate    DateTime
+  reason     String
+  status     LeaveStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
 }
 
 // --- NEW ENUMS ---
@@ -326,15 +344,14 @@ enum DeviceStatus {
   REJECTED
 }
 
-
 // --- NEW MODELS ---
 model EmployeeDocument {
   id             String         @id @default(uuid())
   employeeId     String
   employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   type           DocumentType
-  documentNumber String         // The actual ID string
-  fileUrl        String?        // Link to the uploaded image/PDF
+  documentNumber String // The actual ID string
+  fileUrl        String? // Link to the uploaded image/PDF
   status         DocumentStatus @default(PENDING)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -344,7 +361,7 @@ model EmployeeDevice {
   id               String       @id @default(uuid())
   employeeId       String
   employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  deviceName       String       // e.g., "Windows Chrome", "iPhone 14"
+  deviceName       String // e.g., "Windows Chrome", "iPhone 14"
   deviceIdentifier String       @unique // A browser fingerprint or MAC address
   status           DeviceStatus @default(PENDING)
   lastUsedAt       DateTime     @default(now())
@@ -366,33 +383,32 @@ model Shift {
   id           String     @id @default(uuid())
   companyId    String
   company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name         String     // e.g., "Morning", "Night Shift"
-  startTime    String     // e.g., "09:00"
-  endTime      String     // e.g., "17:00"
+  name         String // e.g., "Morning", "Night Shift"
+  startTime    String // e.g., "09:00"
+  endTime      String // e.g., "17:00"
   isNightShift Boolean    @default(false)
   schedules    Schedule[]
   createdAt    DateTime   @default(now())
 }
 
 model Schedule {
-  id          String    @id @default(uuid())
-  employeeId  String
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
-  shiftId     String?   // Optional because it could be a Day Off
-  shift       Shift?    @relation(fields: [shiftId], references: [id])
-  
-  date        DateTime  // The specific calendar date
-  isDayOff    Boolean   @default(false)
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  shiftId String? // Optional because it could be a Day Off
+  shift   Shift?  @relation(fields: [shiftId], references: [id])
+
+  date     DateTime // The specific calendar date
+  isDayOff Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([employeeId, date]) // An employee can only have one schedule record per day
 }
-
 
 // --- NEW ORGANIZATIONAL MODELS ---
 
@@ -400,29 +416,236 @@ model Branch {
   id          String       @id @default(uuid())
   companyId   String
   company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String       // e.g., "Headquarters", "Bangalore Tech Hub"
+  name        String // e.g., "Headquarters", "Bangalore Tech Hub"
   address     String?
   departments Department[]
   createdAt   DateTime     @default(now())
 }
 
-
 model LeavePolicy {
   id          String   @id @default(uuid())
   companyId   String
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String   // e.g., "Standard Annual Leave", "Maternity Leave"
-  daysAllowed Int      // e.g., 15
+  name        String // e.g., "Standard Annual Leave", "Maternity Leave"
+  daysAllowed Int // e.g., 15
   isPaid      Boolean  @default(true)
   createdAt   DateTime @default(now())
 }
 
+// ==========================================
+// EMPLOYEE DETAILS & LIFECYCLE
+// ==========================================
+
+model EmergencyContact {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  name         String
+  relationship String // e.g., "Spouse", "Parent", "Sibling"
+  phone        String
+  email        String?
+  isPrimary    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmployeeSkill {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  name             String // e.g., "React", "Project Management", "Fluent French"
+  proficiencyLevel String // e.g., "BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"
+
+  createdAt DateTime @default(now())
+}
+
+model EmploymentHistory {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  companyName      String
+  jobTitle         String
+  startDate        DateTime
+  endDate          DateTime? // Null if it was their previous job right before this one and they just left
+  reasonForLeaving String?
+
+  createdAt DateTime @default(now())
+}
+
+model EmployeeExit {
+  id         String   @id @default(uuid())
+  employeeId String   @unique // Unique because it's a 1-to-1 relationship
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  exitDate DateTime
+  reason   String // e.g., "RESIGNED", "TERMINATED", "RETIRED", "LAYOFF"
+  status   String   @default("PENDING") // PENDING, APPROVED, REJECTED (for notice periods)
+
+  exitInterviewNotes String? @db.Text // Text block for HR to leave notes
+  hasReturnedAssets  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// ATTENDANCE CORRECTIONS (Workflow)
+// ==========================================
+
+model AttendanceCorrection {
+  id           String      @id @default(uuid())
+  attendanceId String? // Optional: Might be null if they forgot to clock in entirely
+  attendance   Attendance? @relation(fields: [attendanceId], references: [id])
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  date              DateTime // The date they are trying to fix
+  requestedCheckIn  DateTime?
+  requestedCheckOut DateTime?
+  reason            String // e.g., "Forgot to clock in, phone died"
+
+  status String @default("PENDING") // PENDING, APPROVED, REJECTED
+
+  // Who approved it?
+  reviewedById String?
+  reviewerNote String? // e.g., "Approved, but don't let it happen again"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// NOTIFICATIONS SYSTEM
+// ==========================================
+
+model Notification {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  userId String // The recipient of the notification
+  user   Employee @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title   String // e.g., "Leave Approved"
+  message String // e.g., "Your leave for Oct 12 has been approved."
+  type    String @default("SYSTEM") // LEAVE, ATTENDANCE, PAYROLL, SYSTEM
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// AUDIT & COMPLIANCE
+// ==========================================
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  actorId String? // The user who performed the action (nullable for system events)
+  actor   Employee? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  action   String // e.g., "UPDATE", "CREATE", "DELETE", "LOGIN"
+  entity   String // e.g., "Employee", "LeaveRequest", "CompanySettings"
+  entityId String? // The ID of the record being changed
+
+  oldValue Json? // Snapshot of the data BEFORE the change
+  newValue Json? // Snapshot of the data AFTER the change
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+}
+
+model Holiday {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name String // e.g., "Christmas", "Diwali", "New Year"
+  date DateTime
+  type String   @default("NATIONAL") // NATIONAL, REGIONAL, COMPANY
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, date]) // A company can't have two holidays on the exact same day
+}
+
+// ==========================================
+// PAYROLL MODULE
+// ==========================================
+
 model SalaryStructure {
-  id          String   @id @default(uuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String   // e.g., "Standard Tier 1", "Executive Tier"
-  basicPayPct Float    // Percentage of total CTC (e.g., 50%)
-  hraPct      Float    // e.g., 20%
-  createdAt   DateTime @default(now())
+  id String @id @default(uuid())
+
+  employeeId String   @unique // 1-to-1 relationship (One active structure per employee)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Earnings
+  basicSalary     Float // Base pay
+  hra             Float @default(0) // House Rent Allowance
+  otherAllowances Float @default(0) // Fixed monthly allowances
+
+  // Deductions
+  pfContribution Float @default(0) // Provident Fund / Retirement
+  taxDeduction   Float @default(0) // Standard Tax / TDS
+
+  effectiveDate DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+}
+
+model PayrollRecord {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // The Pay Period
+  month Int // 1 to 12
+  year  Int // e.g., 2026
+
+  // Attendance & Time Data Snapshot
+  totalWorkingDays Int
+  presentDays      Int
+  unpaidLeaves     Int
+  overtimeHours    Float @default(0)
+
+  // Financial Snapshot (Immutable once processed)
+  basicPay   Float
+  allowances Float
+  deductions Float
+  netSalary  Float
+
+  status String @default("DRAFT") // DRAFT, APPROVED, PAID
+
+  // We store the full detailed breakdown as JSON so the PDF Payslip never changes, 
+  // even if the employee's SalaryStructure is updated years later!
+  breakdown Json?
+
+  processedById String?
+  processedDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Crucial: Prevent running payroll twice for the same employee in the same month
+  @@unique([employeeId, month, year])
 }
