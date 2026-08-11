@@ -44,7 +44,8 @@ export default function LoginPage() {
 
     try {
       // Send login request to NestJS backend
-      const response = await axios.post("http://localhost:5000/auth/login", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const response = await axios.post(`${apiUrl}/auth/login`, {
         email: values.email,
         password: values.password,
       });
