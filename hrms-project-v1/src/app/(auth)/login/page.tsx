@@ -105,7 +105,16 @@ export default function LoginPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Password</FormLabel>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/forgot-password")}
+                      className="text-sm text-emerald-600 hover:underline font-medium"
+                    >
+                      Forgot?
+                    </button>
+                  </div>
                   <FormControl>
                     <Input placeholder="••••••••" type="password" {...field} />
                   </FormControl>

@@ -1,9 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards, Request,Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+  Request,
+  Delete,
+} from '@nestjs/common';
 import { LeaveService } from './leave.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateLeaveDto } from './dto/create-leave.dto';
 import { LeaveStatus } from '../../generated/prisma/client';
-import { RequirePermissions } from 'src/auth/decorators/require-permissions.decorator';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 
 @Controller('leaves')
 @UseGuards(AuthGuard)
@@ -12,7 +22,11 @@ export class LeaveController {
 
   @Post()
   async create(@Request() req, @Body() dto: CreateLeaveDto) {
-    return this.leaveService.createLeaveRequest(req.user.sub, req.user.companyId, dto);
+    return this.leaveService.createLeaveRequest(
+      req.user.sub,
+      req.user.companyId,
+      dto,
+    );
   }
 
   @Get('my')
@@ -25,9 +39,31 @@ export class LeaveController {
     return this.leaveService.getAllCompanyLeaves(req.user.companyId);
   }
 
+  @Get('balance')
+  async getBalance(@Request() req) {
+    return this.leaveService.getLeaveBalance(req.user.sub, req.user.companyId);
+  }
+
+  // ✅ FIX 5: Use getMyAllocations instead of getMyBalance
+  @Get('my-balance')
+  async getMyBalance(@Request() req) {
+    return this.leaveService.getMyAllocations(req.user.sub);
+  }
+
+  // ✅ FIX 6: Add req.user.sub as the 5th argument (managerId)
   @Patch(':id/status')
-  async updateStatus(@Request() req, @Param('id') id: string, @Body('status') status: LeaveStatus) {
-    return this.leaveService.updateLeaveStatus(req.user.companyId, id, status, req.user.role);
+  async updateStatus(
+    @Request() req,
+    @Param('id') id: string,
+    @Body('status') status: LeaveStatus,
+  ) {
+    return this.leaveService.updateLeaveStatus(
+      req.user.companyId,
+      id,
+      status,
+      req.user.role,
+      req.user.sub, // <--- Added managerId here!
+    );
   }
 
   @Get('holidays')
@@ -39,6 +75,17 @@ export class LeaveController {
   @RequirePermissions('leave.manage') // Only HR/Admins can add holidays
   async addHoliday(@Request() req, @Body() body: any) {
     return this.leaveService.addHoliday(req.user.companyId, body);
+  }
+
+  @Post('policy')
+  // @RequirePermissions('leave.manage') // Uncomment if using your custom decorator
+  async createPolicy(@Request() req, @Body() body: any) {
+    return this.leaveService.createLeavePolicy(req.user.companyId, body);
+  }
+
+  @Get('policy')
+  async getPolicies(@Request() req) {
+    return this.leaveService.getCompanyPolicies(req.user.companyId);
   }
 
   @Delete('holidays/:id')

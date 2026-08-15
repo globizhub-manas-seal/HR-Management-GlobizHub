@@ -2,174 +2,267 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PayrollService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  // 1. Set or Update an Employee's Salary Structure
-  async upsertSalaryStructure(employeeId: string, data: any) {
-    return this.prisma.salaryStructure.upsert({
-      where: { employeeId },
-      update: data,
-      create: { ...data, employeeId },
+  // ==========================================
+  // HELPER: WORKING DAYS CALCULATION
+  // ==========================================
+
+  // Reusing the exact same logic from LeaveService to ensure LOP math matches Leave math perfectly
+  private async calculateWorkingDaysInRange(
+    startDate: Date,
+    endDate: Date,
+    companyId: string,
+  ): Promise<number> {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const holidays = await this.prisma.holiday.findMany({
+      where: { companyId, date: { gte: start, lte: end } },
+      select: { date: true },
     });
+
+    const holidayDates = holidays.map((h) => h.date.getTime());
+    let workingDays = 0;
+    let currentDate = new Date(start);
+
+    while (currentDate <= end) {
+      const dayOfWeek = currentDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isHoliday = holidayDates.includes(currentDate.getTime());
+
+      if (!isWeekend && !isHoliday) {
+        workingDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return workingDays;
   }
 
-  // 2. THE PAYROLL ENGINE: Generate a monthly payslip
-  async generatePayroll(
+  // ==========================================
+  // CORE: GENERATE MONTHLY PAYROLL
+  // ==========================================
+
+  async generateMonthlyPayroll(
     companyId: string,
     employeeId: string,
     month: number,
     year: number,
-    processorId: string,
+    generatedById: string,
   ) {
-    // A. Verify the employee and their salary structure
-    const employee = await this.prisma.employee.findFirst({
-      where: { id: employeeId, companyId },
-      include: { salaryStructure: true },
+    // 1. Define the exact boundaries of the payroll month
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0); // 0th day of next month = last day of this month
+
+    // 2. Prevent Double-Processing
+    const existingRecord = await this.prisma.payrollRecord.findFirst({
+      where: { employeeId, month, year },
     });
-
-    if (!employee)
-      throw new NotFoundException('Employee not found in your workspace.');
-    if (!employee.salaryStructure)
+    if (existingRecord) {
       throw new BadRequestException(
-        'No salary structure defined for this employee. Please set it up first.',
-      );
-
-    // B. Prevent double-processing
-    const existingRecord = await this.prisma.payrollRecord.findUnique({
-      where: {
-        employeeId_month_year: { employeeId, month, year },
-      },
-    });
-
-    if (existingRecord && existingRecord.status === 'PAID') {
-      throw new BadRequestException(
-        'Payroll for this month has already been processed and paid.',
+        `Payroll for ${month}/${year} has already been generated for this employee.`,
       );
     }
 
-    // C. Calculate Date Ranges for the Month
-    const startOfMonth = new Date(year, month - 1, 1);
-    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+    // 3. Fetch the Employee's Active Salary Structure
+    const structure = await this.prisma.salaryStructure.findUnique({
+      where: { employeeId },
+    });
+    if (!structure) {
+      throw new NotFoundException(
+        'No active salary structure found for this employee.',
+      );
+    }
 
-    // Assume a standard 30-day payroll divisor (standard HR practice)
-    const STANDARD_DAYS_IN_MONTH = 30;
-    const STANDARD_WORK_HOURS_PER_DAY = 8;
-
-    // D. Fetch Attendance & Leave Data
-    // Find all approved unpaid leaves (Loss of Pay - LOP)
-    const unpaidLeaves = await this.prisma.leaveRequest.count({
+    // 4. THE CROSS-MONTH LOP CALCULATOR
+    // Fetch all UNPAID leaves that OVERLAP with this month
+    const overlappingUnpaidLeaves = await this.prisma.leaveRequest.findMany({
       where: {
         employeeId,
         status: 'APPROVED',
-        type: 'UNPAID', // Assuming you have an UNPAID or LOP type
-        startDate: { gte: startOfMonth },
-        endDate: { lte: endOfMonth },
+        type: 'UNPAID',
+        startDate: { lte: endOfMonth }, // Started before month ended
+        endDate: { gte: startOfMonth }, // Ended after month started
       },
     });
 
-    // Aggregate total overtime hours from the attendance table
-    const attendanceData = await this.prisma.attendance.aggregate({
-      where: {
-        employeeId,
-        date: { gte: startOfMonth, lte: endOfMonth },
-        status: 'PRESENT',
-      },
-      _sum: { overtimeHours: true },
-      _count: { id: true },
-    });
+    let totalUnpaidDays = 0;
 
-    const presentDays = attendanceData._count.id || 0;
-    const totalOvertime = attendanceData._sum.overtimeHours || 0;
+    for (const leave of overlappingUnpaidLeaves) {
+      // Find the mathematical intersection of the leave dates and the month boundaries
+      const effectiveStart =
+        leave.startDate < startOfMonth ? startOfMonth : leave.startDate;
+      const effectiveEnd =
+        leave.endDate > endOfMonth ? endOfMonth : leave.endDate;
 
-    // E. THE MATH (The fun part!)
-    const struct = employee.salaryStructure;
+      // Calculate working days just for this specific chunk inside this month
+      const chunkDays = await this.calculateWorkingDaysInRange(
+        effectiveStart,
+        effectiveEnd,
+        companyId,
+      );
+      totalUnpaidDays += chunkDays;
+    }
 
-    // Daily Rate Calculation
-    const dailyRate = struct.basicSalary / STANDARD_DAYS_IN_MONTH;
-    const hourlyRate = dailyRate / STANDARD_WORK_HOURS_PER_DAY;
+    // 5. FINANCIAL MATH
+    // Standard HR math assumes a 30-day billing divisor, or actual days in month. We'll use actual days.
+    const daysInMonth = endOfMonth.getDate();
+    const dailyRate = structure.basicSalary / daysInMonth;
+    const lopDeduction = parseFloat((totalUnpaidDays * dailyRate).toFixed(2));
 
-    // Loss of Pay Deduction
-    const lopDeduction = unpaidLeaves * dailyRate;
+    const grossEarnings =
+      structure.basicSalary + structure.hra + structure.otherAllowances;
+    const standardDeductions =
+      structure.pfContribution + structure.taxDeduction;
+    const totalDeductions = standardDeductions + lopDeduction;
 
-    // Overtime Calculation (Standard is 1.5x hourly rate)
-    const overtimePay = totalOvertime * (hourlyRate * 1.5);
+    const netSalary = parseFloat((grossEarnings - totalDeductions).toFixed(2));
 
-    // Final Totals
-    const totalEarnings =
-      struct.basicSalary + struct.hra + struct.otherAllowances + overtimePay;
-    const totalDeductions =
-      struct.pfContribution + struct.taxDeduction + lopDeduction;
-    const netSalary = totalEarnings - totalDeductions;
-
-    // Breakdown Snapshot (Freezing the data so the PDF never changes)
-    const breakdown = {
-      earnings: {
-        basic: struct.basicSalary,
-        hra: struct.hra,
-        otherAllowances: struct.otherAllowances,
-        overtime: Math.round(overtimePay * 100) / 100,
-      },
-      deductions: {
-        providentFund: struct.pfContribution,
-        tax: struct.taxDeduction,
-        lossOfPay: Math.round(lopDeduction * 100) / 100,
-      },
-      stats: {
-        presentDays,
-        unpaidLeaves,
-        totalOvertime,
-      },
-    };
-
-    // F. Save to Database
-    return this.prisma.payrollRecord.upsert({
-      where: {
-        employeeId_month_year: { employeeId, month, year },
-      },
-      update: {
-        basicPay: struct.basicSalary,
-        allowances: struct.hra + struct.otherAllowances + overtimePay,
-        deductions: totalDeductions,
-        netSalary: Math.round(netSalary * 100) / 100,
-        totalWorkingDays: STANDARD_DAYS_IN_MONTH,
-        presentDays,
-        unpaidLeaves,
-        overtimeHours: totalOvertime,
-        breakdown,
-        processedById: processorId,
-        processedDate: new Date(),
-      },
-      create: {
+    // 6. CREATE THE IMMUTABLE SNAPSHOT
+    return this.prisma.payrollRecord.create({
+      data: {
         companyId,
         employeeId,
         month,
         year,
-        basicPay: struct.basicSalary,
-        allowances: struct.hra + struct.otherAllowances + overtimePay,
+        totalWorkingDays: daysInMonth,
+        presentDays: daysInMonth - totalUnpaidDays,
+        unpaidLeaves: totalUnpaidDays,
+
+        basicPay: structure.basicSalary,
+        allowances: structure.hra + structure.otherAllowances,
         deductions: totalDeductions,
-        netSalary: Math.round(netSalary * 100) / 100,
-        totalWorkingDays: STANDARD_DAYS_IN_MONTH,
-        presentDays,
-        unpaidLeaves,
-        overtimeHours: totalOvertime,
-        breakdown,
-        processedById: processorId,
+        netSalary,
+
+        status: 'DRAFT', // Leaves it as a draft so HR can review before marking 'PAID'
+        processedById: generatedById,
         processedDate: new Date(),
-        status: 'DRAFT',
+
+        // 🔒 IMMUTABLE JSON PAYSLIP SNAPSHOT
+        breakdown: {
+          earnings: {
+            basic: structure.basicSalary,
+            hra: structure.hra,
+            other: structure.otherAllowances,
+            total: grossEarnings,
+          },
+          deductions: {
+            pf: structure.pfContribution,
+            tax: structure.taxDeduction,
+            lop: lopDeduction,
+            lopDays: totalUnpaidDays,
+            total: totalDeductions,
+          },
+        },
       },
     });
   }
 
-  // 3. Get Payroll History for an Employee
+  // ==========================================
+  // HR/ADMIN: GET COMPANY PAYROLLS
+  // ==========================================
+
+  async getCompanyPayrollByMonth(
+    companyId: string,
+    month: number,
+    year: number,
+  ) {
+    return this.prisma.payrollRecord.findMany({
+      where: { companyId, month, year },
+      include: {
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            department: true,
+          },
+        },
+      },
+      orderBy: { netSalary: 'desc' },
+    });
+  }
+
+  // ==========================================
+  // EMPLOYEE: GET MY PAYSLIPS
+  // ==========================================
+
+  // ==========================================
+  // HR/ADMIN: SET SALARY STRUCTURE
+  // ==========================================
+  async upsertSalaryStructure(
+    companyId: string,
+    employeeId: string,
+    data: any,
+  ) {
+    return this.prisma.salaryStructure.upsert({
+      where: { employeeId },
+      update: { ...data },
+      create: {
+        ...data,
+        employeeId,
+        companyId,
+      },
+    });
+  }
+
+  // ==========================================
+  // EMPLOYEE: GET MY PAYSLIPS
+  // ==========================================
   async getMyPayslips(employeeId: string) {
     return this.prisma.payrollRecord.findMany({
-      where: { employeeId, status: 'PAID' },
+      // Notice we only fetch APPROVED or PAID payslips!
+      // We don't want employees seeing DRAFTs while HR is working on them.
+      where: {
+        employeeId,
+        status: { in: ['APPROVED', 'PAID'] },
+      },
+      include: {
+        employee: {
+          select: { firstName: true, lastName: true, employeeCode: true },
+        },
+      },
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    });
+  }
+
+  // ==========================================
+  // HR/ADMIN: UPDATE PAYROLL STATUS
+  // ==========================================
+  async updatePayrollStatus(
+    companyId: string,
+    recordId: string,
+    status: string,
+    role: string,
+  ) {
+    // 1. Role Guard
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'MANAGER'].includes(role)) {
+      throw new ForbiddenException(
+        'You do not have permission to approve payroll.',
+      );
+    }
+
+    // 2. Verify Record Ownership
+    const record = await this.prisma.payrollRecord.findUnique({
+      where: { id: recordId },
+    });
+
+    if (!record || record.companyId !== companyId) {
+      throw new NotFoundException('Payroll record not found.');
+    }
+
+    // 3. Update Status
+    return this.prisma.payrollRecord.update({
+      where: { id: recordId },
+      data: { status },
     });
   }
 }

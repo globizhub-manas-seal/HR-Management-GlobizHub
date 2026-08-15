@@ -51,15 +51,16 @@ model Company {
   updatedAt    DateTime         @updatedAt
 
   // Existing Relations
-  employees     Employee[]
-  departments   Department[]
-  roles         Role[]
-  settings      CompanySettings?
-  attendances   Attendance[]
-  leaveBalances LeaveBalance[]
-  leaveRequests LeaveRequest[]
-  schedules     Schedule[]
-  shifts        Shift[]
+  employees         Employee[]
+  departments       Department[]
+  roles             Role[]
+  settings          CompanySettings?
+  attendances       Attendance[]
+  leaveAllocations  LeaveAllocation[]
+  leaveTransactions LeaveTransaction[]
+  leaveRequests     LeaveRequest[]
+  schedules         Schedule[]
+  shifts            Shift[]
 
   // ✅ Add these
   branches         Branch[]
@@ -69,6 +70,7 @@ model Company {
   auditLogs        AuditLog[]
   holidays         Holiday[]
   payrollRecords   PayrollRecord[]
+  leaveBalances    LeaveBalance[]
 }
 
 // 3. The Employee Table (Includes the Administrator)
@@ -94,17 +96,15 @@ model Employee {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  leaveBalance  LeaveBalance?
-  leaveRequests LeaveRequest[]
-  schedules     Schedule[]
+  schedules Schedule[]
 
-  profilePhoto         String?
-  bloodGroup           BloodGroup?
-  gender               Gender?
-  themePreference      String                @default("SYSTEM") // LIGHT, DARK, SYSTEM
-  timeFormat           String                @default("12h")
-  joiningDate          DateTime              @default(now())
-  documents            EmployeeDocument[]
+  profilePhoto    String?
+  bloodGroup      BloodGroup?
+  gender          Gender?
+  themePreference String      @default("SYSTEM") // LIGHT, DARK, SYSTEM
+  timeFormat      String      @default("12h")
+  joiningDate     DateTime    @default(now())
+
   devices              EmployeeDevice[]
   notificationSettings NotificationSettings?
 
@@ -125,6 +125,25 @@ model Employee {
   auditLogs       AuditLog[]
   salaryStructure SalaryStructure?
   payrollRecords  PayrollRecord[]
+  documents       Document[]
+
+  // Add these for Password Reset
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
+  // Inside the Employee model
+  leaveAllocations  LeaveAllocation[]
+  leaveRequests     LeaveRequest[]
+  leaveTransactions LeaveTransaction[]
+
+  approvedLeaves LeaveRequest[] @relation("ManagerApprovals")
+  leaveBalance   LeaveBalance?
+
+  bankName        String?
+  accountNumber   String?
+  ifscCode        String?
+  panNumber       String?
+  nationalId      String? // e.g., Aadhaar, SSN, etc.
 }
 
 // 4. Departments (Auto-generated during registration)
@@ -267,21 +286,6 @@ model Attendance {
   @@index([employeeId, companyId, date])
 }
 
-enum LeaveType {
-  CASUAL
-  MEDICAL
-  EARNED
-  MATERNITY
-  PATERNITY
-  UNPAID
-}
-
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 model LeaveBalance {
   id         String   @id @default(uuid())
   employeeId String   @unique
@@ -291,20 +295,6 @@ model LeaveBalance {
   earned     Int      @default(15)
   companyId  String
   company    Company  @relation(fields: [companyId], references: [id])
-}
-
-model LeaveRequest {
-  id         String      @id @default(uuid())
-  employeeId String
-  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  companyId  String
-  company    Company     @relation(fields: [companyId], references: [id])
-  type       LeaveType
-  startDate  DateTime
-  endDate    DateTime
-  reason     String
-  status     LeaveStatus @default(PENDING)
-  createdAt  DateTime    @default(now())
 }
 
 // --- NEW ENUMS ---
@@ -325,20 +315,6 @@ enum BloodGroup {
   O_NEG
 }
 
-enum DocumentType {
-  PAN
-  AADHAAR
-  PASSPORT
-  DRIVERS_LICENSE
-  OTHER
-}
-
-enum DocumentStatus {
-  PENDING
-  VERIFIED
-  REJECTED
-}
-
 enum DeviceStatus {
   PENDING
   APPROVED
@@ -346,17 +322,6 @@ enum DeviceStatus {
 }
 
 // --- NEW MODELS ---
-model EmployeeDocument {
-  id             String         @id @default(uuid())
-  employeeId     String
-  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  type           DocumentType
-  documentNumber String // The actual ID string
-  fileUrl        String? // Link to the uploaded image/PDF
-  status         DocumentStatus @default(PENDING)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-}
 
 model EmployeeDevice {
   id               String       @id @default(uuid())
@@ -390,6 +355,7 @@ model Shift {
   isNightShift Boolean    @default(false)
   schedules    Schedule[]
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model Schedule {
@@ -421,16 +387,6 @@ model Branch {
   address     String?
   departments Department[]
   createdAt   DateTime     @default(now())
-}
-
-model LeavePolicy {
-  id          String   @id @default(uuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String // e.g., "Standard Annual Leave", "Maternity Leave"
-  daysAllowed Int // e.g., 15
-  isPaid      Boolean  @default(true)
-  createdAt   DateTime @default(now())
 }
 
 // ==========================================
@@ -649,4 +605,189 @@ model PayrollRecord {
 
   // Crucial: Prevent running payroll twice for the same employee in the same month
   @@unique([employeeId, month, year])
+}
+
+// Define the distinct categories you mentioned
+enum DocumentCategory {
+  EMPLOYMENT // Offer Letters, NDAs
+  COMPLIANCE // PAN, Passports, Bank Proofs
+  COMPANY // Policies, Handbooks
+  PERSONAL // Employee's private files
+}
+
+// Track the workflow state
+enum DocumentStatus {
+  REQUESTED // HR asked for it, employee hasn't uploaded yet
+  SUBMITTED // Employee uploaded, waiting for HR review
+  VERIFIED // HR approved it
+  REJECTED // HR rejected it (e.g., blurry image)
+}
+
+model Document {
+  id   String @id @default(uuid())
+  name String // e.g., "Degree Certificate"
+
+  // The categorization
+  category DocumentCategory
+  status   DocumentStatus   @default(SUBMITTED)
+
+  // The actual file link (using the AWS S3/MinIO setup we built!)
+  fileUrl String?
+
+  // E-Signature / Acknowledgement tracking
+  requiresSign Boolean   @default(false)
+  isSigned     Boolean   @default(false)
+  signedAt     DateTime?
+
+  // Relations
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  // Scoping for company-wide documents (e.g. policies)
+  companyId  String?
+
+  // Who uploaded it? (HR Admin or the Employee?)
+  uploadedById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // NEW: HR Feedback for rejected documents
+  rejectionReason String? @db.Text
+
+  // ✅ NEW: Added for HR Document Requests
+  dueDate        DateTime?
+  requestMessage String?   @db.Text
+}
+
+// ==========================================
+// --- LEAVE MANAGEMENT MODULE ---
+// ==========================================
+
+enum LeaveType {
+  CASUAL
+  MEDICAL
+  EARNED
+  MATERNITY
+  PATERNITY
+  COMP_OFF
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum PeriodType {
+  YEARLY
+  QUARTERLY
+  MONTHLY
+}
+
+enum TransactionType {
+  ALLOCATION
+  LEAVE_USED
+  LEAVE_REVERSED
+  EXPIRY
+  ADJUSTMENT
+}
+
+// 1. The Central Rules (Managed by HR/Admin)
+model LeavePolicy {
+  id               String     @id @default(uuid())
+  companyId        String
+  name             String // e.g., "Standard Earned Leave"
+  type             LeaveType
+  daysPerYear      Float // e.g., 12
+  periodType       PeriodType @default(YEARLY) // How it's distributed
+  isPaid           Boolean    @default(true)
+  carryForward     Boolean    @default(false)
+  requiresApproval Boolean    @default(true)
+
+  allocations LeaveAllocation[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// 2. The Employee's Time Buckets (Replaces LeaveBalance)
+model LeaveAllocation {
+  id            String      @id @default(uuid())
+  employeeId    String
+  companyId     String
+  leavePolicyId String
+  leavePolicy   LeavePolicy @relation(fields: [leavePolicyId], references: [id], onDelete: Restrict)
+
+  year         Int
+  periodNumber Int // 1 for Yearly, 1-4 for Q1-Q4, 1-12 for Jan-Dec
+
+  allocatedDays Float
+  usedDays      Float @default(0)
+  expiredDays   Float @default(0)
+
+  startDate DateTime
+  endDate   DateTime
+  isExpired Boolean  @default(false)
+
+  transactions LeaveTransaction[]
+  requests     LeaveRequest[]
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, leavePolicyId, year, periodNumber])
+}
+
+// 3. The Ledger / Audit Trail (New!)
+model LeaveTransaction {
+  id           String          @id @default(uuid())
+  employeeId   String
+  companyId    String
+  allocationId String
+  allocation   LeaveAllocation @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+
+  type        TransactionType
+  amount      Float // e.g., +3 (Allocation), -1 (Used)
+  description String?
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// 4. The Request
+model LeaveRequest {
+  id         String @id @default(uuid())
+  employeeId String
+  companyId  String
+
+  // Tying the request to a specific bucket
+  allocationId String?
+  allocation   LeaveAllocation? @relation(fields: [allocationId], references: [id])
+
+  type      LeaveType
+  startDate DateTime
+  endDate   DateTime
+  totalDays Float
+  reason    String      @db.Text
+  status    LeaveStatus @default(PENDING)
+
+  rejectionReason String? @db.Text
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade) // ✅ ADD THIS LINE
+
+  // (Optional but recommended) Map the managerId to the Employee table:
+  managerId String?
+  manager   Employee? @relation("ManagerApprovals", fields: [managerId], references: [id]) // ✅ ADD THIS LINE
 }

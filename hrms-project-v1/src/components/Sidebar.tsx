@@ -14,7 +14,9 @@ import {
   FolderOpen, 
   HelpCircle, 
   CalendarCheck,
-  CalendarIcon
+  CalendarIcon,
+  Banknote,   // ✅ New Payroll Icon
+  Calculator  // ✅ New Payroll Icon
 } from "lucide-react";
 
 export default function Sidebar({ role, className }: { role?: string; className?: string }) {
@@ -25,8 +27,8 @@ export default function Sidebar({ role, className }: { role?: string; className?
     { name: "Dashboard", href: "/workspace/dashboard", icon: LayoutDashboard },
     { name: "Clock ins/outs", href: "/workspace/attendance", icon: Clock },
     { name: "Schedules", href: "/workspace/schedules", icon: Calendar },
-    
     { name: "Time off", href: "/workspace/leave", icon: CalendarClock },
+    { name: "My Payslips", href: "/workspace/my-payslips", icon: Banknote }, // ✅ Added Employee Payslips
     { name: "Shifts", href: "/workspace/shifts", icon: Briefcase },
     { name: "Tasks", href: "/workspace/tasks", icon: CheckSquare },
     { name: "Documents", href: "/workspace/documents", icon: FolderOpen },
@@ -37,10 +39,14 @@ export default function Sidebar({ role, className }: { role?: string; className?
     { name: "Dashboard", href: "/workspace/dashboard", icon: LayoutDashboard },
     { name: "Employees", href: "/workspace/employees", icon: Users },
     { name: "Attendance", href: "/workspace/attendance", icon: CalendarClock },
+    { name: "Time off", href: "/workspace/leave", icon: CalendarClock },
     { name: "Leave Approvals", href: "/workspace/leave/admin", icon: CalendarCheck },
-    { name: "Documents", href: "/workspace/documents", icon: FolderOpen },
-    { name: "Settings", href: "/workspace/settings", icon: Settings },
+    { name: "Leave Policies", href: "/workspace/leave/admin/settings", icon: Settings },
+    { name: "Payroll Processing", href: "/workspace/payroll/admin", icon: Calculator }, // ✅ Added HR Payroll Engine
+    { name: "My Payslips", href: "/workspace/my-payslips", icon: Banknote }, // ✅ Added Admin's own Payslips
+    { name: "Documents", href: "/workspace/documents/admin", icon: FolderOpen },
     { name: "Manage Schedules", href: "/workspace/schedules/admin", icon: CalendarIcon },
+    { name: "Settings", href: "/workspace/settings", icon: Settings },
   ];
 
   const links = role === "EMPLOYEE" ? employeeLinks : adminLinks;
@@ -55,7 +61,6 @@ export default function Sidebar({ role, className }: { role?: string; className?
           </span>
         </div>
 
-        {/* Navigation Links */}
         {/* Navigation Links */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
           {links.map((link) => {

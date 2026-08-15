@@ -147,7 +147,7 @@ export default function SettingsPage() {
           <TabsTrigger value="attendance" className="flex-1 min-w-[120px]"><MapPin className="w-4 h-4 mr-2" /> Attendance</TabsTrigger>
           <TabsTrigger value="shifts" className="flex-1 min-w-[120px]"><Clock className="w-4 h-4 mr-2" /> Shifts</TabsTrigger>
           <TabsTrigger value="leaves" className="flex-1 min-w-[120px]"><Wifi className="w-4 h-4 mr-2" /> Leaves</TabsTrigger>
-          <TabsTrigger value="payroll" className="flex-1 min-w-[120px]"><Banknote className="w-4 h-4 mr-2" /> Payroll</TabsTrigger>
+          
           <TabsTrigger value="security" className="flex-1 min-w-[120px]"><Shield className="w-4 h-4 mr-2" /> Security</TabsTrigger>
         </TabsList>
 
@@ -476,35 +476,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* TAB: PAYROLL (Salary Structures) */}
-        <TabsContent value="payroll" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle>Salary Structures & Allowances</CardTitle>
-                <CardDescription>Define how CTC is broken down into Basic, HRA, and Allowances.</CardDescription>
-              </div>
-              <Button className="bg-emerald-500 hover:bg-emerald-600 text-white"><Plus className="w-4 h-4 mr-2" /> Create Structure</Button>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div className="p-4 border rounded-xl bg-slate-50 space-y-2">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-bold text-slate-900">Standard Tier 1</h4>
-                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full font-medium">Default</span>
-                  </div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">Basic Pay:</span> <span className="font-medium">50% of CTC</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">HRA:</span> <span className="font-medium">20% of Basic</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">Special Allowance:</span> <span className="font-medium">Remaining</span></div>
-                  <div className="flex justify-end pt-4 space-x-2">
-                    <Button variant="outline" size="sm">Edit</Button>
-                    <Button variant="ghost" size="sm" className="text-rose-500">Delete</Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        
 
         {/* TAB 5: SECURITY */}
         <TabsContent value="security" className="mt-6 space-y-6">

@@ -1,4 +1,5 @@
 "use client";
+
 import { AddEmployeeModal } from "@/components/employees/AddEmployeeModal";
 import { EditEmployeeModal } from "@/components/employees/EditEmployeeModal";
 import { useEffect, useState } from "react";
@@ -6,6 +7,7 @@ import axios from "axios";
 import { Loader2, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge"; // ✅ Added Badge import
 import {
   Table,
   TableBody,
@@ -15,9 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-
 interface Employee {
   id: string;
+  employeeCode?: string; // ✅ Added employeeCode to the interface
   firstName: string;
   lastName: string;
   email: string;
@@ -67,7 +69,8 @@ export default function EmployeeDirectoryPage() {
 
   const filteredEmployees = employees.filter(emp => 
     `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.email.toLowerCase().includes(searchTerm.toLowerCase())
+    emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (emp.employeeCode && emp.employeeCode.toLowerCase().includes(searchTerm.toLowerCase())) // ✅ Added search by ID
   );
 
   return (
@@ -91,7 +94,7 @@ export default function EmployeeDirectoryPage() {
           <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Search employees..." 
+              placeholder="Search employees or IDs..." 
               className="pl-9 bg-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -108,6 +111,7 @@ export default function EmployeeDirectoryPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Employee ID</TableHead> {/* ✅ Added Column Header */}
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Department</TableHead>
@@ -117,7 +121,7 @@ export default function EmployeeDirectoryPage() {
             <TableBody>
               {filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-slate-500">
+                  <TableCell colSpan={6} className="h-24 text-center text-slate-500">
                     No employees found.
                   </TableCell>
                 </TableRow>
@@ -127,6 +131,18 @@ export default function EmployeeDirectoryPage() {
                     <TableCell className="font-medium text-slate-900">
                       {emp.firstName} {emp.lastName}
                     </TableCell>
+                    
+                    {/* ✅ Added Employee ID Cell */}
+                    <TableCell>
+                      {emp.employeeCode ? (
+                        <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-mono text-xs tracking-wider">
+                          {emp.employeeCode}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">N/A</span>
+                      )}
+                    </TableCell>
+
                     <TableCell className="text-slate-500">{emp.email}</TableCell>
                     <TableCell>
                       <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 capitalize">
