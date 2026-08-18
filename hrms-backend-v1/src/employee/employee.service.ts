@@ -91,23 +91,39 @@ export class EmployeeService {
     if (!company) throw new NotFoundException('Company not found');
 
     // 2. Fetch Department to get the second prefix (if a departmentId is provided)
-   let department: any = null;
+    let department: any = null;
     const deptId = (dto as any).departmentId;
     if (deptId) {
       department = await this.prisma.department.findUnique({ where: { id: deptId } });
     }
 
-    // 3. Create Prefixes (First 3 letters, uppercase)
-    const compPrefix = company.name.substring(0, 3).toUpperCase();
-    const deptPrefix = department ? department.name.substring(0, 3).toUpperCase() : 'GEN';
+    // 3. Create Prefixes (First 3 alphanumeric letters, uppercase)
+    const compPrefix = company.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase() || 'EMP';
+    const deptPrefix = department ? department.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase() || 'GEN' : 'GEN';
 
-    // 4. Find the current count to assign the next sequential number
-    const currentEmployeeCount = await this.prisma.employee.count({
-      where: { companyId }
+    // 4. Find the max sequential number from existing employee codes to avoid duplicate collisions on deletion
+    const existingEmployees = await this.prisma.employee.findMany({
+      where: {
+        companyId,
+        employeeCode: { not: null },
+      },
+      select: { employeeCode: true },
     });
 
+    let maxNum = 0;
+    for (const emp of existingEmployees) {
+      if (emp.employeeCode) {
+        const parts = emp.employeeCode.split('-');
+        const lastPart = parts[parts.length - 1];
+        const num = parseInt(lastPart, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+
     // 5. Combine them into the final code (e.g., "TAT-INF-001")
-    const sequentialNumber = String(currentEmployeeCount + 1).padStart(3, '0');
+    const sequentialNumber = String(maxNum + 1).padStart(3, '0');
     const generatedEmployeeCode = `${compPrefix}-${deptPrefix}-${sequentialNumber}`;
     // ==========================================
 

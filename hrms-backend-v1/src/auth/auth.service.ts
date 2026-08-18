@@ -41,6 +41,9 @@ export class AuthService {
     // 4. THE MASSIVE TRANSACTION
     // We create the Company, the Settings, the Departments, the Roles, and the Admin Employee all at once!
     // Inside registerWizard function:
+    const compPrefix = dto.companyName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase() || 'EMP';
+    const generatedEmployeeCode = `${compPrefix}-GEN-001`;
+
     const company = await this.prisma.company.create({
       data: {
         name: dto.companyName,
@@ -62,6 +65,7 @@ export class AuthService {
             phone: dto.adminPhone,
             password: hashedPassword, // <-- Changed from passwordHash to password
             role: 'SUPER_ADMIN',
+            employeeCode: generatedEmployeeCode,
           },
         },
         settings: {
