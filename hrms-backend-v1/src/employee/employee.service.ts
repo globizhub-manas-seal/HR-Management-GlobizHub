@@ -146,21 +146,28 @@ export class EmployeeService {
 
     const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${inviteToken}`;
 
-    await this.resend.emails.send({
-      from: 'TeamHub HRMS <onboarding@resend.dev>',
-      to: dto.email,
-      subject: 'Welcome to the Team! Set your password',
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #10b981;">Welcome to TeamHub, ${dto.firstName}!</h2>
-          <p>You have been invited to join your company's HRMS workspace.</p>
-          <p>Your official Employee ID is: <strong>${generatedEmployeeCode}</strong></p>
-          <p>Please click the secure link below to set your permanent password and log in.</p>
-          <a href="${magicLink}" style="display: inline-block; padding: 10px 20px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Set My Password</a>
-          <p style="margin-top: 30px; font-size: 12px; color: #888;">If you didn't expect this invitation, you can safely ignore this email.</p>
-        </div>
-      `,
-    });
+    try {
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+      await this.resend.emails.send({
+        from: fromEmail,
+        to: dto.email,
+        subject: 'Welcome to the Team! Set your password',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #10b981;">Welcome to TeamHub, ${dto.firstName}!</h2>
+            <p>You have been invited to join your company's HRMS workspace.</p>
+            <p>Your official Employee ID is: <strong>${generatedEmployeeCode}</strong></p>
+            <p>Please click the secure link below to set your permanent password and log in.</p>
+            <a href="${magicLink}" style="display: inline-block; padding: 10px 20px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Set My Password</a>
+            <p style="margin-top: 30px; font-size: 12px; color: #888;">If you didn't expect this invitation, you can safely ignore this email.</p>
+          </div>
+        `,
+      });
+      console.log(`✅ Onboarding invitation email sent to ${dto.email}`);
+    } catch (emailError) {
+      console.error('❌ Failed to send onboarding invitation email via Resend:', emailError);
+      // We log the error but do not throw, so the creation process completes successfully.
+    }
 
     await this.auditService.logAction(
       companyId,
