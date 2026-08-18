@@ -35,7 +35,7 @@ export class EmployeeController {
 
   @Post('invite')
   async inviteEmployee(@Request() req, @Body() dto: CreateEmployeeDto) {
-    return this.employeeService.inviteEmployee(req.user.companyId, dto);
+    return this.employeeService.inviteEmployee(req.user.companyId, dto, req.user.sub);
   }
 
   // --- UPDATED: Update own profile (Handles S3 Image Uploads) ---
@@ -84,7 +84,7 @@ export class EmployeeController {
     @Param('id') id: string,
     @Body() dto: UpdateEmployeeDto,
   ) {
-    return this.employeeService.updateEmployee(req.user.companyId, id, dto);
+    return this.employeeService.updateEmployee(req.user.companyId, id, dto, req.user.sub);
   }
 
   // Delete an employee (Admin feature)
@@ -137,6 +137,6 @@ export class EmployeeController {
   @Delete(':id')
   @RequirePermissions('employee.delete') 
   async removeEmployee(@Request() req, @Param('id') id: string) {
-    return this.employeeService.removeEmployee(req.user.companyId, id);
+    return this.employeeService.removeEmployee(req.user.companyId, id, req.user.sub);
   }
 }

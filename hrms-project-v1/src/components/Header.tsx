@@ -90,9 +90,12 @@ export default function Header() {
   return (
     <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
       <div className="flex items-center space-x-4">
-        {/* Mobile Hamburger */}
+        {/* Small and medium screens: open the sidebar as a drawer. */}
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger className="md:hidden p-2 hover:bg-slate-100 rounded-md">
+          <SheetTrigger
+            className="inline-flex rounded-md p-2 transition-colors hover:bg-slate-100 lg:hidden"
+            aria-label="Open navigation menu"
+          >
             <Menu className="h-5 w-5" />
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-64 data-[side=left]:w-64 data-[side=left]:sm:max-w-64">

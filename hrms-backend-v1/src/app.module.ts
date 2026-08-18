@@ -14,6 +14,10 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { PayrollModule } from './payroll/payroll.module';
 import { S3Module } from './s3/s3.module';
+import { DocumentModule } from './document/document.module';
+import { AnnouncementModule } from './announcement/announcement.module';
+import { TaskModule } from './task/task.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -33,6 +37,10 @@ import { S3Module } from './s3/s3.module';
     OrganizationModule,
     PayrollModule,
     S3Module,
+    DocumentModule,
+    AnnouncementModule,
+    TaskModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],

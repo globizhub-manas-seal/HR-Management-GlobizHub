@@ -1,17 +1,16 @@
-import { IsEnum, IsString, IsNotEmpty, IsDateString } from 'class-validator';
-import { LeaveType } from '../../../generated/prisma/client'; // <-- Updated import path
+import { IsNotEmpty, IsEnum, IsString } from 'class-validator';
+import { LeaveType } from '../../../generated/prisma/client';
+
 export class CreateLeaveDto {
   @IsEnum(LeaveType)
   @IsNotEmpty()
   type: LeaveType;
 
-  @IsDateString()
   @IsNotEmpty()
-  startDate: string;
+  startDate: string | Date;
 
-  @IsDateString()
   @IsNotEmpty()
-  endDate: string;
+  endDate: string | Date;
 
   @IsString()
   @IsNotEmpty()

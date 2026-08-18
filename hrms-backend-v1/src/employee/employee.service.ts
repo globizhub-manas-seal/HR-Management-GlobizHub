@@ -10,13 +10,48 @@ import * as bcrypt from 'bcrypt';
 import { Resend } from 'resend';
 import { randomBytes } from 'crypto';
 import { S3Service } from '../s3/s3.service';
+import { encrypt, decrypt } from '../common/utils/encryption.util';
+import { AuditService } from '../audit/audit.service';
+
+const SENSITIVE_FIELDS = [
+  'bankName',
+  'accountNumber',
+  'ifscCode',
+  'panNumber',
+  'nationalId',
+  'pfAccountNumber',
+  'uanNumber',
+];
+
+function encryptPayload(payload: any) {
+  if (!payload) return payload;
+  const clone = { ...payload };
+  for (const field of SENSITIVE_FIELDS) {
+    if (clone[field] !== undefined && clone[field] !== null) {
+      clone[field] = encrypt(clone[field]);
+    }
+  }
+  return clone;
+}
+
+function decryptEmployee(employee: any) {
+  if (!employee) return employee;
+  for (const field of SENSITIVE_FIELDS) {
+    if (employee[field] !== undefined && employee[field] !== null) {
+      employee[field] = decrypt(employee[field]);
+    }
+  }
+  return employee;
+}
 
 @Injectable()
 export class EmployeeService {
   private resend: Resend;
+  
   constructor(
     private prisma: PrismaService,
     private s3Service: S3Service,
+    private auditService: AuditService,
   ) {
     this.resend = new Resend(process.env.RESEND_API_KEY);
   }
@@ -31,13 +66,14 @@ export class EmployeeService {
         email: true,
         phone: true,
         role: true, 
+        employeeCode: true, // ✅ Ensure the code is fetched for the frontend list
         department: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async inviteEmployee(companyId: string, dto: CreateEmployeeDto) {
+  async inviteEmployee(companyId: string, dto: CreateEmployeeDto, actorId?: string) {
     const existingEmployee = await this.prisma.employee.findUnique({
       where: { email: dto.email },
     });
@@ -45,6 +81,35 @@ export class EmployeeService {
     if (existingEmployee) {
       throw new ConflictException('An employee with this email already exists.');
     }
+
+    // ==========================================
+    // --- EMPLOYEE ID GENERATION LOGIC ---
+    // ==========================================
+    
+    // 1. Fetch Company to get the first prefix (e.g., TCS)
+    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) throw new NotFoundException('Company not found');
+
+    // 2. Fetch Department to get the second prefix (if a departmentId is provided)
+   let department: any = null;
+    const deptId = (dto as any).departmentId;
+    if (deptId) {
+      department = await this.prisma.department.findUnique({ where: { id: deptId } });
+    }
+
+    // 3. Create Prefixes (First 3 letters, uppercase)
+    const compPrefix = company.name.substring(0, 3).toUpperCase();
+    const deptPrefix = department ? department.name.substring(0, 3).toUpperCase() : 'GEN';
+
+    // 4. Find the current count to assign the next sequential number
+    const currentEmployeeCount = await this.prisma.employee.count({
+      where: { companyId }
+    });
+
+    // 5. Combine them into the final code (e.g., "TAT-INF-001")
+    const sequentialNumber = String(currentEmployeeCount + 1).padStart(3, '0');
+    const generatedEmployeeCode = `${compPrefix}-${deptPrefix}-${sequentialNumber}`;
+    // ==========================================
 
     const tempPassword = await bcrypt.hash('Welcome123!', 10);
     const inviteToken = randomBytes(32).toString('hex');
@@ -58,6 +123,8 @@ export class EmployeeService {
         password: tempPassword,
         companyId: companyId,
         inviteToken: inviteToken, 
+        employeeCode: generatedEmployeeCode, // ✅ Injected here
+        ...(deptId && { departmentId: deptId }),
       },
     });
 
@@ -71,6 +138,7 @@ export class EmployeeService {
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
           <h2 style="color: #10b981;">Welcome to TeamHub, ${dto.firstName}!</h2>
           <p>You have been invited to join your company's HRMS workspace.</p>
+          <p>Your official Employee ID is: <strong>${generatedEmployeeCode}</strong></p>
           <p>Please click the secure link below to set your permanent password and log in.</p>
           <a href="${magicLink}" style="display: inline-block; padding: 10px 20px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Set My Password</a>
           <p style="margin-top: 30px; font-size: 12px; color: #888;">If you didn't expect this invitation, you can safely ignore this email.</p>
@@ -78,11 +146,21 @@ export class EmployeeService {
       `,
     });
 
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'CREATE',
+      'Employee',
+      newEmployee.id,
+      null,
+      { email: newEmployee.email, role: newEmployee.role, employeeCode: newEmployee.employeeCode },
+    );
+
     const { password, inviteToken: hiddenToken, ...result } = newEmployee;
     return result;
   }
 
-  async updateEmployee(companyId: string, employeeId: string, dto: UpdateEmployeeDto) {
+  async updateEmployee(companyId: string, employeeId: string, dto: UpdateEmployeeDto, actorId?: string) {
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, companyId: companyId },
     });
@@ -91,9 +169,11 @@ export class EmployeeService {
       throw new NotFoundException('Employee not found in your workspace');
     }
 
-    return this.prisma.employee.update({
+    const encryptedData = encryptPayload(dto);
+
+    const updated = await this.prisma.employee.update({
       where: { id: employeeId },
-      data: dto,
+      data: encryptedData,
       select: {
         id: true,
         firstName: true,
@@ -103,9 +183,21 @@ export class EmployeeService {
         role: true,
       },
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'UPDATE',
+      'Employee',
+      employeeId,
+      { firstName: employee.firstName, lastName: employee.lastName, role: employee.role },
+      { firstName: updated.firstName, lastName: updated.lastName, role: updated.role },
+    );
+
+    return updated;
   }
 
-  async removeEmployee(companyId: string, employeeId: string) {
+  async removeEmployee(companyId: string, employeeId: string, actorId?: string) {
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, companyId: companyId },
     });
@@ -114,14 +206,28 @@ export class EmployeeService {
       throw new ConflictException('Employee not found in your workspace');
     }
 
-    return this.prisma.employee.delete({
+    const deleted = await this.prisma.employee.delete({
       where: { id: employeeId },
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'DELETE',
+      'Employee',
+      employeeId,
+      { email: employee.email, name: `${employee.firstName} ${employee.lastName}` },
+      null,
+    );
+
+    return deleted;
   }
 
-  // --- NEW: UPDATE OWN PROFILE ---
-  async updateMyProfile(employeeId: string, data: any, file?: Express.Multer.File) { // <-- Added 'file' here!
-    // Strip out fields the employee shouldn't be able to change themselves
+  // ==========================================
+  // EMPLOYEE SELF-SERVICE
+  // ==========================================
+
+  async updateMyProfile(employeeId: string, data: any, file?: Express.Multer.File) { 
     delete data.id;
     delete data.companyId;
     delete data.departmentId;
@@ -130,24 +236,18 @@ export class EmployeeService {
     delete data.employeeId; 
     delete data.joiningDate;
 
-    // If a file was uploaded, upload it to S3 and save the returned S3 URL
     if (file) {
       data.profilePhoto = await this.s3Service.uploadFile(file, 'profile-photos');
     }
 
-    // Normalize blood group and gender from string values to Prisma enum values or null
     if (data.bloodGroup === "") {
       data.bloodGroup = null;
     } else if (data.bloodGroup) {
       const mapping: Record<string, string> = {
-        "O+": "O_POS",
-        "O-": "O_NEG",
-        "A+": "A_POS",
-        "A-": "A_NEG",
-        "B+": "B_POS",
-        "B-": "B_NEG",
-        "AB+": "AB_POS",
-        "AB-": "AB_NEG",
+        "O+": "O_POS", "O-": "O_NEG",
+        "A+": "A_POS", "A-": "A_NEG",
+        "B+": "B_POS", "B-": "B_NEG",
+        "AB+": "AB_POS", "AB-": "AB_NEG",
       };
       if (mapping[data.bloodGroup]) {
         data.bloodGroup = mapping[data.bloodGroup];
@@ -158,10 +258,24 @@ export class EmployeeService {
       data.gender = null;
     }
 
-    return this.prisma.employee.update({
+    const encryptedData = encryptPayload(data);
+
+    const updated = await this.prisma.employee.update({
       where: { id: employeeId },
-      data: data,
+      data: encryptedData,
     });
+
+    await this.auditService.logAction(
+      updated.companyId,
+      employeeId,
+      'UPDATE',
+      'Employee',
+      employeeId,
+      { info: 'Self Profile Update (fields modified)' },
+      { info: 'Self Profile Update Complete' },
+    );
+
+    return decryptEmployee(updated);
   }
 
   async getMyDevices(employeeId: string) {
@@ -204,40 +318,29 @@ export class EmployeeService {
     });
   }
 
-
   // ==========================================
   // EMPLOYEE LIFECYCLE & DETAILS
   // ==========================================
 
   async addEmergencyContact(employeeId: string, data: { name: string; relationship: string; phone: string; email?: string; isPrimary?: boolean }) {
     return this.prisma.emergencyContact.create({
-      data: {
-        ...data,
-        employeeId,
-      },
+      data: { ...data, employeeId },
     });
   }
 
   async addSkill(employeeId: string, data: { name: string; proficiencyLevel: string }) {
     return this.prisma.employeeSkill.create({
-      data: {
-        ...data,
-        employeeId,
-      },
+      data: { ...data, employeeId },
     });
   }
 
   async addEmploymentHistory(employeeId: string, data: { companyName: string; jobTitle: string; startDate: Date; endDate?: Date; reasonForLeaving?: string }) {
     return this.prisma.employmentHistory.create({
-      data: {
-        ...data,
-        employeeId,
-      },
+      data: { ...data, employeeId },
     });
   }
 
   async processEmployeeExit(employeeId: string, data: { exitDate: Date; reason: string; notes?: string }) {
-    // Upsert ensures we create it if it doesn't exist, or update it if it does
     return this.prisma.employeeExit.upsert({
       where: { employeeId },
       update: {
@@ -265,32 +368,24 @@ export class EmployeeService {
     if (!employee) {
       throw new NotFoundException('Employee not found in your workspace');
     }
-    return employee;
+    return decryptEmployee(employee);
   }
 
   async removeSkill(employeeId: string, skillId: string) {
-    // Check if skill belongs to employee
     const skill = await this.prisma.employeeSkill.findFirst({
       where: { id: skillId, employeeId },
     });
-    if (!skill) {
-      throw new NotFoundException('Skill not found for this employee');
-    }
-    return this.prisma.employeeSkill.delete({
-      where: { id: skillId },
-    });
+    if (!skill) throw new NotFoundException('Skill not found for this employee');
+    
+    return this.prisma.employeeSkill.delete({ where: { id: skillId } });
   }
 
   async removeEmergencyContact(employeeId: string, contactId: string) {
-    // Check if contact belongs to employee
     const contact = await this.prisma.emergencyContact.findFirst({
       where: { id: contactId, employeeId },
     });
-    if (!contact) {
-      throw new NotFoundException('Emergency contact not found for this employee');
-    }
-    return this.prisma.emergencyContact.delete({
-      where: { id: contactId },
-    });
+    if (!contact) throw new NotFoundException('Emergency contact not found');
+
+    return this.prisma.emergencyContact.delete({ where: { id: contactId } });
   }
 }

@@ -3,18 +3,21 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Calendar as CalendarIcon, Plus, UserPlus, Clock, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, UserPlus, Clock, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function AdminScheduleManager() {
   const queryClient = useQueryClient();
   const [shiftForm, setShiftForm] = useState({ name: "", startTime: "09:00", endTime: "17:00", isNightShift: false });
   const [assignForm, setAssignForm] = useState({ employeeId: "", shiftId: "", date: "", isDayOff: false });
+
+  // Edit Shift State
+  const [editingShift, setEditingShift] = useState<any | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // 1. Fetch Employees
   const { data: employees, isLoading: loadingEmps } = useQuery({
@@ -41,43 +44,59 @@ export default function AdminScheduleManager() {
   });
 
   // 3. Create Shift Mutation
- const createShiftMutation = useMutation({
-  mutationFn: async (newShift: typeof shiftForm) => {
-    const token = localStorage.getItem("hrms_token");
+  const createShiftMutation = useMutation({
+    mutationFn: async (newShift: typeof shiftForm) => {
+      const token = localStorage.getItem("hrms_token");
+      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/shifts`;
+      const res = await axios.post(url, newShift, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activeShifts"] });
+      setShiftForm({ name: "", startTime: "09:00", endTime: "17:00", isNightShift: false });
+    },
+  });
 
-    const url = `${
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-    }/schedules/shifts`;
+  // 4. Update Shift Mutation
+  const updateShiftMutation = useMutation({
+    mutationFn: async (updatedShift: { id: string; name: string; startTime: string; endTime: string; isNightShift: boolean }) => {
+      const token = localStorage.getItem("hrms_token");
+      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/shifts/${updatedShift.id}`;
+      const res = await axios.patch(url, updatedShift, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activeShifts"] });
+      setIsEditModalOpen(false);
+      setEditingShift(null);
+    },
+  });
 
-    const res = await axios.post(url, newShift, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+  // 5. Delete Shift Mutation
+  const deleteShiftMutation = useMutation({
+    mutationFn: async (shiftId: string) => {
+      const token = localStorage.getItem("hrms_token");
+      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/shifts/${shiftId}`;
+      await axios.delete(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activeShifts"] });
+    },
+  });
 
-    return res.data;
-  },
-
-  onSuccess: () => {
-    queryClient.invalidateQueries({
-      queryKey: ["activeShifts"],
-    });
-
-    setShiftForm({
-      name: "",
-      startTime: "09:00",
-      endTime: "17:00",
-      isNightShift: false,
-    });
-  },
-
-  onError: () => {
-    // Handle error through UI later
-  },
-});
-
-  // 4. Assign Shift Mutation
+  // 6. Assign Shift Mutation
   const assignScheduleMutation = useMutation({
     mutationFn: async (payload: typeof assignForm) => {
       const token = localStorage.getItem("hrms_token");
@@ -91,6 +110,11 @@ export default function AdminScheduleManager() {
     },
   });
 
+  const openEditModal = (shift: any) => {
+    setEditingShift(shift);
+    setIsEditModalOpen(true);
+  };
+
   if (loadingEmps || loadingShifts) return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-emerald-500" /></div>;
 
   return (
@@ -103,7 +127,7 @@ export default function AdminScheduleManager() {
         
         {/* Create Shift Modal */}
         <Dialog>
-          <DialogTrigger render={<Button className="bg-emerald-500 hover:bg-emerald-600 text-white" />}>
+          <DialogTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-emerald-500 hover:bg-emerald-600 text-white h-10 px-4 py-2">
             <Plus className="w-4 h-4 mr-2" /> Create Shift
           </DialogTrigger>
           <DialogContent>
@@ -190,6 +214,7 @@ export default function AdminScheduleManager() {
                     <TableHead>Shift Name</TableHead>
                     <TableHead>Timings</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -198,6 +223,14 @@ export default function AdminScheduleManager() {
                       <TableCell className="font-semibold">{s.name}</TableCell>
                       <TableCell>{s.startTime} - {s.endTime}</TableCell>
                       <TableCell>{s.isNightShift ? "Night Shift 🌙" : "Day Shift ☀️"}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => openEditModal(s)}>
+                          <Pencil className="w-3.5 h-3.5 text-slate-600" />
+                        </Button>
+                        <Button variant="outline" size="sm" className="hover:bg-rose-50 hover:text-rose-600" onClick={() => deleteShiftMutation.mutate(s.id)}>
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -206,6 +239,40 @@ export default function AdminScheduleManager() {
           </CardContent>
         </Card>
       </div>
+
+      {/* EDIT SHIFT MODAL */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Shift Template</DialogTitle>
+          </DialogHeader>
+          {editingShift && (
+            <div className="space-y-4 pt-4">
+              <div>
+                <label className="text-sm font-medium">Shift Name</label>
+                <Input value={editingShift.name} onChange={(e) => setEditingShift({...editingShift, name: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Start Time</label>
+                  <Input type="time" value={editingShift.startTime} onChange={(e) => setEditingShift({...editingShift, startTime: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">End Time</label>
+                  <Input type="time" value={editingShift.endTime} onChange={(e) => setEditingShift({...editingShift, endTime: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" checked={editingShift.isNightShift} onChange={(e) => setEditingShift({...editingShift, isNightShift: e.target.checked})} className="w-4 h-4 text-emerald-600" />
+                <label className="text-sm">Is this a Night Shift?</label>
+              </div>
+              <Button onClick={() => updateShiftMutation.mutate(editingShift)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                {updateShiftMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Shift Template"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

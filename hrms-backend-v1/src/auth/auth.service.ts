@@ -11,12 +11,17 @@ import * as bcrypt from 'bcrypt';
 import { RegisterWizardDto } from './dto/register-wizard.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import * as crypto from 'crypto';
+import { EmailService } from '../email/email.service';
+
+
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async registerWizard(dto: RegisterWizardDto) {
@@ -96,8 +101,11 @@ export class AuthService {
           create: dto.branches?.map((name) => ({ name })) || [],
         },
         leavePolicies: {
-          create:
-            dto.leavePolicies?.map((name) => ({ name, daysAllowed: 12 })) || [],
+          create: [
+            { name: 'Casual Leave', type: 'CASUAL', daysPerYear: 12 },
+            { name: 'Medical Leave', type: 'MEDICAL', daysPerYear: 10 },
+            { name: 'Earned Leave', type: 'EARNED', daysPerYear: 15 }
+          ]
         },
         shifts: {
           create:
@@ -135,7 +143,8 @@ export class AuthService {
 
   // ... KEEP YOUR EXISTING login() FUNCTION EXACTLY AS IT IS BELOW ...
   async login(email: string, pass: string) {
-    const user = await this.prisma.employee.findUnique({ where: { email } });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.employee.findUnique({ where: { email: normalizedEmail } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
@@ -254,5 +263,70 @@ export class AuthService {
     });
 
     return { message: 'Password updated successfully' };
+  }
+
+  async forgotPassword(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const employee = await this.prisma.employee.findUnique({ where: { email: normalizedEmail } });
+    
+    // Security best practice: Don't reveal if the email exists or not to prevent user enumeration
+    if (!employee) {
+      return { message: 'If that email exists, a reset link has been sent.' };
+    }
+
+    // 1. Generate a secure random token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // 2. Hash it before saving to the DB (Security best practice)
+    const passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    
+    // 3. Set expiration (e.g., 15 minutes from now)
+    const passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await this.prisma.employee.update({
+      where: { id: employee.id },
+      data: {
+        resetPasswordToken: passwordResetToken,
+        resetPasswordExpires: passwordResetExpires,
+      },
+    });
+
+    // 4. Send Email
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    
+    await this.emailService.sendPasswordResetEmail(normalizedEmail, resetUrl);
+
+    return { message: 'If that email exists, a reset link has been sent.' };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    // 1. Hash the incoming token so we can compare it to the DB
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // 2. Find the user with this token, ensuring it hasn't expired
+    const employee = await this.prisma.employee.findFirst({
+      where: {
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: { gt: new Date() }, // Check if expiration is greater than right now
+      },
+    });
+
+    if (!employee) {
+      throw new BadRequestException('Token is invalid or has expired');
+    }
+
+    // 3. Hash the new password and clear the tokens
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.employee.update({
+      where: { id: employee.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    return { message: 'Password has been reset successfully' };
   }
 }
