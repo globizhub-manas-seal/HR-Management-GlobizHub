@@ -134,8 +134,102 @@ export default function DashboardRouter() {
         <div className="md:col-span-1">
           <AttendanceWidget />
         </div>
-        <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex items-center justify-center text-slate-400">
-          Weekly Attendance Chart will go here
+        <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Today's Attendance Breakdown</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Real-time presence rate across all departments.</p>
+            </div>
+            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-600 bg-slate-50 border px-3 py-1.5 rounded-lg shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Live Status</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-center flex-1">
+            {/* SVG Ring Gauge */}
+            <div className="relative flex justify-center items-center">
+              <svg className="w-40 h-40 transform -rotate-90">
+                {/* Background Ring */}
+                <circle cx="80" cy="80" r="65" strokeWidth="12" stroke="#f1f5f9" fill="transparent" />
+                {/* Present Ring */}
+                <circle
+                  cx="80"
+                  cy="80"
+                  r="65"
+                  strokeWidth="12"
+                  stroke="url(#presentGrad)"
+                  strokeDasharray={`${2 * Math.PI * 65}`}
+                  strokeDashoffset={`${
+                    2 * Math.PI * 65 * (1 - (stats?.presentToday || 0) / (stats?.totalEmployees || 1))
+                  }`}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+              {/* Radial Gradients Definition */}
+              <svg className="w-0 h-0">
+                <defs>
+                  <linearGradient id="presentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#059669" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              {/* Central Text */}
+              <div className="absolute flex flex-col items-center">
+                <span className="text-3xl font-black text-slate-900">
+                  {stats?.totalEmployees
+                    ? Math.round((stats.presentToday / stats.totalEmployees) * 100)
+                    : 0}%
+                </span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-1">Presence</span>
+              </div>
+            </div>
+
+            {/* Progress Bars */}
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold text-slate-600">
+                  <span>Present Today</span>
+                  <span>{stats?.presentToday || 0} / {stats?.totalEmployees || 0}</span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                    style={{ width: `${stats?.totalEmployees ? (stats.presentToday / stats.totalEmployees) * 100 : 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold text-slate-600">
+                  <span>Late Arrivals</span>
+                  <span>{stats?.lateToday || 0} / {stats?.totalEmployees || 0}</span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full transition-all duration-1000"
+                    style={{ width: `${stats?.totalEmployees ? (stats.lateToday / stats.totalEmployees) * 100 : 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold text-slate-600">
+                  <span>Absent / Off</span>
+                  <span>{stats?.absentToday || 0} / {stats?.totalEmployees || 0}</span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-rose-500 rounded-full transition-all duration-1000"
+                    style={{ width: `${stats?.totalEmployees ? (stats.absentToday / stats.totalEmployees) * 100 : 0}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

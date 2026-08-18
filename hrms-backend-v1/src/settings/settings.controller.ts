@@ -14,6 +14,6 @@ export class SettingsController {
 
   @Patch()
   async updateSettings(@Request() req, @Body() dto: any) {
-    return this.settingsService.updateSettings(req.user.companyId, dto, req.user.role);
+    return this.settingsService.updateSettings(req.user.companyId, dto, req.user.role, req.user.sub);
   }
 }

@@ -1,9 +1,13 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ScheduleService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   // 1. Get schedule for the logged-in employee (Upcoming 7 days)
   async getMySchedule(employeeId: string, companyId: string) {
@@ -27,13 +31,25 @@ export class ScheduleService {
   }
 
   // 2. Admin: Create a new Shift Template
-  async createShift(companyId: string, dto: any, userRole: string) {
+  async createShift(companyId: string, dto: any, userRole: string, actorId?: string) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can create shifts.');
     }
-    return this.prisma.shift.create({
+    const shift = await this.prisma.shift.create({
       data: { ...dto, companyId },
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'CREATE',
+      'Shift',
+      shift.id,
+      null,
+      { name: shift.name, startTime: shift.startTime, endTime: shift.endTime }
+    );
+
+    return shift;
   }
 
   // 3. Get all Shift Templates for the Company
@@ -45,7 +61,7 @@ export class ScheduleService {
   }
 
   // 4. Admin: Update a Shift Template
-  async updateShift(shiftId: string, companyId: string, dto: any, userRole: string) {
+  async updateShift(shiftId: string, companyId: string, dto: any, userRole: string, actorId?: string) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can edit shifts.');
     }
@@ -56,14 +72,26 @@ export class ScheduleService {
     });
     if (!shift) throw new NotFoundException('Shift not found in your organization.');
 
-    return this.prisma.shift.update({
+    const updated = await this.prisma.shift.update({
       where: { id: shiftId },
       data: dto,
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'UPDATE',
+      'Shift',
+      shiftId,
+      { name: shift.name, startTime: shift.startTime, endTime: shift.endTime },
+      { name: updated.name, startTime: updated.startTime, endTime: updated.endTime }
+    );
+
+    return updated;
   }
 
   // 5. Admin: Delete a Shift Template
-  async deleteShift(shiftId: string, companyId: string, userRole: string) {
+  async deleteShift(shiftId: string, companyId: string, userRole: string, actorId?: string) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can delete shifts.');
     }
@@ -74,19 +102,31 @@ export class ScheduleService {
     });
     if (!shift) throw new NotFoundException('Shift not found in your organization.');
 
-    return this.prisma.shift.delete({
+    const deleted = await this.prisma.shift.delete({
       where: { id: shiftId },
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'DELETE',
+      'Shift',
+      shiftId,
+      { name: shift.name, startTime: shift.startTime, endTime: shift.endTime },
+      null
+    );
+
+    return deleted;
   }
 
   // 6. Admin: Assign Schedule to an Employee
-  async assignSchedule(companyId: string, dto: any, userRole: string) {
+  async assignSchedule(companyId: string, dto: any, userRole: string, actorId?: string) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can assign schedules.');
     }
     
     // Upsert ensures if a schedule already exists for that date, it updates it instead of crashing
-    return this.prisma.schedule.upsert({
+    const schedule = await this.prisma.schedule.upsert({
       where: {
         employeeId_date: {
           employeeId: dto.employeeId,
@@ -105,5 +145,17 @@ export class ScheduleService {
         isDayOff: dto.isDayOff || false,
       },
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'UPDATE',
+      'Schedule',
+      schedule.id,
+      null,
+      { employeeId: dto.employeeId, date: dto.date, shiftId: dto.shiftId, isDayOff: dto.isDayOff }
+    );
+
+    return schedule;
   }
 }

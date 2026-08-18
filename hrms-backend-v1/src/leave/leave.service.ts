@@ -11,10 +11,14 @@ import {
 } from '../../generated/prisma/client';
 import { CreateLeaveDto } from './dto/create-leave.dto';
 import { CreateLeavePolicyDto } from './dto/create-leave-policy.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class LeaveService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   // ==========================================
   // HELPERS: SMART DATE CALCULATION
@@ -246,7 +250,7 @@ export class LeaveService {
     await this.ensureAllocations(employeeId, companyId);
 
     // Transaction to prevent creation race-conditions (Double spending via rapid pending requests)
-    return this.prisma.$transaction(async (tx) => {
+    const request = await this.prisma.$transaction(async (tx) => {
       const activeAllocation = await tx.leaveAllocation.findFirst({
         where: {
           employeeId,
@@ -291,6 +295,18 @@ export class LeaveService {
         }
       });
     });
+
+    await this.auditService.logAction(
+      companyId,
+      employeeId,
+      'CREATE',
+      'LeaveRequest',
+      request.id,
+      null,
+      { type: request.type, startDate: request.startDate, endDate: request.endDate, totalDays: request.totalDays },
+    );
+
+    return request;
   }
 
   // ==========================================
@@ -309,15 +325,14 @@ export class LeaveService {
     if (!request || request.companyId !== companyId) throw new NotFoundException('Request not found');
     if (request.status !== LeaveStatus.PENDING) throw new BadRequestException('Already processed');
 
+    let result;
     if (status === LeaveStatus.REJECTED) {
-      return this.prisma.leaveRequest.update({ 
+      result = await this.prisma.leaveRequest.update({ 
         where: { id: requestId }, 
         data: { status, managerId } 
       });
-    }
-
-    if (status === LeaveStatus.APPROVED) {
-      return this.prisma.$transaction(async (tx) => {
+    } else if (status === LeaveStatus.APPROVED) {
+      result = await this.prisma.$transaction(async (tx) => {
         const approved = await tx.leaveRequest.update({
           where: { id: requestId },
           data: { status, managerId }
@@ -356,6 +371,20 @@ export class LeaveService {
         return approved;
       });
     }
+
+    if (result) {
+      await this.auditService.logAction(
+        companyId,
+        managerId,
+        status === LeaveStatus.APPROVED ? 'APPROVE' : 'REJECT',
+        'LeaveRequest',
+        requestId,
+        { status: request.status },
+        { status: result.status }
+      );
+    }
+
+    return result;
   }
 
   // ==========================================
@@ -388,8 +417,8 @@ export class LeaveService {
     });
   }
 
-  async addHoliday(companyId: string, data: { name: string; date: string; type?: string }) {
-    return this.prisma.holiday.create({
+  async addHoliday(companyId: string, data: { name: string; date: string; type?: string }, actorId?: string) {
+    const holiday = await this.prisma.holiday.create({
       data: {
         name: data.name,
         date: new Date(data.date),
@@ -397,9 +426,25 @@ export class LeaveService {
         companyId,
       }
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'CREATE',
+      'Holiday',
+      holiday.id,
+      null,
+      { name: holiday.name, date: holiday.date, type: holiday.type }
+    );
+
+    return holiday;
   }
 
-  async removeHoliday(companyId: string, id: string) {
+  async removeHoliday(companyId: string, id: string, actorId?: string) {
+    const holiday = await this.prisma.holiday.findFirst({
+      where: { id, companyId }
+    });
+
     // Safest way to delete by composite matching when not explicitly defined as a unique compound index
     const result = await this.prisma.holiday.deleteMany({
       where: {
@@ -410,6 +455,18 @@ export class LeaveService {
 
     if (result.count === 0) {
       throw new NotFoundException('Holiday not found or you are not authorized to delete it.');
+    }
+
+    if (holiday) {
+      await this.auditService.logAction(
+        companyId,
+        actorId || null,
+        'DELETE',
+        'Holiday',
+        id,
+        { name: holiday.name, date: holiday.date, type: holiday.type },
+        null
+      );
     }
 
     return { success: true };

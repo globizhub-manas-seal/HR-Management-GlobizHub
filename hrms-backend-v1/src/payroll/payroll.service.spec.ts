@@ -2,23 +2,33 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { S3Service } from '../s3/s3.service';
 
 describe('PayrollService', () => {
   let service: PayrollService;
   const prisma = {
-    employee: {
-      findFirst: jest.fn(),
+    company: {
+      findUnique: jest.fn(),
+    },
+    salaryStructure: {
+      findUnique: jest.fn(),
     },
     payrollRecord: {
-      findUnique: jest.fn(),
-      upsert: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
     },
     leaveRequest: {
-      count: jest.fn(),
+      findMany: jest.fn(),
     },
     attendance: {
       aggregate: jest.fn(),
     },
+    holiday: {
+      findMany: jest.fn(),
+    },
+  };
+  const s3Service = {
+    getPresignedUrl: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -31,6 +41,10 @@ describe('PayrollService', () => {
           provide: PrismaService,
           useValue: prisma,
         },
+        {
+          provide: S3Service,
+          useValue: s3Service,
+        },
       ],
     }).compile();
 
@@ -41,26 +55,42 @@ describe('PayrollService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('generatePayroll', () => {
+  describe('generateMonthlyPayroll', () => {
     beforeEach(() => {
-      prisma.employee.findFirst.mockResolvedValue({
-        id: 'employee-1',
-        companyId: 'company-1',
-        salaryStructure: {
-          basicSalary: 30000,
-          hra: 5000,
-          otherAllowances: 2000,
-          pfContribution: 1800,
-          taxDeduction: 2500,
-        },
+      // Mock active salary structure
+      prisma.salaryStructure.findUnique.mockResolvedValue({
+        basicSalary: 30000,
+        hra: 5000,
+        otherAllowances: 2000,
+        conveyanceAllowance: 1600,
+        medicalAllowance: 1250,
+        specialAllowance: 5000,
+        pfContribution: 1800,
+        taxDeduction: 2500,
+        professionalTax: 200,
       });
-      prisma.payrollRecord.findUnique.mockResolvedValue(null);
-      prisma.leaveRequest.count.mockResolvedValue(1);
+
+      prisma.company.findUnique.mockResolvedValue({
+        name: 'Test Company',
+        settings: { payslipHeaderUrl: null },
+      });
+
+      // No double processing (payroll record doesn't exist yet)
+      prisma.payrollRecord.findFirst.mockResolvedValue(null);
+
+      // Overlapping leaves (empty by default)
+      prisma.leaveRequest.findMany.mockResolvedValue([]);
+
+      // Mock attendance summary (overtime hours = 5)
       prisma.attendance.aggregate.mockResolvedValue({
-        _count: { id: 20 },
         _sum: { overtimeHours: 5 },
       });
-      prisma.payrollRecord.upsert.mockResolvedValue({
+
+      // Mock holiday list (empty by default)
+      prisma.holiday.findMany.mockResolvedValue([]);
+
+      // Mock payroll record creation
+      prisma.payrollRecord.create.mockResolvedValue({
         id: 'payroll-1',
         employeeId: 'employee-1',
         month: 5,
@@ -71,7 +101,7 @@ describe('PayrollService', () => {
 
     it('creates a payroll draft for a valid employee', async () => {
       await expect(
-        service.generatePayroll('company-1', 'employee-1', 5, 2026, 'processor-1'),
+        service.generateMonthlyPayroll('company-1', 'employee-1', 5, 2026, 'processor-1'),
       ).resolves.toEqual(
         expect.objectContaining({
           id: 'payroll-1',
@@ -81,39 +111,33 @@ describe('PayrollService', () => {
         }),
       );
 
-      expect(prisma.payrollRecord.upsert).toHaveBeenCalledWith(
+      expect(prisma.payrollRecord.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            employeeId_month_year: { employeeId: 'employee-1', month: 5, year: 2026 },
-          },
-          create: expect.objectContaining({
+          data: expect.objectContaining({
             employeeId: 'employee-1',
             month: 5,
             year: 2026,
             status: 'DRAFT',
+            overtimeHours: 5,
           }),
         }),
       );
     });
 
-    it('throws NotFoundException when employee does not exist', async () => {
-      prisma.employee.findFirst.mockResolvedValue(null);
+    it('throws BadRequestException when payroll has already been generated', async () => {
+      prisma.payrollRecord.findFirst.mockResolvedValue({ id: 'existing-payroll' });
 
       await expect(
-        service.generatePayroll('company-1', 'employee-1', 5, 2026, 'processor-1'),
-      ).rejects.toThrow(NotFoundException);
+        service.generateMonthlyPayroll('company-1', 'employee-1', 5, 2026, 'processor-1'),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when salary structure is missing', async () => {
-      prisma.employee.findFirst.mockResolvedValue({
-        id: 'employee-1',
-        companyId: 'company-1',
-        salaryStructure: null,
-      });
+    it('throws NotFoundException when salary structure is missing', async () => {
+      prisma.salaryStructure.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.generatePayroll('company-1', 'employee-1', 5, 2026, 'processor-1'),
-      ).rejects.toThrow(BadRequestException);
+        service.generateMonthlyPayroll('company-1', 'employee-1', 5, 2026, 'processor-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -36,8 +36,8 @@ export default function PayrollDashboard() {
   const processMutation = useMutation({
     mutationFn: async (empId: string) => {
       const token = localStorage.getItem("hrms_token");
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/payroll/process/${empId}`, 
-        { month, year },
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/payroll/generate`, 
+        { employeeId: empId, month, year },
         { headers: { Authorization: `Bearer ${token}` }}
       );
     },
@@ -56,13 +56,14 @@ export default function PayrollDashboard() {
       const token = localStorage.getItem("hrms_token");
       // Convert string inputs to numbers
       const payload = {
+        employeeId: selectedEmpId,
         basicSalary: Number(structForm.basicSalary),
         hra: Number(structForm.hra),
         otherAllowances: Number(structForm.otherAllowances),
         pfContribution: Number(structForm.pfContribution),
         taxDeduction: Number(structForm.taxDeduction),
       };
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/payroll/structure/${selectedEmpId}`, payload, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/payroll/salary-structure`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
     },

@@ -5,10 +5,51 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { S3Service } from '../s3/s3.service';
 
 @Injectable()
 export class PayrollService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3Service: S3Service,
+  ) {}
+
+  /**
+   * Letterheads are stored as private S3 objects. Convert the stored URL to a
+   * short-lived view URL for API consumers without changing the saved value.
+   * Older payslips with no snapshot therefore use the current company header.
+   */
+  private async attachPayslipLetterheadUrls(records: any[]) {
+    return Promise.all(
+      records.map(async (record) => {
+        const breakdown = record.breakdown as any;
+        const snapshotUrl = breakdown?.meta?.letterheadUrl;
+        const currentUrl = record.company?.settings?.payslipHeaderUrl;
+        const sourceUrl = snapshotUrl || currentUrl;
+
+        if (!sourceUrl) return record;
+
+        const viewUrl = await this.s3Service.getPresignedUrl(sourceUrl);
+        return {
+          ...record,
+          company: record.company
+            ? {
+                ...record.company,
+                settings: record.company.settings
+                  ? { ...record.company.settings, payslipHeaderUrl: viewUrl }
+                  : record.company.settings,
+              }
+            : record.company,
+          breakdown: snapshotUrl
+            ? {
+                ...breakdown,
+                meta: { ...breakdown.meta, letterheadUrl: viewUrl },
+              }
+            : breakdown,
+        };
+      }),
+    );
+  }
 
   // ==========================================
   // HELPER: WORKING DAYS CALCULATION
@@ -82,35 +123,74 @@ export class PayrollService {
       );
     }
 
+    // Capture the letterhead used when this payslip is created so later
+    // company branding changes do not alter historical payslips.
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        name: true,
+        settings: { select: { payslipHeaderUrl: true } },
+      },
+    });
+
     // 4. THE CROSS-MONTH LOP CALCULATOR
-    // Fetch all UNPAID leaves that OVERLAP with this month
-    const overlappingUnpaidLeaves = await this.prisma.leaveRequest.findMany({
+    // Fetch all APPROVED leaves that OVERLAP with this month (to check for unpaid policy or type UNPAID)
+    const overlappingLeaves = await this.prisma.leaveRequest.findMany({
       where: {
         employeeId,
         status: 'APPROVED',
-        type: 'UNPAID',
         startDate: { lte: endOfMonth }, // Started before month ended
         endDate: { gte: startOfMonth }, // Ended after month started
+      },
+      include: {
+        allocation: {
+          include: {
+            leavePolicy: true,
+          },
+        },
       },
     });
 
     let totalUnpaidDays = 0;
 
-    for (const leave of overlappingUnpaidLeaves) {
-      // Find the mathematical intersection of the leave dates and the month boundaries
-      const effectiveStart =
-        leave.startDate < startOfMonth ? startOfMonth : leave.startDate;
-      const effectiveEnd =
-        leave.endDate > endOfMonth ? endOfMonth : leave.endDate;
+    for (const leave of overlappingLeaves) {
+      // A leave is unpaid if its type is 'UNPAID' or the policy defines it as unpaid (isPaid = false)
+      const isUnpaid =
+        leave.type === 'UNPAID' ||
+        leave.allocation?.leavePolicy?.isPaid === false;
 
-      // Calculate working days just for this specific chunk inside this month
-      const chunkDays = await this.calculateWorkingDaysInRange(
-        effectiveStart,
-        effectiveEnd,
-        companyId,
-      );
-      totalUnpaidDays += chunkDays;
+      if (isUnpaid) {
+        // Find the mathematical intersection of the leave dates and the month boundaries
+        const effectiveStart =
+          leave.startDate < startOfMonth ? startOfMonth : leave.startDate;
+        const effectiveEnd =
+          leave.endDate > endOfMonth ? endOfMonth : leave.endDate;
+
+        // Calculate working days just for this specific chunk inside this month
+        const chunkDays = await this.calculateWorkingDaysInRange(
+          effectiveStart,
+          effectiveEnd,
+          companyId,
+        );
+        totalUnpaidDays += chunkDays;
+      }
     }
+
+    // Aggregate overtime hours from Attendance records for this employee in the month
+    const attendanceSummary = await this.prisma.attendance.aggregate({
+      where: {
+        employeeId,
+        companyId,
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      _sum: {
+        overtimeHours: true,
+      },
+    });
+    const overtimeHours = attendanceSummary._sum.overtimeHours || 0;
 
     // 5. FINANCIAL MATH
     // Standard HR math assumes a 30-day billing divisor, or actual days in month. We'll use actual days.
@@ -118,12 +198,20 @@ export class PayrollService {
     const dailyRate = structure.basicSalary / daysInMonth;
     const lopDeduction = parseFloat((totalUnpaidDays * dailyRate).toFixed(2));
 
+    // ✅ UPDATED: Sum up all new earnings
     const grossEarnings =
-      structure.basicSalary + structure.hra + structure.otherAllowances;
-    const standardDeductions =
-      structure.pfContribution + structure.taxDeduction;
-    const totalDeductions = standardDeductions + lopDeduction;
+      structure.basicSalary +
+      structure.hra +
+      structure.conveyanceAllowance +
+      structure.medicalAllowance +
+      structure.specialAllowance;
 
+    // ✅ UPDATED: Sum up all new deductions
+    const standardDeductions =
+      structure.pfContribution +
+      structure.taxDeduction +
+      structure.professionalTax;
+    const totalDeductions = standardDeductions + lopDeduction;
     const netSalary = parseFloat((grossEarnings - totalDeductions).toFixed(2));
 
     // 6. CREATE THE IMMUTABLE SNAPSHOT
@@ -136,9 +224,14 @@ export class PayrollService {
         totalWorkingDays: daysInMonth,
         presentDays: daysInMonth - totalUnpaidDays,
         unpaidLeaves: totalUnpaidDays,
+        overtimeHours,
 
         basicPay: structure.basicSalary,
-        allowances: structure.hra + structure.otherAllowances,
+        allowances:
+          structure.hra +
+          structure.conveyanceAllowance +
+          structure.medicalAllowance +
+          structure.specialAllowance,
         deductions: totalDeductions,
         netSalary,
 
@@ -148,15 +241,22 @@ export class PayrollService {
 
         // 🔒 IMMUTABLE JSON PAYSLIP SNAPSHOT
         breakdown: {
+          meta: {
+            companyName: company?.name ?? null,
+            letterheadUrl: company?.settings?.payslipHeaderUrl ?? null,
+          },
           earnings: {
             basic: structure.basicSalary,
             hra: structure.hra,
-            other: structure.otherAllowances,
+            conveyance: structure.conveyanceAllowance,
+            medical: structure.medicalAllowance,
+            special: structure.specialAllowance,
             total: grossEarnings,
           },
           deductions: {
             pf: structure.pfContribution,
             tax: structure.taxDeduction,
+            profTax: structure.professionalTax,
             lop: lopDeduction,
             lopDays: totalUnpaidDays,
             total: totalDeductions,
@@ -175,9 +275,15 @@ export class PayrollService {
     month: number,
     year: number,
   ) {
-    return this.prisma.payrollRecord.findMany({
+    const records = await this.prisma.payrollRecord.findMany({
       where: { companyId, month, year },
       include: {
+        company: {
+          select: {
+            name: true,
+            settings: { select: { payslipHeaderUrl: true } },
+          },
+        },
         employee: {
           select: {
             firstName: true,
@@ -189,11 +295,9 @@ export class PayrollService {
       },
       orderBy: { netSalary: 'desc' },
     });
-  }
 
-  // ==========================================
-  // EMPLOYEE: GET MY PAYSLIPS
-  // ==========================================
+    return this.attachPayslipLetterheadUrls(records);
+  }
 
   // ==========================================
   // HR/ADMIN: SET SALARY STRUCTURE
@@ -218,7 +322,7 @@ export class PayrollService {
   // EMPLOYEE: GET MY PAYSLIPS
   // ==========================================
   async getMyPayslips(employeeId: string) {
-    return this.prisma.payrollRecord.findMany({
+    const records = await this.prisma.payrollRecord.findMany({
       // Notice we only fetch APPROVED or PAID payslips!
       // We don't want employees seeing DRAFTs while HR is working on them.
       where: {
@@ -226,12 +330,20 @@ export class PayrollService {
         status: { in: ['APPROVED', 'PAID'] },
       },
       include: {
+        company: {
+          select: {
+            name: true,
+            settings: { select: { payslipHeaderUrl: true } },
+          },
+        },
         employee: {
           select: { firstName: true, lastName: true, employeeCode: true },
         },
       },
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
     });
+
+    return this.attachPayslipLetterheadUrls(records);
   }
 
   // ==========================================
@@ -263,6 +375,45 @@ export class PayrollService {
     return this.prisma.payrollRecord.update({
       where: { id: recordId },
       data: { status },
+    });
+  }
+
+  // ==========================================
+  // HR/ADMIN: SALARY TEMPLATES
+  // ==========================================
+  async createSalaryTemplate(companyId: string, data: any) {
+    return this.prisma.salaryTemplate.create({
+      data: { ...data, companyId },
+    });
+  }
+
+  async getSalaryTemplates(companyId: string) {
+    return this.prisma.salaryTemplate.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateSalaryTemplate(companyId: string, templateId: string, data: any) {
+    const template = await this.prisma.salaryTemplate.findFirst({
+      where: { id: templateId, companyId },
+    });
+
+    if (!template) {
+      throw new NotFoundException('Salary template not found.');
+    }
+
+    const {
+      id,
+      companyId: _companyId,
+      createdAt,
+      updatedAt,
+      ...templateData
+    } = data;
+
+    return this.prisma.salaryTemplate.update({
+      where: { id: templateId },
+      data: templateData,
     });
   }
 }

@@ -14,7 +14,7 @@ export class ScheduleController {
 
   @Post('shifts')
   async createShift(@Request() req, @Body() dto: any) {
-    return this.scheduleService.createShift(req.user.companyId, dto, req.user.role);
+    return this.scheduleService.createShift(req.user.companyId, dto, req.user.role, req.user.sub);
   }
 
   @Get('shifts')
@@ -25,17 +25,17 @@ export class ScheduleController {
   // NEW: Update Endpoint
   @Patch('shifts/:id')
   async updateShift(@Request() req, @Param('id') id: string, @Body() dto: any) {
-    return this.scheduleService.updateShift(id, req.user.companyId, dto, req.user.role);
+    return this.scheduleService.updateShift(id, req.user.companyId, dto, req.user.role, req.user.sub);
   }
 
   // NEW: Delete Endpoint
   @Delete('shifts/:id')
   async deleteShift(@Request() req, @Param('id') id: string) {
-    return this.scheduleService.deleteShift(id, req.user.companyId, req.user.role);
+    return this.scheduleService.deleteShift(id, req.user.companyId, req.user.role, req.user.sub);
   }
 
   @Post('assign')
   async assignSchedule(@Request() req, @Body() dto: any) {
-    return this.scheduleService.assignSchedule(req.user.companyId, dto, req.user.role);
+    return this.scheduleService.assignSchedule(req.user.companyId, dto, req.user.role, req.user.sub);
   }
 }

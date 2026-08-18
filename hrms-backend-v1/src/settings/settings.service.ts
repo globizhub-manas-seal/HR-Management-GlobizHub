@@ -1,9 +1,13 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class SettingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   // Get company settings (auto-creates default if missing)
   async getSettings(companyId: string) {
@@ -21,12 +25,16 @@ export class SettingsService {
   }
 
   // Update company settings (restricted to Admin/HR)
-  async updateSettings(companyId: string, dto: any, userRole: string) {
+  async updateSettings(companyId: string, dto: any, userRole: string, actorId?: string) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException(
         'Only Admins or HR can modify system settings.',
       );
     }
+
+    const oldSettings = await this.prisma.companySettings.findUnique({
+      where: { companyId },
+    });
 
     // IMPORTANT: Strip out restricted/unique fields so Prisma doesn't crash
     // trying to overwrite them when the frontend sends the full object back.
@@ -36,7 +44,7 @@ export class SettingsService {
     delete dto.updatedAt;
 
     // Use UPSERT for maximum safety: Update if it exists, create if it somehow doesn't.
-    return this.prisma.companySettings.upsert({
+    const newSettings = await this.prisma.companySettings.upsert({
       where: { companyId },
       update: dto,
       create: {
@@ -44,5 +52,17 @@ export class SettingsService {
         ...dto,
       },
     });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'UPDATE',
+      'CompanySettings',
+      newSettings.id,
+      oldSettings,
+      newSettings,
+    );
+
+    return newSettings;
   }
 }

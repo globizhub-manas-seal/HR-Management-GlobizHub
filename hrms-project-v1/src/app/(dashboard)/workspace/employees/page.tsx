@@ -111,7 +111,7 @@ export default function EmployeeDirectoryPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Employee ID</TableHead> {/* ✅ Added Column Header */}
+                <TableHead>Employee ID</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Department</TableHead>
@@ -132,7 +132,6 @@ export default function EmployeeDirectoryPage() {
                       {emp.firstName} {emp.lastName}
                     </TableCell>
                     
-                    {/* ✅ Added Employee ID Cell */}
                     <TableCell>
                       {emp.employeeCode ? (
                         <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-mono text-xs tracking-wider">

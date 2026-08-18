@@ -71,6 +71,8 @@ model Company {
   holidays         Holiday[]
   payrollRecords   PayrollRecord[]
   leaveBalances    LeaveBalance[]
+  announcements Announcement[]
+  tasks         Task[]
 }
 
 // 3. The Employee Table (Includes the Administrator)
@@ -135,6 +137,7 @@ model Employee {
   leaveAllocations  LeaveAllocation[]
   leaveRequests     LeaveRequest[]
   leaveTransactions LeaveTransaction[]
+  tasks Task[]
 
   approvedLeaves LeaveRequest[] @relation("ManagerApprovals")
   leaveBalance   LeaveBalance?
@@ -144,6 +147,9 @@ model Employee {
   ifscCode        String?
   panNumber       String?
   nationalId      String? // e.g., Aadhaar, SSN, etc.
+
+  pfAccountNumber String?  // e.g., AA/AAA/0000000/000/0000000
+  uanNumber       String?  // e.g., 101010101010
 }
 
 // 4. Departments (Auto-generated during registration)
@@ -251,6 +257,7 @@ model CompanySettings {
 
   // --- NEW FIELDS FROM WIZARD ---
   themeColor String? @default("#10b981") // Default emerald
+  payslipHeaderUrl String?
 }
 
 model Attendance {
@@ -553,10 +560,14 @@ model SalaryStructure {
   basicSalary     Float // Base pay
   hra             Float @default(0) // House Rent Allowance
   otherAllowances Float @default(0) // Fixed monthly allowances
+  conveyanceAllowance Float    @default(0) // NEW
+  medicalAllowance    Float    @default(0) // NEW
+  specialAllowance    Float    @default(0) // NEW
 
   // Deductions
   pfContribution Float @default(0) // Provident Fund / Retirement
   taxDeduction   Float @default(0) // Standard Tax / TDS
+  professionalTax     Float    @default(0) // NEW
 
   effectiveDate DateTime @default(now())
 
@@ -791,3 +802,54 @@ model LeaveRequest {
   managerId String?
   manager   Employee? @relation("ManagerApprovals", fields: [managerId], references: [id]) // ✅ ADD THIS LINE
 }
+
+// ==========================================
+// --- SALARY TEMPLATE MODULE ---
+// ==========================================
+model SalaryTemplate {
+  id                  String   @id @default(uuid())
+  companyId           String
+  name                String   // e.g., "Software Engineer - Grade A"
+  description         String?
+
+  // Rules (Percentages of CTC)
+  basicPercentOfCtc   Float    @default(40)
+  hraPercentOfCtc     Float    @default(20)
+  
+  // Formulas
+  pfPercentOfBasic    Float    @default(12) // Standard Employer PF is 12% of Basic
+
+  // Fixed Monthly Allowances/Deductions
+  conveyanceFixed     Float    @default(1600)
+  medicalFixed        Float    @default(1250)
+  profTaxFixed        Float    @default(200)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+
+model Announcement {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  @db.Text
+  status      String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

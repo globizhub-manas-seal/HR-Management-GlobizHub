@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentService } from './document.service';
@@ -79,6 +80,43 @@ export class DocumentController {
       body.requestMessage,
     );
   }
+
+  // ==========================================
+  // ✅ NEW: PAYSLIP LETTERHEAD ENDPOINTS
+  // ==========================================
+  @Post('payslip-letterhead')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadLetterhead(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No file provided');
+    
+    // Security check: only Admins should upload company letterheads
+    const isAdmin = req.user.role === 'SUPER_ADMIN' || req.user.role === 'HR_HEAD' || req.user.role === 'OWNER';
+    if (!isAdmin) {
+      throw new ForbiddenException('Only Admins can upload company letterheads.');
+    }
+
+    const fileUrl = await this.documentService.uploadPayslipLetterhead(
+      file,
+      req.user.companyId,
+    );
+    
+    return { fileUrl, message: 'Letterhead uploaded successfully' };
+  }
+
+  @Delete('payslip-letterhead')
+  async removeLetterhead(@Request() req) {
+    const isAdmin = req.user.role === 'SUPER_ADMIN' || req.user.role === 'HR_HEAD' || req.user.role === 'OWNER';
+    if (!isAdmin) {
+      throw new ForbiddenException('Only Admins can remove company letterheads.');
+    }
+
+    await this.documentService.removePayslipLetterhead(req.user.companyId);
+    return { message: 'Letterhead removed successfully' };
+  }
+  // ==========================================
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))

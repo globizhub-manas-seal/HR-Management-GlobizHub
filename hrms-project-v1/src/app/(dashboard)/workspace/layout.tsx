@@ -31,7 +31,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* Pass the role dynamically to the Sidebar */}
-      <Sidebar role={user?.role} className="hidden md:flex" />
+      {/* Keep the full sidebar for large desktops only. Smaller screens use
+          the hamburger-triggered drawer in the header. */}
+      <Sidebar role={user?.role} className="hidden lg:flex" />
 
       <div className="flex flex-col flex-1 h-full overflow-hidden">
         <Header />

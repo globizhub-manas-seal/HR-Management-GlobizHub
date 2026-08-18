@@ -346,8 +346,8 @@ export default function EmployeeDocumentsPage() {
       
 
 
-      {/* 2. TAB PILLS (Horizontal toggle bar) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 p-1.5 bg-slate-100/80 border border-slate-200/60 rounded-2xl shadow-inner max-w-5xl">
+      {/* 2. TAB PILLS (Horizontal toggle bar - visible only on mobile/tablet to avoid duplicate headers on desktop) */}
+      <div className="grid grid-cols-2 lg:hidden gap-2.5 p-1.5 bg-slate-100/80 border border-slate-200/60 rounded-2xl shadow-inner max-w-5xl">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (

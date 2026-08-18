@@ -1,4 +1,3 @@
-
 import {
   Injectable,
   ForbiddenException,
@@ -34,6 +33,79 @@ export class DocumentService {
         return doc;
       }),
     );
+  }
+
+  // ==========================================
+  // NEW: PAYSLIP LETTERHEAD (HR ADMIN)
+  // ==========================================
+  async uploadPayslipLetterhead(file: Express.Multer.File, companyId: string): Promise<string> {
+    // 1. Validate file type (Block SVGs for security, only allow safe images)
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Invalid file type. Only JPG, PNG, and WEBP are allowed.');
+    }
+    
+    // 2. Max size: 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException('File is too large. Maximum size is 2MB.');
+    }
+
+    // 3. Fetch the old value before replacing it. Do not delete it yet:
+    // the new file and database update must both succeed first.
+    const settings = await this.prisma.companySettings.findUnique({
+      where: { companyId },
+    });
+
+    // 4. Upload the replacement first, preserving the current letterhead if
+    // storage is unavailable.
+    const fileUrl = await this.s3Service.uploadFile(file, `company-${companyId}/letterheads`);
+
+    // 5. Persist the replacement before best-effort cleanup of the old file.
+    try {
+      await this.prisma.companySettings.upsert({
+        where: { companyId },
+        update: { payslipHeaderUrl: fileUrl },
+        create: { companyId, payslipHeaderUrl: fileUrl },
+      });
+    } catch (error) {
+      // The database still points to the old image, so clean up the newly
+      // uploaded object before returning the error.
+      try {
+        await this.s3Service.deleteFile(fileUrl);
+      } catch (cleanupError) {
+        console.error('Failed to remove unpersisted letterhead:', cleanupError);
+      }
+      throw error;
+    }
+
+    if (settings?.payslipHeaderUrl && settings.payslipHeaderUrl !== fileUrl) {
+      try {
+        await this.s3Service.deleteFile(settings.payslipHeaderUrl);
+      } catch (error) {
+        console.error('Failed to delete replaced letterhead:', error);
+      }
+    }
+
+    return fileUrl;
+  }
+
+  async removePayslipLetterhead(companyId: string): Promise<void> {
+    const settings = await this.prisma.companySettings.findUnique({
+      where: { companyId },
+    });
+
+    if (settings?.payslipHeaderUrl) {
+      try {
+        await this.s3Service.deleteFile(settings.payslipHeaderUrl);
+      } catch (err) {
+        console.error('Failed to delete letterhead from storage:', err);
+      }
+      
+      await this.prisma.companySettings.update({
+        where: { companyId },
+        data: { payslipHeaderUrl: null },
+      });
+    }
   }
 
   // 1. HR ADMIN: Request a document from an employee
@@ -451,4 +523,3 @@ export class DocumentService {
     });
   }
 }
-

@@ -74,7 +74,7 @@ export class LeaveController {
   @Post('holidays')
   @RequirePermissions('leave.manage') // Only HR/Admins can add holidays
   async addHoliday(@Request() req, @Body() body: any) {
-    return this.leaveService.addHoliday(req.user.companyId, body);
+    return this.leaveService.addHoliday(req.user.companyId, body, req.user.sub);
   }
 
   @Post('policy')
@@ -91,6 +91,6 @@ export class LeaveController {
   @Delete('holidays/:id')
   @RequirePermissions('leave.manage')
   async removeHoliday(@Request() req, @Param('id') id: string) {
-    return this.leaveService.removeHoliday(req.user.companyId, id);
+    return this.leaveService.removeHoliday(req.user.companyId, id, req.user.sub);
   }
 }
