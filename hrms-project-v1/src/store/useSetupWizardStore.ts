@@ -14,6 +14,7 @@ interface SetupWizardData {
   adminLastName: string;
   adminEmail: string;
   adminPhone: string;
+  adminPassword: string;
   holidayRegion: string;
   departments: string[];
   roles: string[];
@@ -29,6 +30,7 @@ interface SetupWizardData {
   shiftStartTime: string;
   shiftEndTime: string;
   attendanceMethod: string;
+  timeZone: string;
 }
 
 interface SetupWizardState {
@@ -54,6 +56,7 @@ const initialData: SetupWizardData = {
   adminLastName: '',
   adminEmail: '',
   adminPhone: '',
+  adminPassword: '',
   holidayRegion: 'INDIA',
   departments: ['HR', 'Finance', 'IT', 'Sales', 'Support'], // Sensible defaults
   roles: ["Intern", "Junior Developer", "Developer", "Senior Developer", "Lead", "Manager", "Director"],
@@ -93,6 +96,7 @@ const initialData: SetupWizardData = {
   shiftStartTime: '09:00',
   shiftEndTime: '18:00',
   attendanceMethod: 'MANUAL',
+  timeZone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'Asia/Kolkata',
 };
 
 

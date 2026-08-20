@@ -105,7 +105,10 @@ export default function Step9Branches() {
         />
 
         {/* SUBMIT BUTTON */}
-        <div className="pt-6 flex justify-end">
+        <div className="pt-6 flex justify-end space-x-3">
+          <Button type="button" variant="outline" onClick={nextStep} className="border-slate-200 text-slate-500 hover:bg-slate-50">
+            Skip Step
+          </Button>
           <Button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white">
             Next Step
           </Button>

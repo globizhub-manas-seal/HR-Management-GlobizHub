@@ -73,6 +73,97 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState<any>({});
   const [isUploading, setIsUploading] = useState(false); // <-- NEW STATE FOR UPLOAD
 
+  // State for Add forms in settings
+  const [isAddingBranch, setIsAddingBranch] = useState(false);
+  const [newBranchName, setNewBranchName] = useState("");
+
+  const [isAddingDept, setIsAddingDept] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+
+  const [isAddingRole, setIsAddingRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+
+  // Branches mutations
+  const addBranchMutation = useMutation({
+    mutationFn: async (name: string) => {
+      return (await axios.post(`${API_URL}/organization/branches`, { name }, { headers })).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      setIsAddingBranch(false);
+      setNewBranchName("");
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Failed to add branch");
+    }
+  });
+
+  const deleteBranchMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await axios.delete(`${API_URL}/organization/branches/${id}`, { headers });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Failed to delete branch");
+    }
+  });
+
+  // Departments mutations
+  const addDeptMutation = useMutation({
+    mutationFn: async (name: string) => {
+      return (await axios.post(`${API_URL}/organization/departments`, { name }, { headers })).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      setIsAddingDept(false);
+      setNewDeptName("");
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Failed to add department");
+    }
+  });
+
+  const deleteDeptMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await axios.delete(`${API_URL}/organization/departments/${id}`, { headers });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Failed to delete department");
+    }
+  });
+
+  // Roles mutations
+  const addRoleMutation = useMutation({
+    mutationFn: async (name: string) => {
+      return (await axios.post(`${API_URL}/organization/roles`, { name }, { headers })).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      setIsAddingRole(false);
+      setNewRoleName("");
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Failed to add role");
+    }
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await axios.delete(`${API_URL}/organization/roles/${id}`, { headers });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Failed to delete role");
+    }
+  });
+
   // 1. Fetch Current Settings
   const { data: settings, isLoading } = useQuery({
     queryKey: ["companySettings"],
@@ -496,11 +587,45 @@ export default function SettingsPage() {
                   <CardTitle className="text-lg">Branches</CardTitle>
                   <CardDescription>Manage office locations.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" className="h-8 shrink-0">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="h-8 shrink-0"
+                  onClick={() => setIsAddingBranch(true)}
+                >
                   <Plus className="w-4 h-4 mr-1" /> Add
                 </Button>
               </CardHeader>
               <CardContent>
+                {isAddingBranch && (
+                  <div className="flex gap-2 items-center mb-4 mt-2 p-2 border rounded-lg bg-slate-50">
+                    <Input 
+                      placeholder="Branch Name" 
+                      value={newBranchName} 
+                      onChange={(e) => setNewBranchName(e.target.value)} 
+                      className="h-8 text-sm"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={() => addBranchMutation.mutate(newBranchName)} 
+                      disabled={addBranchMutation.isPending}
+                      className="h-8"
+                    >
+                      Save
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => {
+                        setIsAddingBranch(false);
+                        setNewBranchName("");
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="space-y-3 mt-4">
                   {branches?.length === 0 && (
                     <p className="text-sm text-slate-500">No branches added.</p>
@@ -516,7 +641,13 @@ export default function SettingsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-rose-500"
+                        className="h-6 w-6 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete branch "${branch.name}"?`)) {
+                            deleteBranchMutation.mutate(branch.id);
+                          }
+                        }}
+                        disabled={deleteBranchMutation.isPending}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -532,11 +663,45 @@ export default function SettingsPage() {
                   <CardTitle className="text-lg">Departments</CardTitle>
                   <CardDescription>Company divisions.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" className="h-8 shrink-0">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="h-8 shrink-0"
+                  onClick={() => setIsAddingDept(true)}
+                >
                   <Plus className="w-4 h-4 mr-1" /> Add
                 </Button>
               </CardHeader>
               <CardContent>
+                {isAddingDept && (
+                  <div className="flex gap-2 items-center mb-4 mt-2 p-2 border rounded-lg bg-slate-50">
+                    <Input 
+                      placeholder="Department Name" 
+                      value={newDeptName} 
+                      onChange={(e) => setNewDeptName(e.target.value)} 
+                      className="h-8 text-sm"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={() => addDeptMutation.mutate(newDeptName)} 
+                      disabled={addDeptMutation.isPending}
+                      className="h-8"
+                    >
+                      Save
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => {
+                        setIsAddingDept(false);
+                        setNewDeptName("");
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="space-y-3 mt-4">
                   {departments?.length === 0 && (
                     <p className="text-sm text-slate-500">
@@ -554,7 +719,13 @@ export default function SettingsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-rose-500"
+                        className="h-6 w-6 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete department "${dept.name}"?`)) {
+                            deleteDeptMutation.mutate(dept.id);
+                          }
+                        }}
+                        disabled={deleteDeptMutation.isPending}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -570,11 +741,45 @@ export default function SettingsPage() {
                   <CardTitle className="text-lg">Roles</CardTitle>
                   <CardDescription>Job designations.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" className="h-8 shrink-0">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="h-8 shrink-0"
+                  onClick={() => setIsAddingRole(true)}
+                >
                   <Plus className="w-4 h-4 mr-1" /> Add
                 </Button>
               </CardHeader>
               <CardContent>
+                {isAddingRole && (
+                  <div className="flex gap-2 items-center mb-4 mt-2 p-2 border rounded-lg bg-slate-50">
+                    <Input 
+                      placeholder="Role Name" 
+                      value={newRoleName} 
+                      onChange={(e) => setNewRoleName(e.target.value)} 
+                      className="h-8 text-sm"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={() => addRoleMutation.mutate(newRoleName)} 
+                      disabled={addRoleMutation.isPending}
+                      className="h-8"
+                    >
+                      Save
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => {
+                        setIsAddingRole(false);
+                        setNewRoleName("");
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="space-y-3 mt-4">
                   {roles?.length === 0 && (
                     <p className="text-sm text-slate-500">No roles added.</p>
@@ -590,7 +795,13 @@ export default function SettingsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-rose-500"
+                        className="h-6 w-6 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete role "${role.name}"?`)) {
+                            deleteRoleMutation.mutate(role.id);
+                          }
+                        }}
+                        disabled={deleteRoleMutation.isPending}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
