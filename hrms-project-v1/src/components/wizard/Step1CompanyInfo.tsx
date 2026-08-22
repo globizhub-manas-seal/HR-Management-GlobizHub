@@ -1,6 +1,7 @@
 // src/components/wizard/Step1CompanyInfo.tsx
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Eye, EyeOff } from "lucide-react";
 
 // 1. Define the validation rules for Step 1
 const step1Schema = z.object({
@@ -28,9 +30,12 @@ const step1Schema = z.object({
   adminLastName: z.string().min(2, "Admin last name is required"),
   adminEmail: z.string().email("Invalid admin email address"),
   adminPhone: z.string().min(10, "Valid admin phone required"),
+  adminPassword: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export default function Step1CompanyInfo() {
+  const [showPassword, setShowPassword] = useState(false);
+  
   // 2. Connect to our Zustand memory bank
   const { formData, updateFormData, nextStep } = useSetupWizardStore();
 
@@ -48,6 +53,7 @@ export default function Step1CompanyInfo() {
       adminLastName: formData.adminLastName || "",
       adminEmail: formData.adminEmail || "",
       adminPhone: formData.adminPhone || "",
+      adminPassword: formData.adminPassword || "",
     },
   });
 
@@ -197,6 +203,36 @@ export default function Step1CompanyInfo() {
                   <FormLabel>Admin Phone</FormLabel>
                   <FormControl>
                     <Input placeholder="+1 555 987 6543" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="adminPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Admin Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-700"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

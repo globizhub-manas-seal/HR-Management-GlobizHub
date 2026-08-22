@@ -18,6 +18,8 @@ export class RegisterWizardDto {
   @IsString() adminLastName: string;
   @IsEmail() adminEmail: string;
   @IsString() @IsOptional() adminPhone?: string;
+  @IsString() @IsOptional() adminPassword?: string;
+  @IsString() @IsOptional() timeZone?: string;
 
   
  

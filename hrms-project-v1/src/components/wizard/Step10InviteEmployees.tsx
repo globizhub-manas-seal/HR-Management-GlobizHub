@@ -115,7 +115,24 @@ export default function Step10InviteEmployees() {
         </div>
 
         {/* FINAL SUBMIT BUTTON WITH LOADING STATE */}
-        <div className="pt-6 flex justify-end border-t border-slate-100">
+        <div className="pt-6 flex justify-end border-t border-slate-100 space-x-3">
+          <Button 
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled={isSubmitting}
+            onClick={() => onSubmit({ inviteEmails: "" })}
+            className="border-slate-200 text-slate-500 hover:bg-slate-50 font-bold px-8"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Skipping...
+              </>
+            ) : (
+              "Skip & Launch Workspace"
+            )}
+          </Button>
           <Button 
             size="lg" 
             type="submit" 

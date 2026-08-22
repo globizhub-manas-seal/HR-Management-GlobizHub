@@ -19,12 +19,20 @@ import { AnnouncementModule } from './announcement/announcement.module';
 import { TaskModule } from './task/task.module';
 import { AuditModule } from './audit/audit.module';
 
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
 @Module({
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads', // The URL prefix
     }),
+
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100, // 100 requests per minute
+    }]),
 
     CronModule.forRoot(), // Initializes the background cron job timer
     ScheduleModule, // Initializes your custom employee shift schedule module
@@ -43,6 +51,12 @@ import { AuditModule } from './audit/audit.module';
     AuditModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

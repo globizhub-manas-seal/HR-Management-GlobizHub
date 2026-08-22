@@ -28,8 +28,11 @@ export default function PayrollSettingsPage() {
     hraPercentOfCtc: 20,
     pfPercentOfBasic: 12,
     conveyanceFixed: 1600,
+    isConveyancePercent: false,
     medicalFixed: 1250,
-    profTaxFixed: 200
+    isMedicalPercent: false,
+    profTaxFixed: 200,
+    isProfTaxPercent: false
   };
   const [form, setForm] = useState(defaultForm);
 
@@ -89,8 +92,11 @@ export default function PayrollSettingsPage() {
       hraPercentOfCtc: template.hraPercentOfCtc,
       pfPercentOfBasic: template.pfPercentOfBasic,
       conveyanceFixed: template.conveyanceFixed,
+      isConveyancePercent: template.isConveyancePercent || false,
       medicalFixed: template.medicalFixed,
-      profTaxFixed: template.profTaxFixed
+      isMedicalPercent: template.isMedicalPercent || false,
+      profTaxFixed: template.profTaxFixed,
+      isProfTaxPercent: template.isProfTaxPercent || false
     });
     setIsModalOpen(true);
   };
@@ -184,18 +190,63 @@ export default function PayrollSettingsPage() {
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-2">Fixed Monthly Components</h4>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Conveyance Allowance (₹)</label>
-                  <Input type="number" value={form.conveyanceFixed} onChange={e => setForm({...form, conveyanceFixed: Number(e.target.value)})} />
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-700">Conveyance Allowance</label>
+                    <select
+                      value={form.isConveyancePercent ? "percent" : "fixed"}
+                      onChange={e => setForm({...form, isConveyancePercent: e.target.value === "percent"})}
+                      className="text-xs border rounded px-1.5 py-0.5 bg-slate-50 border-slate-200 outline-none"
+                    >
+                      <option value="fixed">₹ Fixed</option>
+                      <option value="percent">% of CTC</option>
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
+                      {form.isConveyancePercent ? "%" : "₹"}
+                    </span>
+                    <Input type="number" value={form.conveyanceFixed} onChange={e => setForm({...form, conveyanceFixed: Number(e.target.value)})} />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Medical Allowance (₹)</label>
-                  <Input type="number" value={form.medicalFixed} onChange={e => setForm({...form, medicalFixed: Number(e.target.value)})} />
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-700">Medical Allowance</label>
+                    <select
+                      value={form.isMedicalPercent ? "percent" : "fixed"}
+                      onChange={e => setForm({...form, isMedicalPercent: e.target.value === "percent"})}
+                      className="text-xs border rounded px-1.5 py-0.5 bg-slate-50 border-slate-200 outline-none"
+                    >
+                      <option value="fixed">₹ Fixed</option>
+                      <option value="percent">% of CTC</option>
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
+                      {form.isMedicalPercent ? "%" : "₹"}
+                    </span>
+                    <Input type="number" value={form.medicalFixed} onChange={e => setForm({...form, medicalFixed: Number(e.target.value)})} />
+                  </div>
                 </div>
 
                 <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <label className="text-sm font-medium text-slate-700 text-rose-600">Professional Tax (₹)</label>
-                  <Input type="number" value={form.profTaxFixed} onChange={e => setForm({...form, profTaxFixed: Number(e.target.value)})} />
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-700 text-rose-600">Professional Tax</label>
+                    <select
+                      value={form.isProfTaxPercent ? "percent" : "fixed"}
+                      onChange={e => setForm({...form, isProfTaxPercent: e.target.value === "percent"})}
+                      className="text-xs border rounded px-1.5 py-0.5 bg-slate-50 border-slate-200 outline-none text-rose-600"
+                    >
+                      <option value="fixed">₹ Fixed</option>
+                      <option value="percent">% of CTC</option>
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
+                      {form.isProfTaxPercent ? "%" : "₹"}
+                    </span>
+                    <Input type="number" value={form.profTaxFixed} onChange={e => setForm({...form, profTaxFixed: Number(e.target.value)})} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -272,15 +323,21 @@ export default function PayrollSettingsPage() {
                   <p className="text-slate-500 text-xs uppercase font-semibold mb-2">Fixed Monthly Components</p>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Conveyance:</span>
-                    <span className="font-medium text-slate-900">{formatCurrency(template.conveyanceFixed)}</span>
+                    <span className="font-medium text-slate-900">
+                      {template.isConveyancePercent ? `${template.conveyanceFixed}% of CTC` : formatCurrency(template.conveyanceFixed)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Medical:</span>
-                    <span className="font-medium text-slate-900">{formatCurrency(template.medicalFixed)}</span>
+                    <span className="font-medium text-slate-900">
+                      {template.isMedicalPercent ? `${template.medicalFixed}% of CTC` : formatCurrency(template.medicalFixed)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-rose-600">Prof. Tax:</span>
-                    <span className="font-medium text-rose-600">-{formatCurrency(template.profTaxFixed)}</span>
+                    <span className="font-medium text-rose-600">
+                      {template.isProfTaxPercent ? `-${template.profTaxFixed}% of CTC` : `-${formatCurrency(template.profTaxFixed)}`}
+                    </span>
                   </div>
                 </div>
 

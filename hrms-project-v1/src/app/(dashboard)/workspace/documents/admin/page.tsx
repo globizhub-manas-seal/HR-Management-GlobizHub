@@ -26,6 +26,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
 
+import { useViewMode } from "@/context/ViewModeContext";
+
 export default function EnterpriseAdminDocumentHub() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -57,33 +59,15 @@ export default function EnterpriseAdminDocumentHub() {
   const [editForm, setEditForm] = useState({ name: "", category: "COMPANY", isGlobal: true, employeeId: "" });
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // Check user role on component mount
+  const { activeRole, isLoading: isLoadingProfile } = useViewMode();
+
+  // Redirect employee users back to the employee documents page
   useEffect(() => {
-    const checkUserRole = async () => {
-      try {
-        const token = localStorage.getItem("hrms_token");
-        if (!token) return;
-        
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        const response = await axios.get(
-          `${API_URL}/auth/me`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        const userRole = response.data?.role;
-        
-        // Redirect non-admin users to the employee documents page
-        if (userRole && userRole === "EMPLOYEE") {
-          setRedirecting(true);
-          router.push("/workspace/documents");
-        }
-      } catch (error) {
-        console.error("Error checking user role:", error);
-      }
-    };
-    
-    checkUserRole();
-  }, [router]);
+    if (!isLoadingProfile && activeRole && activeRole === "EMPLOYEE") {
+      setRedirecting(true);
+      router.push("/workspace/documents");
+    }
+  }, [activeRole, isLoadingProfile, router]);
 
   // Fetch all documents from database
   const { data: documents, isLoading: isLoadingDocs } = useQuery({
@@ -267,6 +251,11 @@ export default function EnterpriseAdminDocumentHub() {
 
     return matchesSearch && matchesDept && matchesCategory && matchesStatus;
   });
+
+  const employeeSelectItems = (employees || []).map((emp: any) => ({
+    value: emp.id,
+    label: `${emp.firstName} ${emp.lastName} (${emp.employeeCode || "N/A"})`
+  }));
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6 font-sans">
@@ -590,7 +579,7 @@ export default function EnterpriseAdminDocumentHub() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Employee</label>
-              <Select value={requestEmployeeId} onValueChange={(val) => val && setRequestEmployeeId(val)}>
+              <Select value={requestEmployeeId} onValueChange={(val) => val && setRequestEmployeeId(val)} items={employeeSelectItems}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Employee" />
                 </SelectTrigger>

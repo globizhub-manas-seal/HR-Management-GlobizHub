@@ -64,6 +64,15 @@ export class PayrollController {
     return this.payrollService.getMyPayslips(req.user.sub);
   }
 
+  @Post(':id/log-download')
+  async logDownload(@Request() req, @Param('id') id: string) {
+    return this.payrollService.logPayslipDownload(
+      req.user.sub,
+      req.user.companyId,
+      id,
+    );
+  }
+
   // HR/Admin: Set an employee's salary structure
   @Post('salary-structure')
   async setSalaryStructure(@Request() req, @Body() body: any) {

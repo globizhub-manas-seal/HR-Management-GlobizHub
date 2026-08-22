@@ -16,12 +16,15 @@ import { EmailService } from '../email/email.service';
 
 
 
+import { AuditService } from '../audit/audit.service';
+
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private emailService: EmailService,
+    private auditService: AuditService,
   ) {}
 
   async registerWizard(dto: RegisterWizardDto) {
@@ -33,8 +36,9 @@ export class AuthService {
       throw new ConflictException('Admin email already exists');
     }
 
-    // 2. Hash a default password for the MVP
-    const hashedPassword = await bcrypt.hash('SecurePassword123!', 10);
+    // 2. Hash the user's custom password (or fallback to default if not provided)
+    const passwordToHash = dto.adminPassword || 'SecurePassword123!';
+    const hashedPassword = await bcrypt.hash(passwordToHash, 10);
 
     // 3. Split the full name into first and last
 
@@ -75,7 +79,7 @@ export class AuthService {
             website: dto.website,
             officialEmail: dto.email,
             officialPhone: dto.phone,
-            timeZone: 'Asia/Kolkata',
+            timeZone: dto.timeZone || 'Asia/Kolkata',
             themeColor: dto.themeColor || '#10b981',
             attendanceMethod: dto.attendanceMethod || 'GPS_OR_WIFI',
             workingDays: dto.workDays || [
@@ -105,11 +109,30 @@ export class AuthService {
           create: dto.branches?.map((name) => ({ name })) || [],
         },
         leavePolicies: {
-          create: [
-            { name: 'Casual Leave', type: 'CASUAL', daysPerYear: 12 },
-            { name: 'Medical Leave', type: 'MEDICAL', daysPerYear: 10 },
-            { name: 'Earned Leave', type: 'EARNED', daysPerYear: 15 }
-          ]
+          create: dto.leavePolicies && dto.leavePolicies.length > 0
+            ? dto.leavePolicies.map((name) => {
+                let type = 'UNPAID';
+                let days = 0;
+                const upperName = name.toUpperCase();
+                if (upperName.includes('CASUAL')) { type = 'CASUAL'; days = 12; }
+                else if (upperName.includes('MEDICAL') || upperName.includes('SICK')) { type = 'MEDICAL'; days = 10; }
+                else if (upperName.includes('EARNED') || upperName.includes('ANNUAL')) { type = 'EARNED'; days = 15; }
+                else if (upperName.includes('MATERNITY')) { type = 'MATERNITY'; days = 84; }
+                else if (upperName.includes('PATERNITY')) { type = 'PATERNITY'; days = 14; }
+                else if (upperName.includes('COMP')) { type = 'COMP_OFF'; days = 0; }
+                else if (upperName.includes('UNPAID')) { type = 'UNPAID'; days = 365; }
+                
+                return {
+                  name: name.endsWith('Leave') || name.endsWith('Off') ? name : `${name} Leave`,
+                  type: type as any,
+                  daysPerYear: days,
+                };
+              })
+            : [
+                { name: 'Casual Leave', type: 'CASUAL', daysPerYear: 12 },
+                { name: 'Medical Leave', type: 'MEDICAL', daysPerYear: 10 },
+                { name: 'Earned Leave', type: 'EARNED', daysPerYear: 15 }
+              ]
         },
         shifts: {
           create:
@@ -152,6 +175,16 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+
+    // Log user login activity
+    await this.auditService.logAction(
+      user.companyId,
+      user.id,
+      'LOGIN',
+      'Employee',
+      user.id
+    );
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -159,6 +192,17 @@ export class AuthService {
       role: user.role,
     };
     return { access_token: await this.jwtService.signAsync(payload) };
+  }
+
+  async logout(employeeId: string, companyId: string) {
+    await this.auditService.logAction(
+      companyId,
+      employeeId,
+      'LOGOUT',
+      'Employee',
+      employeeId
+    );
+    return { success: true };
   }
 
   async getProfile(employeeId: string) {

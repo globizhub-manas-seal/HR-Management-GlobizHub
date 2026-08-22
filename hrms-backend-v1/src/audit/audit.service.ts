@@ -9,7 +9,7 @@ export class AuditService {
   async logAction(
     companyId: string,
     actorId: string | null,
-    action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'APPROVE' | 'REJECT',
+    action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'APPROVE' | 'REJECT' | 'DOWNLOAD',
     entity: string,
     entityId?: string,
     oldValue?: any,

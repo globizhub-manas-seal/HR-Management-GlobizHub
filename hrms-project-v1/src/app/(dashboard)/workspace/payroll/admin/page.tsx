@@ -222,6 +222,11 @@ export default function HRPayrollDashboard() {
     ) || 0;
 
   useEffect(() => {
+    if (selectedTemplateId === "custom") {
+      // Manual input mode for contractual / custom fixed salary
+      return;
+    }
+
     if (
       selectedTemplateId &&
       selectedTemplateId !== "none" &&
@@ -237,25 +242,57 @@ export default function HRPayrollDashboard() {
         const hra = monthlyCtc * (template.hraPercentOfCtc / 100);
         const pf = basic * (template.pfPercentOfBasic / 100);
 
+        // Fixed/Percentage Monthly Allowances
+        const conveyance = template.isConveyancePercent
+          ? monthlyCtc * (template.conveyanceFixed / 100)
+          : template.conveyanceFixed;
+        
+        const medical = template.isMedicalPercent
+          ? monthlyCtc * (template.medicalFixed / 100)
+          : template.medicalFixed;
+        
+        const profTax = template.isProfTaxPercent
+          ? monthlyCtc * (template.profTaxFixed / 100)
+          : template.profTaxFixed;
+
         // Special Allowance is the "Balance" (Monthly CTC minus all other fixed components & PF)
         const fixedComponents =
-          basic + hra + template.conveyanceFixed + template.medicalFixed + pf;
+          basic + hra + conveyance + medical + pf;
         const special = monthlyCtc - fixedComponents;
 
-        // Auto-fill the form invisibly for the mutation
+        // Auto-fill the form with calculations
         setSalaryForm({
           basicSalary: Math.round(basic),
           hra: Math.round(hra),
-          conveyanceAllowance: template.conveyanceFixed,
-          medicalAllowance: template.medicalFixed,
+          conveyanceAllowance: Math.round(conveyance),
+          medicalAllowance: Math.round(medical),
           specialAllowance: Math.round(special > 0 ? special : 0), // Prevents negative allowance
           pfContribution: Math.round(pf),
           taxDeduction: 0, // Defaults to 0 since it's typically a manual variable
-          professionalTax: template.profTaxFixed,
+          professionalTax: Math.round(profTax),
         });
       }
     }
   }, [annualCtc, selectedTemplateId, templates]);
+
+  // Mapping lists for Base UI Select value lookup
+  const employeeSelectItems = employees?.map((emp: any) => ({
+    value: emp.id,
+    label: `${emp.firstName} ${emp.lastName}`
+  })) || [];
+
+  const generateEmployeeSelectItems = employees?.map((emp: any) => ({
+    value: emp.id,
+    label: `${emp.firstName} ${emp.lastName} (${emp.employeeCode || ""})`
+  })) || [];
+
+  const templateSelectItems = [
+    { value: "custom", label: "Custom / Fixed Salary (Contractual)" },
+    ...(templates?.map((t: any) => ({
+      value: t.id,
+      label: t.name
+    })) || [])
+  ];
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 font-sans min-h-screen bg-slate-50/50">
@@ -396,6 +433,7 @@ export default function HRPayrollDashboard() {
                     <Select
                       value={empForSalary}
                       onValueChange={(val) => setEmpForSalary(val || "")}
+                      items={employeeSelectItems}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select an employee..." />
@@ -418,9 +456,23 @@ export default function HRPayrollDashboard() {
                       </label>
                       <Select
                         value={selectedTemplateId}
-                        onValueChange={(val) =>
-                          setSelectedTemplateId(val || "")
-                        }
+                        onValueChange={(val) => {
+                          setSelectedTemplateId(val || "");
+                          if (val === "custom") {
+                            setAnnualCtc("");
+                            setSalaryForm({
+                              basicSalary: 0,
+                              hra: 0,
+                              conveyanceAllowance: 0,
+                              medicalAllowance: 0,
+                              specialAllowance: 0,
+                              pfContribution: 0,
+                              taxDeduction: 0,
+                              professionalTax: 0,
+                            });
+                          }
+                        }}
+                        items={templateSelectItems}
                       >
                         <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Select Template..." />
@@ -428,6 +480,9 @@ export default function HRPayrollDashboard() {
                         <SelectContent>
                           <SelectItem value="none" disabled>
                             Select Template
+                          </SelectItem>
+                          <SelectItem value="custom" className="text-indigo-600 font-semibold">
+                            Custom / Fixed Salary (Contractual)
                           </SelectItem>
                           {templates?.map((t: any) => (
                             <SelectItem key={t.id} value={t.id}>
@@ -438,34 +493,112 @@ export default function HRPayrollDashboard() {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        Annual CTC (₹)
-                      </label>
-                      <Input
-                        type="number"
-                        placeholder="e.g., 600000"
-                        className="bg-white font-bold"
-                        value={annualCtc}
-                        onChange={(e) =>
-                          setAnnualCtc(
-                            e.target.value === "" ? "" : Number(e.target.value),
-                          )
-                        }
-                        disabled={
-                          !selectedTemplateId || selectedTemplateId === "none"
-                        }
-                      />
-                    </div>
+                    {selectedTemplateId !== "custom" && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Annual CTC (₹)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 600000"
+                          className="bg-white font-bold"
+                          value={annualCtc}
+                          onChange={(e) =>
+                            setAnnualCtc(
+                              e.target.value === "" ? "" : Number(e.target.value),
+                            )
+                          }
+                          disabled={
+                            !selectedTemplateId || selectedTemplateId === "none"
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="pt-2">
-                    <p className="text-xs text-slate-500 font-medium">
-                      The system will automatically calculate basic pay, HRA,
-                      and standard deductions based on the selected template's
-                      rules and the entered CTC.
-                    </p>
-                  </div>
+                  {/* Calculated/Editable Salary Components */}
+                  {selectedTemplateId && selectedTemplateId !== "none" && (
+                    <div className="pt-4 border-t border-slate-100 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Salary Components (Monthly)</h4>
+                        {selectedTemplateId !== "custom" && (
+                          <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">
+                            Calculated from CTC
+                          </span>
+                        )}
+                        {selectedTemplateId === "custom" && (
+                          <span className="text-[10px] bg-amber-50 text-amber-700 font-semibold px-2 py-0.5 rounded-full animate-pulse">
+                            Manual Editing Mode
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-slate-500">Basic Pay (₹)</label>
+                          <Input
+                            type="number"
+                            value={salaryForm.basicSalary}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, basicSalary: Number(e.target.value) })}
+                            className="h-8 text-xs font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-slate-500">HRA (₹)</label>
+                          <Input
+                            type="number"
+                            value={salaryForm.hra}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, hra: Number(e.target.value) })}
+                            className="h-8 text-xs font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-slate-500">Conveyance (₹)</label>
+                          <Input
+                            type="number"
+                            value={salaryForm.conveyanceAllowance}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, conveyanceAllowance: Number(e.target.value) })}
+                            className="h-8 text-xs font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-slate-500">Medical (₹)</label>
+                          <Input
+                            type="number"
+                            value={salaryForm.medicalAllowance}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, medicalAllowance: Number(e.target.value) })}
+                            className="h-8 text-xs font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-slate-500">Special Allowance (₹)</label>
+                          <Input
+                            type="number"
+                            value={salaryForm.specialAllowance}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, specialAllowance: Number(e.target.value) })}
+                            className="h-8 text-xs font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-slate-500">Employer PF (₹)</label>
+                          <Input
+                            type="number"
+                            value={salaryForm.pfContribution}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, pfContribution: Number(e.target.value) })}
+                            className="h-8 text-xs font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1 col-span-2">
+                          <label className="text-[11px] font-medium text-rose-500">Professional Tax (₹)</label>
+                          <Input
+                            type="number"
+                            value={salaryForm.professionalTax}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, professionalTax: Number(e.target.value) })}
+                            className="h-8 text-xs font-semibold text-rose-600 border-rose-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button
@@ -480,7 +613,7 @@ export default function HRPayrollDashboard() {
                       !empForSalary ||
                       !selectedTemplateId ||
                       selectedTemplateId === "none" ||
-                      !annualCtc ||
+                      (selectedTemplateId !== "custom" && !annualCtc) ||
                       salaryMutation.isPending
                     }
                     className="bg-indigo-600 text-white hover:bg-indigo-700"
@@ -519,6 +652,7 @@ export default function HRPayrollDashboard() {
                     <Select
                       value={empToGenerate}
                       onValueChange={(val) => setEmpToGenerate(val || "")}
+                      items={generateEmployeeSelectItems}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select an employee..." />
@@ -912,7 +1046,12 @@ export default function HRPayrollDashboard() {
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => window.print()}
+              onClick={() => {
+                axios.post(`${API_URL}/payroll/${selectedPayslip.id}/log-download`, {}, {
+                  headers: { Authorization: `Bearer ${getToken()}` }
+                }).catch(err => console.error("Failed to log download:", err));
+                window.print();
+              }}
             >
               <Download className="w-4 h-4 mr-2" /> Download / Print PDF
             </Button>

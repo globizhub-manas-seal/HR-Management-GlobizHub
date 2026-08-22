@@ -33,6 +33,13 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('logout')
+  async logout(@Request() req) {
+    return this.authService.logout(req.user.sub, req.user.companyId);
+  }
+
+  @UseGuards(AuthGuard)
   @Get('me')
   getProfile(@Request() req) {
     // req.user is populated by the AuthGuard using your JWT token

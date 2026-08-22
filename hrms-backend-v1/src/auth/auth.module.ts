@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
+import { AuditModule } from '../audit/audit.module';
 
 
 @Module({
@@ -14,6 +15,7 @@ import { JwtStrategy } from './jwt.strategy';
       signOptions: { expiresIn: '1d' },
     }),
     EmailModule,
+    AuditModule,
   ],
   providers: [AuthService, JwtStrategy], // <-- Add JwtStrategy here
   controllers: [AuthController],
