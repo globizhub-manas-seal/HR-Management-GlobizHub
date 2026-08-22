@@ -1,24 +1,13 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { Loader2 } from "lucide-react";
+import { useViewMode } from "@/context/ViewModeContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // Fetch profile to get role for the sidebar
-  const { data: user, isLoading } = useQuery({
-    queryKey: ["userProfileLayout"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
-  });
+  // Fetch active role from ViewModeContext
+  const { activeRole, isLoading } = useViewMode();
 
   if (isLoading) {
     return (
@@ -33,7 +22,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Pass the role dynamically to the Sidebar */}
       {/* Keep the full sidebar for large desktops only. Smaller screens use
           the hamburger-triggered drawer in the header. */}
-      <Sidebar role={user?.role} className="hidden lg:flex" />
+      <Sidebar role={activeRole} className="hidden lg:flex" />
 
       <div className="flex flex-col flex-1 h-full overflow-hidden">
         <Header />
@@ -44,3 +33,4 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+

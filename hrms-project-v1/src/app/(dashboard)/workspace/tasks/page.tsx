@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useViewMode } from "@/context/ViewModeContext";
 
 export default function TasksPage() {
   const queryClient = useQueryClient();
@@ -19,19 +20,10 @@ export default function TasksPage() {
   const [taskForm, setTaskForm] = useState({ employeeId: "", title: "", description: "", dueDate: "" });
   const [isAssignOpen, setIsAssignOpen] = useState(false);
 
-  // 1. Fetch current logged-in user profile (for role checking)
-  const { data: user, isLoading: loadingProfile } = useQuery({
-    queryKey: ["userProfileTasks"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return res.data;
-    }
-  });
+  // Consume profile and active role from global ViewModeContext
+  const { user, activeRole, isLoading: loadingProfile } = useViewMode();
 
-  const isAdmin = user?.role !== "EMPLOYEE";
+  const isAdmin = activeRole !== "EMPLOYEE";
 
   // 2. Fetch Employee's Own Tasks
   const { data: myTasks, isLoading: loadingMyTasks } = useQuery({

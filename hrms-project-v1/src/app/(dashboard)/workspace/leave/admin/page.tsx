@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Loader2, CalendarCheck, Check, X } from "lucide-react";
@@ -7,20 +9,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useViewMode } from "@/context/ViewModeContext";
 
 export default function AdminLeaveApprovalPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
-  // Fetch all company leave requests
-  const { data: leaves, isLoading, error } = useQuery({
-    queryKey: ["adminCompanyLeaves"],
+  // Fetch current user details from global workspace ViewModeContext
+  const { user, activeRole, isLoading: isLoadingUser } = useViewMode();
+
+  // Redirect users in Employee mode back to the standard leaves page
+  useEffect(() => {
+    if (!isLoadingUser && activeRole === "EMPLOYEE") {
+      router.push("/workspace/leave");
+    }
+  }, [activeRole, isLoadingUser, router]);
+
+  // Fetch leave requests for approvals
+  const { data: leaves, isLoading: isLoadingLeaves, error } = useQuery({
+    queryKey: ["adminCompanyLeaves", activeRole],
     queryFn: async () => {
       const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/leaves/company`, {
+      const endpoint = activeRole === 'MANAGER' ? 'approvals' : 'company';
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/leaves/${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.data;
     },
+    enabled: !!activeRole,
   });
 
   // Mutation to update leave status (APPROVE / REJECT)
@@ -37,6 +53,8 @@ export default function AdminLeaveApprovalPage() {
       queryClient.invalidateQueries({ queryKey: ["adminCompanyLeaves"] });
     },
   });
+
+  const isLoading = isLoadingUser || isLoadingLeaves;
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">

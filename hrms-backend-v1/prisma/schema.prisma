@@ -150,6 +150,10 @@ model Employee {
 
   pfAccountNumber String?  // e.g., AA/AAA/0000000/000/0000000
   uanNumber       String?  // e.g., 101010101010
+
+  reportingManagerId String?
+  reportingManager   Employee?  @relation("ReportingManager", fields: [reportingManagerId], references: [id], onDelete: SetNull)
+  directReports      Employee[] @relation("ReportingManager")
 }
 
 // 4. Departments (Auto-generated during registration)
@@ -821,8 +825,11 @@ model SalaryTemplate {
 
   // Fixed Monthly Allowances/Deductions
   conveyanceFixed     Float    @default(1600)
+  isConveyancePercent Boolean  @default(false)
   medicalFixed        Float    @default(1250)
+  isMedicalPercent    Boolean  @default(false)
   profTaxFixed        Float    @default(200)
+  isProfTaxPercent    Boolean  @default(false)
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

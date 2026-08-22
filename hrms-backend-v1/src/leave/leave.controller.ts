@@ -39,6 +39,11 @@ export class LeaveController {
     return this.leaveService.getAllCompanyLeaves(req.user.companyId);
   }
 
+  @Get('company-balances')
+  async getAllCompanyLeaveBalances(@Request() req) {
+    return this.leaveService.getAllCompanyLeaveBalances(req.user.companyId);
+  }
+
   @Get('balance')
   async getBalance(@Request() req) {
     return this.leaveService.getLeaveBalance(req.user.sub, req.user.companyId);

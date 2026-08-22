@@ -6,12 +6,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../s3/s3.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class PayrollService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
+    private readonly auditService: AuditService,
   ) {}
 
   /**
@@ -415,5 +417,39 @@ export class PayrollService {
       where: { id: templateId },
       data: templateData,
     });
+  }
+
+  async logPayslipDownload(employeeId: string, companyId: string, payrollId: string) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { firstName: true, lastName: true, role: true }
+    });
+
+    const payroll = await this.prisma.payrollRecord.findUnique({
+      where: { id: payrollId },
+      select: { 
+        month: true, 
+        year: true, 
+        employee: { select: { firstName: true, lastName: true } } 
+      }
+    });
+
+    if (!payroll) throw new NotFoundException('Payroll record not found.');
+
+    const actorName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+    const targetName = `${payroll.employee.firstName} ${payroll.employee.lastName}`;
+    const desc = `${actorName} (${employee?.role || 'User'}) downloaded payslip of ${targetName} for Month ${payroll.month}/${payroll.year}`;
+
+    await this.auditService.logAction(
+      companyId,
+      employeeId,
+      'DOWNLOAD',
+      'PayrollRecord',
+      payrollId,
+      null,
+      { description: desc }
+    );
+
+    return { success: true };
   }
 }

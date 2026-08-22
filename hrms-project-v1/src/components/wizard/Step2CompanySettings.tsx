@@ -27,6 +27,28 @@ const step2Schema = z.object({
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const ATTENDANCE_METHODS = ["MANUAL", "GPS", "QR", "FACE_RECOGNITION", "BIOMETRIC", "RFID"];
 
+const HOURS = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0"));
+const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
+
+function parse24hTo12h(timeStr: string) {
+  if (!timeStr) return { hour: 9, minute: 0, period: "AM" };
+  const [hStr, mStr] = timeStr.split(":");
+  let h24 = parseInt(hStr) || 0;
+  const m = parseInt(mStr) || 0;
+  const period = h24 >= 12 ? "PM" : "AM";
+  let h12 = h24 % 12;
+  if (h12 === 0) h12 = 12;
+  return { hour: h12, minute: m, period };
+}
+
+function format12hTo24h(hour: number, minute: number, period: string) {
+  let h24 = hour % 12;
+  if (period === "PM") h24 += 12;
+  const hStr = h24.toString().padStart(2, "0");
+  const mStr = minute.toString().padStart(2, "0");
+  return `${hStr}:${mStr}`;
+}
+
 export default function Step2CompanySettings() {
   const { formData, updateFormData, nextStep, prevStep } = useSetupWizardStore();
 
@@ -97,29 +119,101 @@ export default function Step2CompanySettings() {
           <FormField
             control={form.control}
             name="shiftStartTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Standard Shift Start Time</FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const { hour, minute, period } = parse24hTo12h(field.value);
+              const handleTimeChange = (type: "hour" | "minute" | "period", val: string) => {
+                let newHour = hour;
+                let newMinute = minute;
+                let newPeriod = period;
+                if (type === "hour") newHour = parseInt(val) || 12;
+                if (type === "minute") newMinute = parseInt(val) || 0;
+                if (type === "period") newPeriod = val as any;
+                field.onChange(format12hTo24h(newHour, newMinute, newPeriod));
+              };
+
+              return (
+                <FormItem>
+                  <FormLabel>Standard Shift Start Time</FormLabel>
+                  <FormControl>
+                    <div className="flex gap-2">
+                      <select
+                        value={hour.toString().padStart(2, "0")}
+                        onChange={(e) => handleTimeChange("hour", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      >
+                        {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <select
+                        value={minute.toString().padStart(2, "0")}
+                        onChange={(e) => handleTimeChange("minute", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      >
+                        {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <select
+                        value={period}
+                        onChange={(e) => handleTimeChange("period", e.target.value)}
+                        className="flex h-10 w-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 font-bold"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
 
           <FormField
             control={form.control}
             name="shiftEndTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Standard Shift End Time</FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const { hour, minute, period } = parse24hTo12h(field.value);
+              const handleTimeChange = (type: "hour" | "minute" | "period", val: string) => {
+                let newHour = hour;
+                let newMinute = minute;
+                let newPeriod = period;
+                if (type === "hour") newHour = parseInt(val) || 12;
+                if (type === "minute") newMinute = parseInt(val) || 0;
+                if (type === "period") newPeriod = val as any;
+                field.onChange(format12hTo24h(newHour, newMinute, newPeriod));
+              };
+
+              return (
+                <FormItem>
+                  <FormLabel>Standard Shift End Time</FormLabel>
+                  <FormControl>
+                    <div className="flex gap-2">
+                      <select
+                        value={hour.toString().padStart(2, "0")}
+                        onChange={(e) => handleTimeChange("hour", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      >
+                        {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <select
+                        value={minute.toString().padStart(2, "0")}
+                        onChange={(e) => handleTimeChange("minute", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      >
+                        {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <select
+                        value={period}
+                        onChange={(e) => handleTimeChange("period", e.target.value)}
+                        className="flex h-10 w-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 font-bold"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         </div>
 

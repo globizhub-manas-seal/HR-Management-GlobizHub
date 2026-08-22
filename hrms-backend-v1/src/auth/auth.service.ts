@@ -16,12 +16,15 @@ import { EmailService } from '../email/email.service';
 
 
 
+import { AuditService } from '../audit/audit.service';
+
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private emailService: EmailService,
+    private auditService: AuditService,
   ) {}
 
   async registerWizard(dto: RegisterWizardDto) {
@@ -172,6 +175,16 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+
+    // Log user login activity
+    await this.auditService.logAction(
+      user.companyId,
+      user.id,
+      'LOGIN',
+      'Employee',
+      user.id
+    );
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -179,6 +192,17 @@ export class AuthService {
       role: user.role,
     };
     return { access_token: await this.jwtService.signAsync(payload) };
+  }
+
+  async logout(employeeId: string, companyId: string) {
+    await this.auditService.logAction(
+      companyId,
+      employeeId,
+      'LOGOUT',
+      'Employee',
+      employeeId
+    );
+    return { success: true };
   }
 
   async getProfile(employeeId: string) {

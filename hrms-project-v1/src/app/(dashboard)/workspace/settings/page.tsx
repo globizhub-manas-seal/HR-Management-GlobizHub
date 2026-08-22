@@ -30,6 +30,28 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+const HOURS = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0"));
+const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
+
+function parse24hTo12h(timeStr: string) {
+  if (!timeStr) return { hour: 9, minute: 0, period: "AM" };
+  const [hStr, mStr] = timeStr.split(":");
+  let h24 = parseInt(hStr) || 0;
+  const m = parseInt(mStr) || 0;
+  const period = h24 >= 12 ? "PM" : "AM";
+  let h12 = h24 % 12;
+  if (h12 === 0) h12 = 12;
+  return { hour: h12, minute: m, period };
+}
+
+function format12hTo24h(hour: number, minute: number, period: string) {
+  let h24 = hour % 12;
+  if (period === "PM") h24 += 12;
+  const hStr = h24.toString().padStart(2, "0");
+  const mStr = minute.toString().padStart(2, "0");
+  return `${hStr}:${mStr}`;
+}
+
 export default function SettingsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
   const token =
@@ -71,6 +93,34 @@ export default function SettingsPage() {
 
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<any>({});
+
+  const handleStartTimeChange = (type: "hour" | "minute" | "period", val: string) => {
+    const timeVal = formData.officeStartTime || "09:00";
+    const { hour, minute, period } = parse24hTo12h(timeVal);
+    let newHour = hour;
+    let newMinute = minute;
+    let newPeriod = period;
+    if (type === "hour") newHour = parseInt(val) || 12;
+    if (type === "minute") newMinute = parseInt(val) || 0;
+    if (type === "period") newPeriod = val as any;
+    
+    const time24h = format12hTo24h(newHour, newMinute, newPeriod);
+    setFormData((prev: any) => ({ ...prev, officeStartTime: time24h }));
+  };
+
+  const handleEndTimeChange = (type: "hour" | "minute" | "period", val: string) => {
+    const timeVal = formData.officeEndTime || "18:00";
+    const { hour, minute, period } = parse24hTo12h(timeVal);
+    let newHour = hour;
+    let newMinute = minute;
+    let newPeriod = period;
+    if (type === "hour") newHour = parseInt(val) || 12;
+    if (type === "minute") newMinute = parseInt(val) || 0;
+    if (type === "period") newPeriod = val as any;
+    
+    const time24h = format12hTo24h(newHour, newMinute, newPeriod);
+    setFormData((prev: any) => ({ ...prev, officeEndTime: time24h }));
+  };
   const [isUploading, setIsUploading] = useState(false); // <-- NEW STATE FOR UPLOAD
 
   // State for Add forms in settings
@@ -955,21 +1005,67 @@ export default function SettingsPage() {
                   <label className="text-sm font-medium">
                     Office Start Time
                   </label>
-                  <Input
-                    type="time"
-                    name="officeStartTime"
-                    value={formData.officeStartTime || "09:00"}
-                    onChange={handleChange}
-                  />
+                  {(() => {
+                    const { hour, minute, period } = parse24hTo12h(formData.officeStartTime || "09:00");
+                    return (
+                      <div className="flex gap-2">
+                        <select
+                          value={hour.toString().padStart(2, "0")}
+                          onChange={(e) => handleStartTimeChange("hour", e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                        >
+                          {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                        <select
+                          value={minute.toString().padStart(2, "0")}
+                          onChange={(e) => handleStartTimeChange("minute", e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                        >
+                          {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                        <select
+                          value={period}
+                          onChange={(e) => handleStartTimeChange("period", e.target.value)}
+                          className="flex h-10 w-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 font-bold"
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Office End Time</label>
-                  <Input
-                    type="time"
-                    name="officeEndTime"
-                    value={formData.officeEndTime || "18:00"}
-                    onChange={handleChange}
-                  />
+                  {(() => {
+                    const { hour, minute, period } = parse24hTo12h(formData.officeEndTime || "18:00");
+                    return (
+                      <div className="flex gap-2">
+                        <select
+                          value={hour.toString().padStart(2, "0")}
+                          onChange={(e) => handleEndTimeChange("hour", e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                        >
+                          {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                        <select
+                          value={minute.toString().padStart(2, "0")}
+                          onChange={(e) => handleEndTimeChange("minute", e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                        >
+                          {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                        <select
+                          value={period}
+                          onChange={(e) => handleEndTimeChange("period", e.target.value)}
+                          className="flex h-10 w-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 font-bold"
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">

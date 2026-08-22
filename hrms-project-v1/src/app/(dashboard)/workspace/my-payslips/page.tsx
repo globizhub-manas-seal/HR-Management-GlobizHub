@@ -360,7 +360,12 @@ export default function EmployeePayslipPage() {
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm"
-              onClick={() => window.print()}
+              onClick={() => {
+                axios.post(`${API_URL}/payroll/${selectedPayslip.id}/log-download`, {}, {
+                  headers: { Authorization: `Bearer ${getToken()}` }
+                }).catch(err => console.error("Failed to log download:", err));
+                window.print();
+              }}
             >
               <Download className="w-4 h-4 mr-2" /> Download / Print PDF
             </Button>

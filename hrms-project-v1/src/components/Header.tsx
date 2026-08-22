@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import Sidebar from "./Sidebar";
+import { useViewMode } from "@/context/ViewModeContext";
 
 export default function Header() {
   const router = useRouter();
@@ -44,25 +45,20 @@ export default function Header() {
     setOpen(false);
   }
 
-  const { data: user, isLoading } = useQuery({
-    queryKey: ["userProfile"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
+  const { user, activeRole, isViewAsUser, setIsViewAsUser, isLoading } = useViewMode();
 
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      return res.data;
-    },
-  });
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem("hrms_token");
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    if (token) {
+      try {
+        await axios.post(`${API_URL}/auth/logout`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        console.error("Failed to log logout action on backend", err);
+      }
+    }
     localStorage.removeItem("hrms_token");
     queryClient.clear();
     router.push("/login");
@@ -87,8 +83,11 @@ export default function Header() {
       .join(" ");
   };
 
+  // Indigo border on top of header for visual distinction when in Manager Mode
+  const isManagerMode = user?.role === "MANAGER" && !isViewAsUser;
+
   return (
-    <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
+    <header className={`flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200 transition-all ${isManagerMode ? "border-t-2 border-t-violet-600" : ""}`}>
       <div className="flex items-center space-x-4">
         {/* Small and medium screens: open the sidebar as a drawer. */}
         <Sheet open={open} onOpenChange={setOpen}>
@@ -99,7 +98,7 @@ export default function Header() {
             <Menu className="h-5 w-5" />
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-64 data-[side=left]:w-64 data-[side=left]:sm:max-w-64">
-            <Sidebar role={user?.role} className="flex h-full" />
+            <Sidebar role={activeRole} className="flex h-full" />
           </SheetContent>
         </Sheet>
 
@@ -122,6 +121,37 @@ export default function Header() {
             className="pl-10 rounded-full bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
           />
         </div>
+
+        {/* View As User Toggle (for Managers only) */}
+        {!isLoading && user?.role === "MANAGER" && (
+          <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full select-none shadow-sm transition-all duration-200">
+            {isViewAsUser ? (
+              <span className="flex items-center text-[11px] font-bold text-emerald-700 bg-emerald-50/80 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <span className="h-1.5 w-1.5 mr-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                User View
+              </span>
+            ) : (
+              <span className="flex items-center text-[11px] font-bold text-indigo-700 bg-indigo-50/80 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                <span className="h-1.5 w-1.5 mr-1.5 rounded-full bg-indigo-500" />
+                Manager Mode
+              </span>
+            )}
+            
+            <button
+              onClick={() => setIsViewAsUser(!isViewAsUser)}
+              className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isViewAsUser ? "bg-emerald-500" : "bg-slate-300 hover:bg-slate-400"
+              }`}
+              aria-label="Toggle user view mode"
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isViewAsUser ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Notification Dropdown */}
         <DropdownMenu>

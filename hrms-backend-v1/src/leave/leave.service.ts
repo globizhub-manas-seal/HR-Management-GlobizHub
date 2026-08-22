@@ -471,4 +471,31 @@ export class LeaveService {
 
     return { success: true };
   }
+
+  async getAllCompanyLeaveBalances(companyId: string) {
+    const employees = await this.prisma.employee.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeCode: true,
+        email: true,
+      }
+    });
+
+    const results: any[] = [];
+    for (const emp of employees) {
+      const balance = await this.getLeaveBalance(emp.id, companyId);
+      results.push({
+        id: emp.id,
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        employeeCode: emp.employeeCode,
+        email: emp.email,
+        balance
+      });
+    }
+    return results;
+  }
 }

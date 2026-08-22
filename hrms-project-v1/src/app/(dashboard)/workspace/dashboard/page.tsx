@@ -1,233 +1,35 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { EmployeeDashboardView } from "@/components/dashboard/EmployeeDashboardView";
-import { Users, UserCheck, UserX, Clock } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-// Note: We removed AttendanceWidget import here if it's no longer used in this file at all
-// But if EmployeeDashboardView uses it internally, you're good!
+import { ManagerDashboardView } from "@/components/dashboard/ManagerDashboardView";
+import { HRDashboardView } from "@/components/dashboard/HRDashboardView";
+import { AdminDashboardView } from "@/components/dashboard/AdminDashboardView";
+import { useViewMode } from "@/context/ViewModeContext";
 
 export default function DashboardRouter() {
-  // 1. Fetch current logged-in user's profile to check their role
-  const { data: user, isLoading: userLoading } = useQuery({
-    queryKey: ["userProfile"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
-  });
-
-  // 2. Fetch Admin Stats (only relevant if they are an admin/HR)
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["adminDashboardStats"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/attendance/admin-stats`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
-    enabled: user?.role === 'SUPER_ADMIN' || user?.role === 'HR_HEAD' || user?.role === 'OWNER' || user?.role === 'MANAGER', 
-    refetchInterval: 60000,
-  });
+  // Fetch current logged-in user's profile to check their active role
+  const { activeRole, isLoading: userLoading } = useViewMode();
 
   if (userLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
+      <div className="flex h-96 items-center justify-center bg-slate-50/50 min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
       </div>
     );
   }
 
-  // 3. If the user is a standard EMPLOYEE, show their personalized dashboard!
-  if (user?.role === 'EMPLOYEE') {
-    return (
-      <div className="p-8 max-w-7xl mx-auto">
-        <EmployeeDashboardView />
-      </div>
-    );
+  // Route to the appropriate dashboard component based on their active role
+  switch (activeRole) {
+    case 'EMPLOYEE':
+      return <EmployeeDashboardView />;
+    case 'MANAGER':
+      return <ManagerDashboardView />;
+    case 'HR_HEAD':
+      return <HRDashboardView />;
+    case 'SUPER_ADMIN':
+    case 'OWNER':
+    default:
+      return <AdminDashboardView />;
   }
-
-  // 4. Otherwise, show the Company-Wide Super Admin / HR Dashboard
-  return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-        <p className="text-slate-500 mt-1">Here is what is happening across your workspace today.</p>
-      </div>
-
-      {/* STAT CARDS ROW */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-emerald-50/50 border-emerald-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-emerald-600">Total Employees</p>
-                <div className="flex items-baseline mt-2">
-                  <span className="text-4xl font-bold text-emerald-900">
-                    {statsLoading ? "--" : stats?.totalEmployees}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600"><Users className="w-5 h-5" /></div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-blue-50/50 border-blue-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-blue-600">Present Today</p>
-                <div className="flex items-baseline mt-2">
-                  <span className="text-4xl font-bold text-blue-900">
-                    {statsLoading ? "--" : stats?.presentToday}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><UserCheck className="w-5 h-5" /></div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-rose-50/50 border-rose-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-rose-600">Absent / Pending</p>
-                <div className="flex items-baseline mt-2">
-                  <span className="text-4xl font-bold text-rose-900">
-                    {statsLoading ? "--" : stats?.absentToday}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-rose-100 rounded-lg text-rose-600"><UserX className="w-5 h-5" /></div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-amber-50/50 border-amber-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-amber-600">Late Arrivals</p>
-                <div className="flex items-baseline mt-2">
-                  <span className="text-4xl font-bold text-amber-900">
-                    {statsLoading ? "--" : stats?.lateToday}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-amber-100 rounded-lg text-amber-600"><Clock className="w-5 h-5" /></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* DASHBOARD WIDGETS ROW (AttendanceWidget removed, breakdown expanded to full width) */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Today's Attendance Breakdown</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Real-time presence rate across all departments.</p>
-          </div>
-          <div className="flex items-center space-x-2 text-xs font-semibold text-slate-600 bg-slate-50 border px-3 py-1.5 rounded-lg shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Live Status</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center flex-1">
-          {/* SVG Ring Gauge */}
-          <div className="relative flex justify-center items-center">
-            <svg className="w-48 h-48 transform -rotate-90">
-              {/* Background Ring */}
-              <circle cx="96" cy="96" r="75" strokeWidth="14" stroke="#f1f5f9" fill="transparent" />
-              {/* Present Ring */}
-              <circle
-                cx="96"
-                cy="96"
-                r="75"
-                strokeWidth="14"
-                stroke="url(#presentGrad)"
-                strokeDasharray={`${2 * Math.PI * 75}`}
-                strokeDashoffset={`${
-                  2 * Math.PI * 75 * (1 - (stats?.presentToday || 0) / (stats?.totalEmployees || 1))
-                }`}
-                strokeLinecap="round"
-                fill="transparent"
-                className="transition-all duration-1000 ease-out"
-              />
-            </svg>
-            {/* Radial Gradients Definition */}
-            <svg className="w-0 h-0">
-              <defs>
-                <linearGradient id="presentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="100%" stopColor="#059669" />
-                </linearGradient>
-              </defs>
-            </svg>
-            {/* Central Text */}
-            <div className="absolute flex flex-col items-center">
-              <span className="text-4xl font-black text-slate-900">
-                {stats?.totalEmployees
-                  ? Math.round((stats.presentToday / stats.totalEmployees) * 100)
-                  : 0}%
-              </span>
-              <span className="text-xs uppercase font-bold tracking-wider text-slate-400 mt-1">Presence</span>
-            </div>
-          </div>
-
-          {/* Progress Bars */}
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm font-semibold text-slate-600">
-                <span>Present Today</span>
-                <span>{stats?.presentToday || 0} / {stats?.totalEmployees || 0}</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
-                  style={{ width: `${stats?.totalEmployees ? (stats.presentToday / stats.totalEmployees) * 100 : 0}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm font-semibold text-slate-600">
-                <span>Late Arrivals</span>
-                <span>{stats?.lateToday || 0} / {stats?.totalEmployees || 0}</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-500 rounded-full transition-all duration-1000"
-                  style={{ width: `${stats?.totalEmployees ? (stats.lateToday / stats.totalEmployees) * 100 : 0}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm font-semibold text-slate-600">
-                <span>Absent / Off</span>
-                <span>{stats?.absentToday || 0} / {stats?.totalEmployees || 0}</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-rose-500 rounded-full transition-all duration-1000"
-                  style={{ width: `${stats?.totalEmployees ? (stats.absentToday / stats.totalEmployees) * 100 : 0}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }

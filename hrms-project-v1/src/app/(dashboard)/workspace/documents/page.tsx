@@ -20,6 +20,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+import { useViewMode } from "@/context/ViewModeContext";
+
 export default function EmployeeDocumentsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -41,32 +43,15 @@ export default function EmployeeDocumentsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
   const getToken = () => localStorage.getItem("hrms_token");
 
-  // Fetch user profile to check role
+  const { activeRole, isLoading: isLoadingProfile } = useViewMode();
+
+  // Redirect admin/HR/CEO users to the admin documents page
   useEffect(() => {
-    const checkUserRole = async () => {
-      try {
-        const token = getToken();
-        if (!token) return;
-        
-        const response = await axios.get(
-          `${API_URL}/auth/me`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        const userRole = response.data?.role;
-        
-        // Redirect admin/HR/CEO users to the admin documents page
-        if (userRole && userRole !== "EMPLOYEE") {
-          setRedirecting(true);
-          router.push("/workspace/documents/admin");
-        }
-      } catch (error) {
-        console.error("Error checking user role:", error);
-      }
-    };
-    
-    checkUserRole();
-  }, [router, API_URL]);
+    if (!isLoadingProfile && activeRole && activeRole !== "EMPLOYEE") {
+      setRedirecting(true);
+      router.push("/workspace/documents/admin");
+    }
+  }, [activeRole, isLoadingProfile, router]);
 
   // 1. Fetch the logged-in employee's documents
   const { data: documents, isLoading } = useQuery({
