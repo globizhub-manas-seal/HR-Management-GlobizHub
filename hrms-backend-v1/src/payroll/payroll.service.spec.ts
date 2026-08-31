@@ -3,6 +3,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../s3/s3.service';
+import { AuditService } from '../audit/audit.service';
 
 describe('PayrollService', () => {
   let service: PayrollService;
@@ -30,6 +31,9 @@ describe('PayrollService', () => {
   const s3Service = {
     getPresignedUrl: jest.fn(),
   };
+  const auditService = {
+    logAction: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -44,6 +48,10 @@ describe('PayrollService', () => {
         {
           provide: S3Service,
           useValue: s3Service,
+        },
+        {
+          provide: AuditService,
+          useValue: auditService,
         },
       ],
     }).compile();

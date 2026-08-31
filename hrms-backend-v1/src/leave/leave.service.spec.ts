@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LeaveService } from './leave.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 describe('LeaveService', () => {
   let service: LeaveService;
@@ -25,6 +26,12 @@ describe('LeaveService', () => {
               create: jest.fn(),
             },
             employee: { findUnique: jest.fn() },
+          },
+        },
+        {
+          provide: AuditService,
+          useValue: {
+            logAction: jest.fn(),
           },
         },
       ],

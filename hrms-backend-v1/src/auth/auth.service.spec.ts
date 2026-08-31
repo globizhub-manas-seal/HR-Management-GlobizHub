@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
+import { AuditService } from '../audit/audit.service';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
@@ -22,6 +23,9 @@ describe('AuthService', () => {
   const emailService = {
     sendPasswordResetEmail: jest.fn(),
   };
+  const auditService = {
+    logAction: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -39,6 +43,10 @@ describe('AuthService', () => {
         {
           provide: EmailService,
           useValue: emailService,
+        },
+        {
+          provide: AuditService,
+          useValue: auditService,
         },
       ],
     }).compile();
