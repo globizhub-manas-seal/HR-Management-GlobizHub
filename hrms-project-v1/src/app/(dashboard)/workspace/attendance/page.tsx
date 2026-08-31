@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { format } from "date-fns";
 import { Loader2, CalendarClock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +23,10 @@ const getStatusBadge = (status: string) => {
       return <Badge className="bg-amber-500 hover:bg-amber-600">Late</Badge>;
     case 'ABSENT':
       return <Badge variant="destructive">Absent</Badge>;
+    case 'SHIFT_GIVEN':
+      return <Badge className="bg-slate-400 hover:bg-slate-500 text-white border-none">Shift Given</Badge>;
+    case 'PROXY_SHIFT_SWAP':
+      return <Badge className="bg-indigo-500 hover:bg-indigo-600 text-white border-none">Proxy Present</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -79,6 +82,7 @@ export default function AttendanceHistoryPage() {
               <TableHeader>
                 <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
                   <TableHead className="font-semibold text-slate-700">Date</TableHead>
+                  <TableHead className="font-semibold text-slate-700">Shift</TableHead>
                   <TableHead className="font-semibold text-slate-700">Status</TableHead>
                   <TableHead className="font-semibold text-slate-700">Check In</TableHead>
                   <TableHead className="font-semibold text-slate-700">Check Out</TableHead>
@@ -86,19 +90,39 @@ export default function AttendanceHistoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {history.map((record: any) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="font-medium text-slate-900">
-                      {new Date(record.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(record.status)}</TableCell>
-                    <TableCell className="text-slate-600">{formatTime(record.checkInTime)}</TableCell>
-                    <TableCell className="text-slate-600">{formatTime(record.checkOutTime)}</TableCell>
-                    <TableCell className="text-right font-medium text-slate-700">
-                      {record.workingHours ? `${record.workingHours} hrs` : '--'}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {history.map((record: any) => {
+                  const isGiver = record.status === 'SHIFT_GIVEN';
+                  const isProxy = record.status === 'PROXY_SHIFT_SWAP';
+
+                  return (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium text-slate-900">
+                        {new Date(record.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs">
+                          <p className="font-semibold text-slate-700">{record.shift?.name || 'Standard Shift'}</p>
+                          {isGiver && (
+                            <p className="text-[10px] text-indigo-600 font-medium">
+                              Given to: {record.shiftSwapRequest?.requester?.firstName} {record.shiftSwapRequest?.requester?.lastName}
+                            </p>
+                          )}
+                          {isProxy && (
+                            <p className="text-[10px] text-emerald-600 font-medium">
+                              Proxy for: {record.shiftSwapRequest?.target?.firstName} {record.shiftSwapRequest?.target?.lastName}
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      <TableCell className="text-slate-600">{formatTime(record.checkInTime)}</TableCell>
+                      <TableCell className="text-slate-600">{formatTime(record.checkOutTime)}</TableCell>
+                      <TableCell className="text-right font-medium text-slate-700">
+                        {record.workingHours ? `${record.workingHours} hrs` : '--'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

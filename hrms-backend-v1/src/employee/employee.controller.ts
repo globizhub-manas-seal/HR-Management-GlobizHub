@@ -34,6 +34,7 @@ export class EmployeeController {
   }
 
   @Post('invite')
+  @RequirePermissions('employee.create')
   async inviteEmployee(@Request() req, @Body() dto: CreateEmployeeDto) {
     return this.employeeService.inviteEmployee(req.user.companyId, dto, req.user.sub);
   }
@@ -79,6 +80,7 @@ export class EmployeeController {
 
   // Update an employee (Admin feature)
   @Patch(':id')
+  @RequirePermissions('employee.edit')
   async updateEmployee(
     @Request() req,
     @Param('id') id: string,

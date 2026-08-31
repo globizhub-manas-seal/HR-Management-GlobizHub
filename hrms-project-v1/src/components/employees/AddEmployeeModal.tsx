@@ -31,17 +31,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { useEffect } from "react";
+
 // Validation schema for adding an employee
 const addEmployeeSchema = z.object({
   firstName: z.string().min(2, "First name is required"),
   lastName: z.string().min(2, "Last name is required"),
   email: z.string().email("Invalid email address"),
   role: z.string().min(1, "Please select a role"),
+  reportingManagerId: z.string().optional().nullable(),
+  departmentId: z.string().optional().nullable(),
 });
 
 export function AddEmployeeModal() {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [managers, setManagers] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
 
   const form = useForm<z.infer<typeof addEmployeeSchema>>({
     resolver: zodResolver(addEmployeeSchema),
@@ -50,18 +56,42 @@ export function AddEmployeeModal() {
       lastName: "",
       email: "",
       role: "",
+      reportingManagerId: "",
+      departmentId: "",
     },
   });
 
- async function onSubmit(values: z.infer<typeof addEmployeeSchema>) {
+  useEffect(() => {
+    if (open) {
+      const token = localStorage.getItem("hrms_token");
+      const headers = { Authorization: `Bearer ${token}` };
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+      axios.get(`${apiUrl}/employees`, { headers })
+        .then(res => setManagers(res.data))
+        .catch(err => console.error("Failed to load employees for managers list", err));
+
+      axios.get(`${apiUrl}/organization/departments`, { headers })
+        .then(res => setDepartments(res.data))
+        .catch(err => console.error("Failed to load departments", err));
+    }
+  }, [open]);
+
+  async function onSubmit(values: z.infer<typeof addEmployeeSchema>) {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("hrms_token");
       
+      const payload = {
+        ...values,
+        departmentId: values.departmentId === "none" || !values.departmentId ? null : values.departmentId,
+        reportingManagerId: values.reportingManagerId === "none" || !values.reportingManagerId ? null : values.reportingManagerId,
+      };
+
       // Send the data to our new NestJS endpoint!
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/employees/invite`, 
-        values,
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -153,6 +183,56 @@ export function AddEmployeeModal() {
                       <SelectItem value="EMPLOYEE">Standard Employee</SelectItem>
                       <SelectItem value="HR_HEAD">HR Admin</SelectItem>
                       <SelectItem value="MANAGER">Manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="departmentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Department</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a department (Optional)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="reportingManagerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reporting Manager</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a manager (Optional)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {managers.map((mgr) => (
+                        <SelectItem key={mgr.id} value={mgr.id}>
+                          {mgr.firstName} {mgr.lastName} ({mgr.role})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, ForbiddenException, Patch } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -66,5 +66,35 @@ export class OrganizationController {
   async deleteRole(@Request() req, @Param('id') id: string) {
     this.checkAdminAccess(req.user.role);
     return this.organizationService.deleteRole(req.user.companyId, id);
+  }
+
+  // --- DESIGNATIONS ---
+  @Get('designations')
+  async getDesignations(@Request() req) {
+    return this.organizationService.getDesignations(req.user.companyId);
+  }
+
+  @Post('designations')
+  async createDesignation(@Request() req, @Body() body: any) {
+    this.checkAdminAccess(req.user.role);
+    return this.organizationService.createDesignation(req.user.companyId, body);
+  }
+
+  @Patch('designations/:id')
+  async updateDesignation(@Request() req, @Param('id') id: string, @Body() body: any) {
+    this.checkAdminAccess(req.user.role);
+    return this.organizationService.updateDesignation(req.user.companyId, id, body);
+  }
+
+  @Patch('designations/:id/permissions')
+  async updateDesignationPermissions(@Request() req, @Param('id') id: string, @Body() body: any) {
+    this.checkAdminAccess(req.user.role);
+    return this.organizationService.updateDesignationPermissions(req.user.companyId, id, body);
+  }
+
+  @Delete('designations/:id')
+  async deleteDesignation(@Request() req, @Param('id') id: string) {
+    this.checkAdminAccess(req.user.role);
+    return this.organizationService.deleteDesignation(req.user.companyId, id);
   }
 }

@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsNotEmpty, IsEnum } from 'class-validator';
+import { IsString, IsEmail, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
 import { EmployeeRole } from '../../../generated/prisma/client';// Import the strict enum from Prisma!
 
 export class CreateEmployeeDto {
@@ -16,5 +16,17 @@ export class CreateEmployeeDto {
   // Validate that the incoming string exactly matches one of your Prisma Enum values
   @IsEnum(EmployeeRole)
   @IsNotEmpty()
-  role: EmployeeRole; 
+  role: EmployeeRole;
+
+  @IsOptional()
+  @IsString()
+  designationId?: string;
+
+  @IsOptional()
+  @IsString()
+  departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  reportingManagerId?: string;
 }

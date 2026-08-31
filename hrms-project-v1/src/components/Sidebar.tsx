@@ -15,10 +15,32 @@ import {
   HelpCircle,
   CalendarCheck,
   CalendarIcon,
-  Banknote, // ✅ New Payroll Icon
-  Calculator, // ✅ New Payroll Icon
+  Banknote,
+  Calculator,
+  Shield,
+  type LucideIcon,
 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
+import { SIDEBAR_MODULES, getDefaultSidebarModules } from "@/lib/permissions";
+import { usePermissions } from "@/context/PermissionContext";
+
+// Map string icon names to actual icon components
+const ICON_MAP: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  Users,
+  CalendarClock,
+  Settings,
+  Clock,
+  Calendar,
+  Briefcase,
+  CheckSquare,
+  FolderOpen,
+  CalendarCheck,
+  CalendarIcon,
+  Banknote,
+  Calculator,
+  Shield,
+};
 
 export default function Sidebar({
   role,
@@ -29,68 +51,29 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, isViewAsUser } = useViewMode();
+  const { sidebarModuleKeys, designation } = usePermissions();
 
   // If base user role is MANAGER and viewAsUser toggle is off, we are in Manager Mode
   const isManagerMode = user?.role === "MANAGER" && !isViewAsUser;
 
-  // Define links for standard Employees matching your mockup
-  const employeeLinks = [
-    { name: "Dashboard", href: "/workspace/dashboard", icon: LayoutDashboard },
-    { name: "Clock ins/outs", href: "/workspace/attendance", icon: Clock },
-    { name: "Schedules", href: "/workspace/schedules", icon: Calendar },
-    { name: "Time off", href: "/workspace/leave", icon: CalendarClock },
-    { name: "My Payslips", href: "/workspace/my-payslips", icon: Banknote }, // ✅ Added Employee Payslips
-    { name: "Shifts", href: "/workspace/shifts", icon: Briefcase },
-    { name: "Tasks", href: "/workspace/tasks", icon: CheckSquare },
-    { name: "Documents", href: "/workspace/documents", icon: FolderOpen },
-  ];
+  // Build links dynamically from designation permissions
+  // Falls back to role-based defaults if no designation is assigned
+  const links = buildSidebarLinks(sidebarModuleKeys);
 
-  // Define links for Managers (excluding Clock ins/outs as requested)
-  const managerLinks = [
-    { name: "Dashboard", href: "/workspace/dashboard", icon: LayoutDashboard },
-    { name: "Employees", href: "/workspace/employees", icon: Users },
-    { name: "Leave Approvals", href: "/workspace/leave/admin", icon: CalendarCheck },
-    { name: "Time off", href: "/workspace/leave", icon: CalendarClock },
-    { name: "My Payslips", href: "/workspace/my-payslips", icon: Banknote },
-    { name: "Schedules", href: "/workspace/schedules", icon: Calendar },
-    { name: "Tasks", href: "/workspace/tasks", icon: CheckSquare },
-    { name: "Documents", href: "/workspace/documents", icon: FolderOpen },
-  ];
+  // Add Designations link for admins (always visible for SUPER_ADMIN/OWNER/HR_HEAD)
+  const isAdminOrHR = user?.role === "SUPER_ADMIN" || user?.role === "OWNER" || user?.role === "HR_HEAD";
+  const finalLinks = isAdminOrHR && !links.some((l) => l.href === "/workspace/settings/designations")
+    ? [
+        ...links,
+        {
+          name: "Designations",
+          href: "/workspace/settings/designations",
+          icon: Shield,
+        },
+      ]
+    : links;
 
-  // Define links for HR Head / HR Admins
-  const hrLinks = [
-    { name: "Dashboard", href: "/workspace/dashboard", icon: LayoutDashboard },
-    { name: "Employees", href: "/workspace/employees", icon: Users },
-    { name: "Attendance", href: "/workspace/attendance", icon: CalendarClock },
-    { name: "Leave Approvals", href: "/workspace/leave/admin", icon: CalendarCheck },
-    { name: "Leave Policies", href: "/workspace/leave/admin/settings", icon: Settings },
-    { name: "Payroll Processing", href: "/workspace/payroll/admin", icon: Calculator },
-    { name: "Documents", href: "/workspace/documents/admin", icon: FolderOpen },
-    { name: "Manage Schedules", href: "/workspace/schedules/admin", icon: CalendarIcon },
-  ];
-
-  // Define links for Super Admin / Owner / CEO
-  const adminLinks = [
-    { name: "Dashboard", href: "/workspace/dashboard", icon: LayoutDashboard },
-    { name: "Employees", href: "/workspace/employees", icon: Users },
-    //{ name: "Attendance", href: "/workspace/attendance", icon: CalendarClock },
-    { name: "Leave Approvals", href: "/workspace/leave/admin", icon: CalendarCheck },
-    { name: "Leave Policies", href: "/workspace/leave/admin/settings", icon: Settings },
-    { name: "Payroll Processing", href: "/workspace/payroll/admin", icon: Calculator },
-    { name: "Documents", href: "/workspace/documents/admin", icon: FolderOpen },
-    { name: "Manage Schedules", href: "/workspace/schedules/admin", icon: CalendarIcon },
-    { name: "Settings", href: "/workspace/settings", icon: Settings },
-  ];
-
-  const links = role === "EMPLOYEE" 
-    ? employeeLinks 
-    : role === "MANAGER" 
-    ? managerLinks 
-    : role === "HR_HEAD" 
-    ? hrLinks 
-    : adminLinks;
-
-  const activeHref = links
+  const activeHref = finalLinks
     .filter(
       (link) => pathname === link.href || pathname.startsWith(`${link.href}/`),
     )
@@ -99,36 +82,48 @@ export default function Sidebar({
     )[0]?.href;
 
   const isSimulatedUser = user?.role === "MANAGER" && isViewAsUser;
-  const isAdminOrHR = user?.role === "SUPER_ADMIN" || user?.role === "OWNER" || user?.role === "HR_HEAD";
 
   const navigation = (
     <>
-      <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex flex-col flex-1 min-h-0 bg-card">
         {/* Logo / Brand Area */}
-        <div className="h-20 flex flex-col justify-center px-8 border-b shrink-0">
-          <span className={`text-xl font-bold bg-gradient-to-r ${isManagerMode ? "from-violet-600 to-indigo-600" : "from-emerald-600 to-teal-500"} bg-clip-text text-transparent`}>
+        <div className="h-20 flex flex-col justify-center px-8 border-b border-border shrink-0">
+          <span className="text-xl font-bold bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">
             TeamHub HRMS
           </span>
           {isManagerMode && (
-            <span className="mt-1 self-start text-[9px] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+            <span className="mt-1 self-start text-[9px] font-bold bg-secondary text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
               Manager Portal
             </span>
           )}
           {isSimulatedUser && (
-            <span className="mt-1 self-start text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+            <span className="mt-1 self-start text-[9px] font-bold bg-primary/20 text-secondary px-2 py-0.5 rounded-full uppercase tracking-wider">
               User View
             </span>
           )}
           {isAdminOrHR && (
-            <span className="mt-1 self-start text-[9px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+            <span className="mt-1 self-start text-[9px] font-bold bg-secondary text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
               Admin View
+            </span>
+          )}
+          {/* Show designation name if assigned */}
+          {designation && (
+            <span
+              className="mt-0.5 self-start text-[8px] font-semibold px-2 py-0.5 rounded-full border"
+              style={{
+                backgroundColor: `${designation.color}15`,
+                borderColor: `${designation.color}40`,
+                color: designation.color,
+              }}
+            >
+              {designation.name}
             </span>
           )}
         </div>
 
         {/* Navigation Links */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-          {links.map((link) => {
+          {finalLinks.map((link) => {
             const Icon = link.icon;
             const isActive = link.href === activeHref;
             return (
@@ -137,10 +132,8 @@ export default function Sidebar({
                 href={link.href}
                 className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                   isActive
-                    ? isManagerMode
-                      ? "bg-violet-50 text-violet-700 border-l-4 border-violet-600"
-                      : "bg-emerald-50 text-emerald-600 border-l-4 border-emerald-600"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-primary/20 text-secondary dark:text-foreground border-l-4 border-primary"
+                    : "text-muted-foreground hover:bg-primary/10 hover:text-foreground"
                 }`}
               >
                 <Icon className="w-5 h-5 mr-3" />
@@ -152,9 +145,9 @@ export default function Sidebar({
       </div>
 
       {/* Footer / Support Link */}
-      <div className="p-4 border-t shrink-0">
-        <button className="flex items-center w-full px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
-          <HelpCircle className="w-5 h-5 mr-3 text-slate-400" />
+      <div className="p-4 border-t border-border shrink-0 bg-card">
+        <button className="flex items-center w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground rounded-xl transition-colors">
+          <HelpCircle className="w-5 h-5 mr-3 text-muted-foreground/60" />
           Help & Support
         </button>
       </div>
@@ -163,9 +156,28 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`w-64 shrink-0 flex-col justify-between border-r bg-white ${className}`}
+      className={`w-64 shrink-0 flex-col justify-between border-r border-border bg-card ${className}`}
     >
       {navigation}
     </aside>
   );
+}
+
+// ============================================================
+// Helper: Build sidebar links from permission module keys
+// ============================================================
+
+function buildSidebarLinks(moduleKeys: string[]): { name: string; href: string; icon: LucideIcon }[] {
+  return moduleKeys
+    .map((key) => {
+      const mod = SIDEBAR_MODULES.find((m) => m.key === key);
+      if (!mod) return null;
+      const icon = ICON_MAP[mod.icon.displayName || ""] || mod.icon;
+      return {
+        name: mod.label,
+        href: mod.href,
+        icon: mod.icon,
+      };
+    })
+    .filter(Boolean) as { name: string; href: string; icon: LucideIcon }[];
 }

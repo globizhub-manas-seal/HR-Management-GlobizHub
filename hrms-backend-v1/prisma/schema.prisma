@@ -73,6 +73,9 @@ model Company {
   leaveBalances    LeaveBalance[]
   announcements Announcement[]
   tasks         Task[]
+  designations  Designation[]
+  shiftSwapRequests ShiftSwapRequest[]
+  shiftAssignmentOverrides ShiftAssignmentOverride[]
 }
 
 // 3. The Employee Table (Includes the Administrator)
@@ -120,6 +123,9 @@ model Employee {
   roleId     String?
   customRole Role?   @relation(fields: [roleId], references: [id])
 
+  designationId String?
+  designation   Designation? @relation(fields: [designationId], references: [id], onDelete: SetNull)
+
   // ... rest of your relations ...
   attendanceCorrections AttendanceCorrection[]
   notifications         Notification[]
@@ -154,6 +160,11 @@ model Employee {
   reportingManagerId String?
   reportingManager   Employee?  @relation("ReportingManager", fields: [reportingManagerId], references: [id], onDelete: SetNull)
   directReports      Employee[] @relation("ReportingManager")
+
+  sentShiftSwaps      ShiftSwapRequest[] @relation("ShiftSwapRequester")
+  receivedShiftSwaps  ShiftSwapRequest[] @relation("ShiftSwapTarget")
+  managedShiftSwaps   ShiftSwapRequest[] @relation("ShiftSwapManager")
+  shiftAssignmentOverrides ShiftAssignmentOverride[]
 }
 
 // 4. Departments (Auto-generated during registration)
@@ -190,6 +201,27 @@ model Role {
 
   // --- NEW: Link back to employees ---
   employees Employee[]
+}
+
+model Designation {
+  id                String       @id @default(uuid())
+  companyId         String
+  name              String
+  description       String?
+  baseRole          EmployeeRole @default(EMPLOYEE)
+  color             String       @default("#6366F1")
+  isDefault         Boolean      @default(false)
+  sidebarModules    String[]     @default([])
+  modulePermissions Json         @default("{}")
+  dashboardWidgets  String[]     @default([])
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name])
 }
 
 // 6. Company Settings (From the Setup Wizard)
@@ -262,6 +294,7 @@ model CompanySettings {
   // --- NEW FIELDS FROM WIZARD ---
   themeColor String? @default("#10b981") // Default emerald
   payslipHeaderUrl String?
+  overtimeIncludesShiftSwaps Boolean @default(false)
 }
 
 model Attendance {
@@ -293,6 +326,11 @@ model Attendance {
 
   // Link to corrections
   corrections AttendanceCorrection[]
+
+  shiftId            String?
+  shift              Shift?             @relation(fields: [shiftId], references: [id])
+  shiftSwapRequestId String?
+  shiftSwapRequest   ShiftSwapRequest?  @relation(fields: [shiftSwapRequestId], references: [id])
 
   @@index([employeeId, companyId, date])
 }
@@ -367,6 +405,12 @@ model Shift {
   schedules    Schedule[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+
+  attendances            Attendance[]
+  requesterOriginalSwaps ShiftSwapRequest[]        @relation("RequesterOriginalShift")
+  targetSwaps            ShiftSwapRequest[]        @relation("TargetShift")
+  overrideOriginals      ShiftAssignmentOverride[] @relation("OverrideOriginalShift")
+  overrideShifts         ShiftAssignmentOverride[] @relation("OverrideShift")
 }
 
 model Schedule {
@@ -858,5 +902,82 @@ model Task {
   dueDate     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum ShiftSwapStatus {
+  PENDING_EMPLOYEE
+  PENDING_MANAGER
+  APPROVED
+  REJECTED_BY_EMPLOYEE
+  REJECTED_BY_MANAGER
+  CANCELLED
+  EXPIRED
+}
+
+enum OverrideSource {
+  SHIFT_SWAP
+  MANAGER_DIRECT
+}
+
+model ShiftSwapRequest {
+  id                      String           @id @default(uuid())
+  companyId               String
+  company                 Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requesterEmployeeId     String
+  requester               Employee         @relation("ShiftSwapRequester", fields: [requesterEmployeeId], references: [id], onDelete: Cascade)
+  targetEmployeeId        String
+  target                  Employee         @relation("ShiftSwapTarget", fields: [targetEmployeeId], references: [id], onDelete: Cascade)
+  date                    DateTime
+  requesterOriginalShiftId String?
+  requesterOriginalShift   Shift?           @relation("RequesterOriginalShift", fields: [requesterOriginalShiftId], references: [id])
+  targetShiftId           String
+  targetShift             Shift            @relation("TargetShift", fields: [targetShiftId], references: [id])
+  
+  // Snapshots of the target's original shift at creation time
+  originalShiftId         String
+  originalShiftName       String
+  originalShiftStart      String
+  originalShiftEnd        String
+
+  reason                  String?
+  status                  ShiftSwapStatus  @default(PENDING_EMPLOYEE)
+  targetEmployeeResponse  String?          // ACCEPTED, REJECTED
+  managerId               String?
+  manager                 Employee?        @relation("ShiftSwapManager", fields: [managerId], references: [id])
+  managerResponse         String?          // APPROVED, REJECTED
+  approvedAt              DateTime?
+  
+  // Cancellation request flow
+  cancellationRequested   Boolean          @default(false)
+  cancellationReason      String?
+  cancellationTargetAck   Boolean          @default(false)
+  cancellationRequestedAt DateTime?
+
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  shiftAssignmentOverrides ShiftAssignmentOverride[]
+  attendances              Attendance[]
+}
+
+model ShiftAssignmentOverride {
+  id                   String         @id @default(uuid())
+  companyId            String
+  company              Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId           String
+  employee             Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date                 DateTime
+  originalShiftId      String?
+  originalShift        Shift?         @relation("OverrideOriginalShift", fields: [originalShiftId], references: [id])
+  overrideShiftId      String?        // Null if it's a day off or "shift given" (no work expected)
+  overrideShift        Shift?         @relation("OverrideShift", fields: [overrideShiftId], references: [id])
+  source               OverrideSource @default(SHIFT_SWAP)
+  relatedSwapRequestId String?
+  relatedSwapRequest   ShiftSwapRequest? @relation(fields: [relatedSwapRequestId], references: [id], onDelete: Cascade)
+  status               String         @default("ACTIVE") // ACTIVE, CANCELLED
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@unique([employeeId, date])
 }
 

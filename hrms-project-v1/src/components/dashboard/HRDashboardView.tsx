@@ -10,8 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { usePermissions } from "@/context/PermissionContext";
+import { AttendanceWidget } from "@/components/dashboard/AttendanceWidget";
 
 export function HRDashboardView() {
+  const { isWidgetEnabled } = usePermissions();
+  const showClockIn = isWidgetEnabled("clock_in_widget");
   const queryClient = useQueryClient();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
   const getToken = () => localStorage.getItem("hrms_token");
@@ -120,13 +124,13 @@ export function HRDashboardView() {
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       
       {/* TOP BANNER */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-3xl p-8 text-white flex flex-col justify-between shadow-sm relative overflow-hidden">
+      <div className="bg-gradient-to-r from-secondary to-primary rounded-3xl p-8 text-white flex flex-col justify-between shadow-sm relative overflow-hidden">
         <div className="relative z-10">
           <span className="bg-white/20 text-xs px-3 py-1 rounded-full font-medium">HR Dashboard</span>
-          <h1 className="text-3xl font-bold mt-4">
+          <h1 className="text-3xl font-bold mt-4 text-white">
             {getGreeting()}, {currentUser?.firstName || 'HR Officer'}!
           </h1>
-          <p className="text-emerald-50 mt-2 max-w-md text-sm">
+          <p className="text-white/80 mt-2 max-w-md text-sm">
             You have full administrative privileges to oversee organization metrics, process payroll, review document requests, and manage employee leave approvals.
           </p>
         </div>
@@ -135,64 +139,64 @@ export function HRDashboardView() {
       {/* GLOBAL STATS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Link href="/workspace/employees" className="block cursor-pointer">
-          <Card className="bg-emerald-50/50 border-emerald-100 shadow-sm hover:shadow-md hover:bg-emerald-50/80 transition-all duration-200">
+          <Card className="bg-secondary text-secondary-foreground border-secondary shadow-sm hover:shadow-md hover:bg-secondary/90 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-emerald-600">Total Headcount</p>
-                  <span className="text-4xl font-bold text-emerald-900 mt-2 block">
+                  <p className="text-sm font-medium text-primary">Total Employee</p>
+                  <span className="text-4xl font-bold text-secondary-foreground mt-2 block">
                     {loadingStats ? "--" : stats?.totalEmployees}
                   </span>
                 </div>
-                <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600"><Users className="w-5 h-5" /></div>
+                <div className="p-3 bg-primary/20 text-primary rounded-lg"><Users className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/workspace/attendance" className="block cursor-pointer">
-          <Card className="bg-blue-50/50 border-blue-100 shadow-sm hover:shadow-md hover:bg-blue-50/80 transition-all duration-200">
+          <Card className="bg-primary/20 text-secondary border-primary/30 shadow-sm hover:shadow-md hover:bg-primary/30 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-blue-600">Present Today</p>
-                  <span className="text-4xl font-bold text-blue-900 mt-2 block">
+                  <p className="text-sm font-medium text-secondary/80">Present Today</p>
+                  <span className="text-4xl font-bold text-secondary mt-2 block">
                     {loadingStats ? "--" : stats?.presentToday}
                   </span>
                 </div>
-                <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><UserCheck className="w-5 h-5" /></div>
+                <div className="p-3 bg-primary text-secondary rounded-lg"><UserCheck className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/workspace/attendance" className="block cursor-pointer">
-          <Card className="bg-rose-50/50 border-rose-100 shadow-sm hover:shadow-md hover:bg-rose-50/80 transition-all duration-200">
+          <Card className="bg-card text-foreground border-border shadow-sm hover:shadow-md hover:bg-muted/10 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-rose-600">Absent / Off</p>
-                  <span className="text-4xl font-bold text-rose-900 mt-2 block">
+                  <p className="text-sm font-medium text-muted-foreground">Absent / Off</p>
+                  <span className="text-4xl font-bold text-foreground mt-2 block">
                     {loadingStats ? "--" : stats?.absentToday}
                   </span>
                 </div>
-                <div className="p-3 bg-rose-100 rounded-lg text-rose-600"><UserX className="w-5 h-5" /></div>
+                <div className="p-3 bg-rose-500/10 text-rose-600 rounded-lg"><UserX className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/workspace/attendance" className="block cursor-pointer">
-          <Card className="bg-amber-50/50 border-amber-100 shadow-sm hover:shadow-md hover:bg-amber-50/80 transition-all duration-200">
+          <Card className="bg-card text-foreground border-border shadow-sm hover:shadow-md hover:bg-muted/10 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-amber-600">Late Clock-Ins</p>
-                  <span className="text-4xl font-bold text-amber-900 mt-2 block">
+                  <p className="text-sm font-medium text-muted-foreground">Late Clock-Ins</p>
+                  <span className="text-4xl font-bold text-foreground mt-2 block">
                     {loadingStats ? "--" : stats?.lateToday}
                   </span>
                 </div>
-                <div className="p-3 bg-amber-100 rounded-lg text-amber-600"><Clock className="w-5 h-5" /></div>
+                <div className="p-3 bg-amber-500/10 text-amber-600 rounded-lg"><Clock className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
@@ -206,23 +210,23 @@ export function HRDashboardView() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Pending Leaves */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-                <ClipboardList className="w-4 h-4 mr-2 text-emerald-500" /> Pending Leave Approvals
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base font-bold text-foreground flex items-center">
+                <ClipboardList className="w-4 h-4 mr-2 text-primary" /> Pending Leave Approvals
               </CardTitle>
               <CardDescription>Review employee time-off requests. Click Approve to update leave allocations.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {loadingLeaves ? (
-                <div className="flex justify-center items-center h-48"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
+                <div className="flex justify-center items-center h-48"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : pendingLeaves.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 text-sm">No leave requests pending HR decision.</div>
+                <div className="p-12 text-center text-muted-foreground text-sm">No leave requests pending HR decision.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="border-b bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider">
+                      <tr className="border-b border-border bg-muted/20 text-muted-foreground font-semibold uppercase tracking-wider">
                         <th className="p-4">Employee</th>
                         <th className="p-4">Type</th>
                         <th className="p-4">Dates</th>
@@ -232,20 +236,20 @@ export function HRDashboardView() {
                     </thead>
                     <tbody>
                       {pendingLeaves.slice(0, 5).map((req: any) => (
-                        <tr key={req.id} className="border-b hover:bg-slate-50/50">
+                        <tr key={req.id} className="border-b border-border hover:bg-muted/10">
                           <td className="p-4">
-                            <div className="font-semibold text-slate-900">{req.employee?.firstName} {req.employee?.lastName}</div>
-                            <div className="text-slate-400 font-normal">{req.employee?.employeeCode}</div>
+                            <div className="font-semibold text-foreground">{req.employee?.firstName} {req.employee?.lastName}</div>
+                            <div className="text-muted-foreground/60 font-normal">{req.employee?.employeeCode}</div>
                           </td>
-                          <td className="p-4"><Badge variant="outline">{req.type}</Badge></td>
-                          <td className="p-4 text-slate-600">
+                          <td className="p-4"><Badge variant="outline" className="border-border">{req.type}</Badge></td>
+                          <td className="p-4 text-muted-foreground">
                             {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                           </td>
-                          <td className="p-4 text-slate-600 font-semibold">{req.totalDays}</td>
+                          <td className="p-4 text-muted-foreground font-semibold">{req.totalDays}</td>
                           <td className="p-4 text-right space-x-2">
                             <Button 
                               size="sm" 
-                              className="bg-emerald-500 hover:bg-emerald-600 text-white h-7 px-2"
+                              className="bg-primary hover:bg-primary/90 text-secondary font-bold h-7 px-2"
                               onClick={() => statusMutation.mutate({ id: req.id, status: 'APPROVED' })}
                               disabled={statusMutation.isPending}
                             >
@@ -271,28 +275,28 @@ export function HRDashboardView() {
           </Card>
 
           {/* Quick Operations Shortcuts */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-                <Award className="w-4 h-4 mr-2 text-emerald-500" /> Operational Shortcuts
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base font-bold text-foreground flex items-center">
+                <Award className="w-4 h-4 mr-2 text-primary" /> Operational Shortcuts
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Link href="/workspace/employees" className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl border text-center transition-colors">
-                <Users className="w-6 h-6 text-emerald-600 mb-2" />
-                <span className="text-xs font-semibold text-slate-700">Employees Directory</span>
+              <Link href="/workspace/employees" className="flex flex-col items-center justify-center p-4 bg-muted/20 hover:bg-muted/40 border border-border rounded-2xl text-center transition-colors">
+                <Users className="w-6 h-6 text-primary mb-2" />
+                <span className="text-xs font-semibold text-foreground">Employees Directory</span>
               </Link>
-              <Link href="/workspace/payroll/admin" className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl border text-center transition-colors">
-                <Calculator className="w-6 h-6 text-emerald-600 mb-2" />
-                <span className="text-xs font-semibold text-slate-700">Payroll Processing</span>
+              <Link href="/workspace/payroll/admin" className="flex flex-col items-center justify-center p-4 bg-muted/20 hover:bg-muted/40 border border-border rounded-2xl text-center transition-colors">
+                <Calculator className="w-6 h-6 text-primary mb-2" />
+                <span className="text-xs font-semibold text-foreground">Payroll Processing</span>
               </Link>
-              <Link href="/workspace/leave/admin/settings" className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl border text-center transition-colors">
-                <Calendar className="w-6 h-6 text-emerald-600 mb-2" />
-                <span className="text-xs font-semibold text-slate-700">Leave Policies</span>
+              <Link href="/workspace/leave/admin/settings" className="flex flex-col items-center justify-center p-4 bg-muted/20 hover:bg-muted/40 border border-border rounded-2xl text-center transition-colors">
+                <Calendar className="w-6 h-6 text-primary mb-2" />
+                <span className="text-xs font-semibold text-foreground">Leave Policies</span>
               </Link>
-              <Link href="/workspace/documents/admin" className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl border text-center transition-colors">
-                <FileText className="w-6 h-6 text-emerald-600 mb-2" />
-                <span className="text-xs font-semibold text-slate-700">Documents Hub</span>
+              <Link href="/workspace/documents/admin" className="flex flex-col items-center justify-center p-4 bg-muted/20 hover:bg-muted/40 border border-border rounded-2xl text-center transition-colors">
+                <FileText className="w-6 h-6 text-primary mb-2" />
+                <span className="text-xs font-semibold text-foreground">Documents Hub</span>
               </Link>
             </CardContent>
           </Card>
@@ -300,41 +304,42 @@ export function HRDashboardView() {
 
         {/* Right Side: Announcement Publisher */}
         <div className="space-y-6">
+          {showClockIn && <AttendanceWidget />}
           
           {/* Announcement Publisher Form */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-                <Megaphone className="w-4 h-4 mr-2 text-emerald-500" /> Broadcast Announcement
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base font-bold text-foreground flex items-center">
+                <Megaphone className="w-4 h-4 mr-2 text-primary" /> Broadcast Announcement
               </CardTitle>
               <CardDescription>Publish updates to all employees instantly.</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <form onSubmit={handlePublish} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-500">Announcement Title</label>
+                  <label className="text-[11px] font-semibold text-muted-foreground">Announcement Title</label>
                   <Input 
                     placeholder="e.g. Office Holiday Notice" 
                     value={announcementForm.title}
                     onChange={(e) => setAnnouncementForm({...announcementForm, title: e.target.value})}
-                    className="text-xs"
+                    className="text-xs border-border bg-card"
                     required
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-500">Message Content</label>
+                  <label className="text-[11px] font-semibold text-muted-foreground">Message Content</label>
                   <Textarea 
                     placeholder="Describe the notice in detail..." 
                     value={announcementForm.content}
                     onChange={(e) => setAnnouncementForm({...announcementForm, content: e.target.value})}
-                    className="text-xs min-h-[100px]"
+                    className="text-xs min-h-[100px] border-border bg-card"
                     required
                   />
                 </div>
                 <Button 
                   type="submit" 
                   disabled={publishMutation.isPending || !announcementForm.title || !announcementForm.content}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9"
+                  className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-xs h-9"
                 >
                   {publishMutation.isPending ? (
                     <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Publishing...</>
@@ -347,21 +352,21 @@ export function HRDashboardView() {
           </Card>
 
           {/* Recent Broadcasts list */}
-          <Card className="border-slate-200 shadow-sm">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-                <Megaphone className="w-4 h-4 mr-2 text-emerald-500" /> Recent Broadcasts
+              <CardTitle className="text-base font-bold text-foreground flex items-center">
+                <Megaphone className="w-4 h-4 mr-2 text-primary" /> Recent Broadcasts
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {announcements?.length === 0 ? (
-                <p className="text-xs text-slate-500 italic text-center py-4">No recent broadcasts published.</p>
+                <p className="text-xs text-muted-foreground italic text-center py-4">No recent broadcasts published.</p>
               ) : (
                 announcements?.slice(0, 3).map((ann: any) => (
-                  <div key={ann.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                    <h4 className="text-xs font-bold text-slate-800">{ann.title}</h4>
-                    <p className="text-[11px] text-slate-600 line-clamp-2">{ann.content}</p>
-                    <span className="text-[9px] text-slate-400 block mt-1">{new Date(ann.createdAt).toLocaleDateString()}</span>
+                  <div key={ann.id} className="p-3 bg-muted/10 rounded-xl border border-border space-y-1">
+                    <h4 className="text-xs font-bold text-foreground">{ann.title}</h4>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2">{ann.content}</p>
+                    <span className="text-[9px] text-muted-foreground/60 block mt-1">{new Date(ann.createdAt).toLocaleDateString()}</span>
                   </div>
                 ))
               )}

@@ -6,9 +6,12 @@ import Link from "next/link";
 import { Loader2, Users, UserCheck, UserX, Clock, Settings, Calendar, ShieldCheck, Activity, Megaphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AttendanceWidget } from "@/components/dashboard/AttendanceWidget";
+import { usePermissions } from "@/context/PermissionContext";
 
 export function AdminDashboardView() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const { isWidgetEnabled } = usePermissions();
+  const showClockIn = isWidgetEnabled("clock_in_widget");
   const getToken = () => localStorage.getItem("hrms_token");
 
   // 1. Fetch Admin Stats
@@ -95,79 +98,79 @@ export function AdminDashboardView() {
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 font-sans">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-        <p className="text-slate-500 mt-1">Here is what is happening across your workspace today.</p>
+        <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+        <p className="text-muted-foreground mt-1">Here is what is happening across your workspace today.</p>
       </div>
 
       {/* STAT CARDS ROW */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link href="/workspace/employees" className="block cursor-pointer">
-          <Card className="bg-emerald-50/50 border-emerald-100 shadow-sm hover:shadow-md hover:bg-emerald-50/80 transition-all duration-200">
+          <Card className="bg-secondary text-secondary-foreground border-secondary shadow-sm hover:shadow-md hover:bg-secondary/90 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-emerald-600">Total Employees</p>
+                  <p className="text-sm font-medium text-primary">Total Employees</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-emerald-900">
+                    <span className="text-4xl font-bold text-secondary-foreground">
                       {statsLoading ? "--" : stats?.totalEmployees}
                     </span>
                   </div>
                 </div>
-                <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600"><Users className="w-5 h-5" /></div>
+                <div className="p-3 bg-primary/20 text-primary rounded-lg"><Users className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/workspace/attendance" className="block cursor-pointer">
-          <Card className="bg-blue-50/50 border-blue-100 shadow-sm hover:shadow-md hover:bg-blue-50/80 transition-all duration-200">
+          <Card className="bg-primary/20 text-secondary border-primary/30 shadow-sm hover:shadow-md hover:bg-primary/30 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-blue-600">Present Today</p>
+                  <p className="text-sm font-medium text-secondary/80">Present Today</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-blue-900">
+                    <span className="text-4xl font-bold text-secondary">
                       {statsLoading ? "--" : stats?.presentToday}
                     </span>
                   </div>
                 </div>
-                <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><UserCheck className="w-5 h-5" /></div>
+                <div className="p-3 bg-primary text-secondary rounded-lg"><UserCheck className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/workspace/attendance" className="block cursor-pointer">
-          <Card className="bg-rose-50/50 border-rose-100 shadow-sm hover:shadow-md hover:bg-rose-50/80 transition-all duration-200">
+          <Card className="bg-card text-foreground border-border shadow-sm hover:shadow-md hover:bg-muted/10 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-rose-600">Absent / Pending</p>
+                  <p className="text-sm font-medium text-muted-foreground">Absent / Pending</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-rose-900">
+                    <span className="text-4xl font-bold text-foreground">
                       {statsLoading ? "--" : stats?.absentToday}
                     </span>
                   </div>
                 </div>
-                <div className="p-3 bg-rose-100 rounded-lg text-rose-600"><UserX className="w-5 h-5" /></div>
+                <div className="p-3 bg-rose-500/10 text-rose-600 rounded-lg"><UserX className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/workspace/attendance" className="block cursor-pointer">
-          <Card className="bg-amber-50/50 border-amber-100 shadow-sm hover:shadow-md hover:bg-amber-50/80 transition-all duration-200">
+          <Card className="bg-card text-foreground border-border shadow-sm hover:shadow-md hover:bg-muted/10 transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-amber-600">Late Arrivals</p>
+                  <p className="text-sm font-medium text-muted-foreground">Late Arrivals</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-amber-900">
+                    <span className="text-4xl font-bold text-foreground">
                       {statsLoading ? "--" : stats?.lateToday}
                     </span>
                   </div>
                 </div>
-                <div className="p-3 bg-amber-100 rounded-lg text-amber-600"><Clock className="w-5 h-5" /></div>
+                <div className="p-3 bg-amber-500/10 text-amber-600 rounded-lg"><Clock className="w-5 h-5" /></div>
               </div>
             </CardContent>
           </Card>
@@ -177,36 +180,36 @@ export function AdminDashboardView() {
       {/* DUAL SECTION LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Live Activities Feed */}
-        <Card className="border-slate-200 shadow-sm lg:col-span-2">
-          <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+        <Card className="border-border bg-card shadow-sm lg:col-span-2">
+          <CardHeader className="pb-3 border-b border-border flex flex-row items-center justify-between">
             <div className="space-y-1">
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-                <Activity className="w-4 h-4 mr-2 text-rose-500 animate-pulse" /> Live Employee Activities
+              <CardTitle className="text-base font-bold text-foreground flex items-center">
+                <Activity className="w-4 h-4 mr-2 text-primary animate-pulse" /> Live Employee Activities
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500">Real-time view of logins, logouts, and payslip downloads.</CardDescription>
+              <CardDescription className="text-xs text-muted-foreground">Real-time view of logins, logouts, and payslip downloads.</CardDescription>
             </div>
-            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold border border-emerald-100">Live Feed</span>
+            <span className="text-[10px] text-secondary bg-primary/20 px-2 py-0.5 rounded-full font-semibold border border-primary/30">Live Feed</span>
           </CardHeader>
           <CardContent className="p-0">
             {logsLoading ? (
               <div className="flex justify-center items-center h-48">
-                <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : !auditLogs || auditLogs.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-12">No recent employee activities logged.</p>
+              <p className="text-xs text-muted-foreground italic text-center py-12">No recent employee activities logged.</p>
             ) : (
-              <div className="divide-y divide-slate-100 max-h-[340px] overflow-y-auto">
+              <div className="divide-y divide-border max-h-[340px] overflow-y-auto">
                 {auditLogs.map((log: any) => (
-                  <div key={log.id} className="p-4 hover:bg-slate-50/50 flex justify-between items-start gap-4 transition-colors">
+                  <div key={log.id} className="p-4 hover:bg-muted/10 flex justify-between items-start gap-4 transition-colors">
                     <div className="space-y-1">
-                      <p className="text-xs text-slate-800 font-medium leading-relaxed">
+                      <p className="text-xs text-foreground font-medium leading-relaxed">
                         {formatLogMessage(log)}
                       </p>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-[10px] text-muted-foreground/60">
                         {log.actor?.email || "System"} {log.ipAddress && `• ${log.ipAddress}`}
                       </p>
                     </div>
-                    <span className="text-[9px] font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
+                    <span className="text-[9px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
                       {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -217,72 +220,76 @@ export function AdminDashboardView() {
         </Card>
 
         {/* Right Column: Admin Shortcuts */}
-        <Card className="border-slate-200 shadow-sm lg:col-span-1">
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-              <Settings className="w-4 h-4 mr-2 text-indigo-500" /> Admin Shortcuts
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 space-y-3">
-            <Link href="/workspace/settings" className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border rounded-xl text-xs font-semibold text-slate-700 transition-colors">
-              <span className="flex items-center"><Settings className="w-4 h-4 mr-2 text-slate-400" /> Company Settings</span>
-              <span className="text-slate-400">Configure →</span>
-            </Link>
-            <Link href="/workspace/schedules/admin" className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border rounded-xl text-xs font-semibold text-slate-700 transition-colors">
-              <span className="flex items-center"><Calendar className="w-4 h-4 mr-2 text-slate-400" /> Shift Schedules</span>
-              <span className="text-slate-400">Manage →</span>
-            </Link>
-            <Link href="/workspace/employees" className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 border rounded-xl text-xs font-semibold text-slate-700 transition-colors">
-              <span className="flex items-center"><ShieldCheck className="w-4 h-4 mr-2 text-slate-400" /> System Roles & Directory</span>
-              <span className="text-slate-400">Modify →</span>
-            </Link>
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-1 space-y-6">
+         
+          
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base font-bold text-foreground flex items-center">
+                <Settings className="w-4 h-4 mr-2 text-secondary" /> Admin Shortcuts
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-3">
+              <Link href="/workspace/settings" className="flex items-center justify-between p-3 bg-muted/20 hover:bg-muted/40 border border-border rounded-xl text-xs font-semibold text-foreground transition-colors">
+                <span className="flex items-center"><Settings className="w-4 h-4 mr-2 text-muted-foreground" /> Company Settings</span>
+                <span className="text-muted-foreground">Configure →</span>
+              </Link>
+              <Link href="/workspace/schedules/admin" className="flex items-center justify-between p-3 bg-muted/20 hover:bg-muted/40 border border-border rounded-xl text-xs font-semibold text-foreground transition-colors">
+                <span className="flex items-center"><Calendar className="w-4 h-4 mr-2 text-muted-foreground" /> Shift Schedules</span>
+                <span className="text-muted-foreground">Manage →</span>
+              </Link>
+              <Link href="/workspace/employees" className="flex items-center justify-between p-3 bg-muted/20 hover:bg-muted/40 border border-border rounded-xl text-xs font-semibold text-foreground transition-colors">
+                <span className="flex items-center"><ShieldCheck className="w-4 h-4 mr-2 text-muted-foreground" /> System Roles & Directory</span>
+                <span className="text-muted-foreground">Modify →</span>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* ROW 3: LEAVE BALANCES & ANNOUNCEMENTS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Leave Balances Table */}
-        <Card className="border-slate-200 shadow-sm lg:col-span-2">
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-              <Calendar className="w-4 h-4 mr-2 text-indigo-500" /> Employee Leave Balances
+        <Card className="border-border bg-card shadow-sm lg:col-span-2">
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle className="text-base font-bold text-foreground flex items-center">
+              <Calendar className="w-4 h-4 mr-2 text-secondary" /> Employee Leave Balances
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">Direct overview of casual, medical, and earned leaves remaining per employee.</CardDescription>
+            <CardDescription className="text-xs text-muted-foreground">Direct overview of casual, medical, and earned leaves remaining per employee.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {balancesLoading ? (
               <div className="flex justify-center items-center h-48">
-                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : !leaveBalances || leaveBalances.length === 0 ? (
-              <div className="p-12 text-center text-slate-500 text-sm">No employee leave balance allocations found.</div>
+              <div className="p-12 text-center text-muted-foreground text-sm">No employee leave balance allocations found.</div>
             ) : (
               <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200">
-                    <tr className="text-slate-500 font-semibold uppercase tracking-wider">
+                  <thead className="sticky top-0 bg-muted/20 border-b border-border">
+                    <tr className="text-muted-foreground font-semibold uppercase tracking-wider">
                       <th className="p-4">Employee</th>
                       <th className="p-4">Casual Leaves</th>
                       <th className="p-4">Medical Leaves</th>
                       <th className="p-4">Earned Leaves</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border">
                     {leaveBalances.map((emp: any) => (
-                      <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
+                      <tr key={emp.id} className="hover:bg-muted/10 transition-colors">
                         <td className="p-4">
-                          <div className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</div>
-                          <div className="text-slate-400 font-normal">{emp.employeeCode || "N/A"}</div>
+                          <div className="font-semibold text-foreground">{emp.firstName} {emp.lastName}</div>
+                          <div className="text-muted-foreground/60 font-normal">{emp.employeeCode || "N/A"}</div>
                         </td>
-                        <td className="p-4 font-semibold text-slate-700">
-                          <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-100">{emp.balance?.casual ?? 0} remaining</span>
+                        <td className="p-4 font-semibold text-foreground">
+                          <span className="bg-primary/20 text-secondary px-2 py-1 rounded border border-primary/20">{emp.balance?.casual ?? 0} remaining</span>
                         </td>
-                        <td className="p-4 font-semibold text-slate-700">
-                          <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100">{emp.balance?.medical ?? 0} remaining</span>
+                        <td className="p-4 font-semibold text-foreground">
+                          <span className="bg-muted text-muted-foreground px-2 py-1 rounded border border-border">{emp.balance?.medical ?? 0} remaining</span>
                         </td>
-                        <td className="p-4 font-semibold text-slate-700">
-                          <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100">{emp.balance?.earned ?? 0} remaining</span>
+                        <td className="p-4 font-semibold text-foreground">
+                          <span className="bg-secondary text-primary px-2 py-1 rounded border border-secondary">{emp.balance?.earned ?? 0} remaining</span>
                         </td>
                       </tr>
                     ))}
@@ -294,22 +301,22 @@ export function AdminDashboardView() {
         </Card>
 
         {/* Right: Broadcast Announcements */}
-        <Card className="border-slate-200 shadow-sm lg:col-span-1">
-          <CardHeader className="pb-3 border-b flex items-center justify-between">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center">
-              <Megaphone className="w-4 h-4 mr-2 text-rose-500" /> Announcements
+        <Card className="border-border bg-card shadow-sm lg:col-span-1">
+          <CardHeader className="pb-3 border-b border-border flex items-center justify-between">
+            <CardTitle className="text-base font-bold text-foreground flex items-center">
+              <Megaphone className="w-4 h-4 mr-2 text-primary" /> Announcements
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             {announcements?.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-6">No recent notices published.</p>
+              <p className="text-xs text-muted-foreground italic text-center py-6">No recent notices published.</p>
             ) : (
               <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
                 {announcements?.slice(0, 3).map((ann: any) => (
-                  <div key={ann.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                    <h4 className="text-xs font-bold text-slate-800">{ann.title}</h4>
-                    <p className="text-[11px] text-slate-600 line-clamp-3 leading-relaxed">{ann.content}</p>
-                    <span className="text-[9px] text-slate-400 block mt-2">{new Date(ann.createdAt).toLocaleDateString()}</span>
+                  <div key={ann.id} className="p-4 bg-muted/10 rounded-xl border border-border space-y-1">
+                    <h4 className="text-xs font-bold text-foreground">{ann.title}</h4>
+                    <p className="text-[11px] text-muted-foreground line-clamp-3 leading-relaxed">{ann.content}</p>
+                    <span className="text-[9px] text-muted-foreground/60 block mt-2">{new Date(ann.createdAt).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>

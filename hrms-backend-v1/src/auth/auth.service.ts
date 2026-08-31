@@ -227,6 +227,7 @@ export class AuthService {
             name: true,
           },
         },
+        designation: true,
         notificationSettings: true,
         devices: true,
         company: {
@@ -376,5 +377,15 @@ export class AuthService {
     });
 
     return { message: 'Password has been reset successfully' };
+  }
+
+  async getPermissions(employeeId: string) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: {
+        designation: true,
+      },
+    });
+    return { designation: employee?.designation || null };
   }
 }

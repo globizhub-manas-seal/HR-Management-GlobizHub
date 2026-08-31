@@ -12,7 +12,8 @@ import {
   User,
   Shield,
   Menu,
-  Check, Trash
+  Check, Trash,
+  Sun, Moon
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import Sidebar from "./Sidebar";
 import { useViewMode } from "@/context/ViewModeContext";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function Header() {
   const router = useRouter();
@@ -46,6 +48,7 @@ export default function Header() {
   }
 
   const { user, activeRole, isViewAsUser, setIsViewAsUser, isLoading } = useViewMode();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     const token = localStorage.getItem("hrms_token");
@@ -87,12 +90,12 @@ export default function Header() {
   const isManagerMode = user?.role === "MANAGER" && !isViewAsUser;
 
   return (
-    <header className={`flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200 transition-all ${isManagerMode ? "border-t-2 border-t-violet-600" : ""}`}>
+    <header className={`flex items-center justify-between h-16 px-6 bg-card border-b border-border transition-all ${isManagerMode ? "border-t-2 border-t-primary" : ""}`}>
       <div className="flex items-center space-x-4">
         {/* Small and medium screens: open the sidebar as a drawer. */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger
-            className="inline-flex rounded-md p-2 transition-colors hover:bg-slate-100 lg:hidden"
+            className="inline-flex rounded-md p-2 transition-colors hover:bg-primary/10 lg:hidden"
             aria-label="Open navigation menu"
           >
             <Menu className="h-5 w-5" />
@@ -103,10 +106,10 @@ export default function Header() {
         </Sheet>
 
         {/* Breadcrumb */}
-        <div className="hidden md:flex text-sm font-medium text-slate-500">
-          <span className="text-slate-400">Workspace</span>
+        <div className="hidden md:flex text-sm font-medium text-muted-foreground">
+          <span className="text-muted-foreground/60">Workspace</span>
           <span className="mx-2">/</span>
-          <span className="text-slate-900">{formatBreadcrumb()}</span>
+          <span className="text-foreground">{formatBreadcrumb()}</span>
         </div>
       </div>
 
@@ -114,25 +117,25 @@ export default function Header() {
       <div className="flex items-center space-x-4 lg:space-x-6">
         {/* Search */}
         <div className="hidden md:flex relative w-72">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/60" />
 
           <Input
             placeholder="Search employees... (Ctrl + K)"
-            className="pl-10 rounded-full bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
+            className="pl-10 rounded-full bg-muted/40 border-border focus-visible:ring-primary"
           />
         </div>
 
         {/* View As User Toggle (for Managers only) */}
         {!isLoading && user?.role === "MANAGER" && (
-          <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full select-none shadow-sm transition-all duration-200">
+          <div className="flex items-center space-x-3 bg-muted/40 border border-border px-3 py-1.5 rounded-full select-none shadow-sm transition-all duration-200">
             {isViewAsUser ? (
-              <span className="flex items-center text-[11px] font-bold text-emerald-700 bg-emerald-50/80 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                <span className="h-1.5 w-1.5 mr-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="flex items-center text-[11px] font-bold text-secondary bg-primary/20 px-2.5 py-0.5 rounded-full border border-primary/30">
+                <span className="h-1.5 w-1.5 mr-1.5 rounded-full bg-primary animate-pulse" />
                 User View
               </span>
             ) : (
-              <span className="flex items-center text-[11px] font-bold text-indigo-700 bg-indigo-50/80 px-2.5 py-0.5 rounded-full border border-indigo-200">
-                <span className="h-1.5 w-1.5 mr-1.5 rounded-full bg-indigo-500" />
+              <span className="flex items-center text-[11px] font-bold text-muted-foreground bg-border/80 px-2.5 py-0.5 rounded-full border border-border">
+                <span className="h-1.5 w-1.5 mr-1.5 rounded-full bg-muted-foreground" />
                 Manager Mode
               </span>
             )}
@@ -140,7 +143,7 @@ export default function Header() {
             <button
               onClick={() => setIsViewAsUser(!isViewAsUser)}
               className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isViewAsUser ? "bg-emerald-500" : "bg-slate-300 hover:bg-slate-400"
+                isViewAsUser ? "bg-primary" : "bg-border hover:bg-border/80"
               }`}
               aria-label="Toggle user view mode"
             >
@@ -153,17 +156,30 @@ export default function Header() {
           </div>
         )}
 
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 border border-transparent hover:border-border cursor-pointer focus:outline-none"
+          aria-label="Toggle dark/light theme"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-5 w-5 text-amber-400 hover:text-amber-300 transition-transform duration-300 hover:rotate-45" />
+          ) : (
+            <Moon className="h-5 w-5 text-slate-700 hover:text-slate-900 transition-transform duration-300 hover:-rotate-12" />
+          )}
+        </button>
+
         {/* Notification Dropdown */}
         <DropdownMenu>
           {/* Removed asChild and Button. Applied styles directly to the Trigger */}
-          <DropdownMenuTrigger className="relative flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors focus:outline-none">
+          <DropdownMenuTrigger className="relative flex items-center justify-center w-10 h-10 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none cursor-pointer">
             <Bell className="h-5 w-5" />
             <NotificationDot /> 
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-80 p-0">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-              <span className="font-semibold text-slate-800">Notifications</span>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+              <span className="font-semibold text-foreground">Notifications</span>
               <MarkAllReadButton />
             </div>
             
@@ -181,14 +197,14 @@ export default function Header() {
             })}
           >
             {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             ) : (
               <>
                 <div className="hidden lg:flex flex-col items-end">
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="text-sm font-semibold text-foreground">
                     {user?.firstName} {user?.lastName}
                   </span>
-                  <span className="mt-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                  <span className="mt-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                     {user?.role === "SUPER_ADMIN"
                       ? "CEO / Admin"
                       : user?.role === "HR_HEAD"
@@ -197,12 +213,12 @@ export default function Header() {
                   </span>
                 </div>
 
-                <Avatar className="h-9 w-9 border border-slate-200">
+                <Avatar className="h-9 w-9 border border-border">
                   <AvatarImage
                     src={user?.profileImage || ""}
                     alt={user?.firstName}
                   />
-                  <AvatarFallback className="bg-emerald-100 text-emerald-700 font-bold">
+                  <AvatarFallback className="bg-primary/20 text-secondary font-bold">
                     {getInitials(user?.firstName, user?.lastName)}
                   </AvatarFallback>
                 </Avatar>
@@ -281,7 +297,7 @@ function MarkAllReadButton() {
   });
 
   return (
-    <button onClick={() => markAllMutation.mutate()} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center">
+    <button onClick={() => markAllMutation.mutate()} className="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center">
       <Check className="w-3 h-3 mr-1" /> Mark all read
     </button>
   );
@@ -299,22 +315,22 @@ function NotificationList() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] })
   });
 
-  if (isLoading) return <div className="p-8 text-center text-sm text-slate-500">Loading...</div>;
+  if (isLoading) return <div className="p-8 text-center text-sm text-muted-foreground">Loading...</div>;
   if (!notifications || notifications.length === 0) {
-    return <div className="p-8 text-center text-sm text-slate-500">You're all caught up! 🎉</div>;
+    return <div className="p-8 text-center text-sm text-muted-foreground">You're all caught up! 🎉</div>;
   }
 
   return (
     <div className="max-h-[300px] overflow-y-auto">
       {notifications.map((notif: any) => (
-        <div key={notif.id} className="p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors flex items-start justify-between group cursor-pointer" onClick={() => readMutation.mutate(notif.id)}>
+        <div key={notif.id} className="p-4 border-b border-border hover:bg-primary/10 transition-colors flex items-start justify-between group cursor-pointer" onClick={() => readMutation.mutate(notif.id)}>
           <div className="space-y-1 pr-4">
-            <p className="text-sm font-semibold text-slate-800">{notif.title}</p>
-            <p className="text-xs text-slate-600 line-clamp-2">{notif.message}</p>
-            <p className="text-[10px] text-slate-400 mt-2">{new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p className="text-sm font-semibold text-foreground">{notif.title}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-2">{new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
-          <div className="w-2 h-2 mt-1 rounded-full bg-emerald-500 shrink-0 group-hover:hidden" />
-          <Check className="w-4 h-4 text-slate-300 hidden group-hover:block shrink-0" />
+          <div className="w-2 h-2 mt-1 rounded-full bg-primary shrink-0 group-hover:hidden" />
+          <Check className="w-4 h-4 text-muted-foreground/40 hidden group-hover:block shrink-0" />
         </div>
       ))}
     </div>

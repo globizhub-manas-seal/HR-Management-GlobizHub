@@ -66,8 +66,27 @@ export class EmployeeService {
         email: true,
         phone: true,
         role: true, 
+        profilePhoto: true, // ✅ Fetch profile photo for card/list view
         employeeCode: true, // ✅ Ensure the code is fetched for the frontend list
-        department: { select: { name: true } },
+        gender: true, // ✅ Fetch gender for stats
+        createdAt: true, // ✅ Fetch createdAt for stats
+        reportingManagerId: true,
+        reportingManager: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        departmentId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        designationId: true,
+        designation: { select: { id: true, name: true, color: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -92,7 +111,7 @@ export class EmployeeService {
 
     // 2. Fetch Department to get the second prefix (if a departmentId is provided)
     let department: any = null;
-    const deptId = (dto as any).departmentId;
+    const deptId = dto.departmentId;
     if (deptId) {
       department = await this.prisma.department.findUnique({ where: { id: deptId } });
     }
@@ -140,7 +159,9 @@ export class EmployeeService {
         companyId: companyId,
         inviteToken: inviteToken, 
         employeeCode: generatedEmployeeCode, // ✅ Injected here
-        ...(deptId && { departmentId: deptId }),
+        ...(dto.departmentId && { departmentId: dto.departmentId }),
+        ...(dto.designationId && { designationId: dto.designationId }),
+        ...(dto.reportingManagerId && { reportingManagerId: dto.reportingManagerId }),
       },
     });
 
@@ -386,6 +407,7 @@ export class EmployeeService {
       include: {
         skills: true,
         emergencyContacts: true,
+        designation: true,
       },
     });
     if (!employee) {

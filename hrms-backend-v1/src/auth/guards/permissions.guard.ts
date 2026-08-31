@@ -37,18 +37,51 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    // 3. Fetch the user's custom role and permissions from the database
+    // 3. Fetch the user's custom role/designation and permissions from the database
     const employee = await this.prisma.employee.findUnique({
       where: { id: user.sub },
-      include: { customRole: true },
+      include: { customRole: true, designation: true },
     });
 
     const userPermissions = employee?.customRole?.permissions || [];
+    const designation = employee?.designation;
 
     // 4. Check if the user has ALL the required permissions for this route
-    const hasPermission = requiredPermissions.every((perm) =>
-      userPermissions.includes(perm)
-    );
+    const hasPermission = requiredPermissions.every((perm) => {
+      // Check legacy custom role permissions
+      if (userPermissions.includes(perm)) return true;
+
+      // Check new Designation modulePermissions
+      if (designation) {
+        // Parse e.g. "employee.delete" -> module: "employee", action: "delete"
+        const [rawModule, action] = perm.split('.');
+        if (!rawModule || !action) return false;
+
+        // Normalise module names to match designations config keys
+        let moduleKey = rawModule.toLowerCase();
+        if (moduleKey === 'employee') moduleKey = 'employees';
+        if (moduleKey === 'task') moduleKey = 'tasks';
+        if (moduleKey === 'document') moduleKey = 'documents';
+        if (moduleKey === 'schedule') moduleKey = 'schedules';
+        if (moduleKey === 'announcement') moduleKey = 'employees';
+        if (moduleKey === 'system') moduleKey = 'settings';
+
+        const modulePerms = (designation.modulePermissions as any)?.[moduleKey] || [];
+
+        // 'manage' requires any mutation permission (create/edit/delete)
+        if (action === 'manage') {
+          return (
+            modulePerms.includes('create') ||
+            modulePerms.includes('edit') ||
+            modulePerms.includes('delete')
+          );
+        }
+
+        return modulePerms.includes(action);
+      }
+
+      return false;
+    });
 
     if (!hasPermission) {
       throw new ForbiddenException(

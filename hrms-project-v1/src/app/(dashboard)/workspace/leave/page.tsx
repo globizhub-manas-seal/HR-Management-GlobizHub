@@ -105,8 +105,8 @@ export default function EmployeeLeavePage() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Time Off</h1>
-          <p className="text-slate-500 mt-1">Manage your leave balances and upcoming time off.</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Leave</h1>
+          <p className="text-slate-500 mt-1">Manage your leave balances and upcoming Leaves.</p>
         </div>
         <Button 
           onClick={() => setIsApplyModalOpen(true)}
