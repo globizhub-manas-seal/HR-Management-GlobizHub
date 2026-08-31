@@ -65,8 +65,8 @@ function ResetPasswordForm() {
     return (
       <div className="text-center space-y-4">
         <p className="text-rose-500 font-medium">Invalid or missing reset token.</p>
-        <Link href="/forgot-password">
-          <Button variant="outline">Request a new link</Button>
+        <Link href="/forgot-password" className="cursor-pointer">
+          <Button variant="outline" className="cursor-pointer">Request a new link</Button>
         </Link>
       </div>
     );
@@ -110,7 +110,7 @@ function ResetPasswordForm() {
         />
       </div>
 
-      <Button type="submit" disabled={loading || !password || !confirmPassword} className="w-full bg-slate-900 hover:bg-slate-800 text-white mt-2">
+      <Button type="submit" disabled={loading || !password || !confirmPassword} className="w-full bg-slate-900 hover:bg-slate-800 text-white mt-2 cursor-pointer">
         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
         {loading ? "Resetting..." : "Save New Password"}
       </Button>

@@ -29,17 +29,17 @@ export default function LandingPage() {
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-muted-foreground">
-            <Link href="#features" className="hover:text-primary transition-colors">Features</Link>
-            <Link href="#compliance" className="hover:text-primary transition-colors">Security</Link>
+            <Link href="#features" className="hover:text-primary transition-colors cursor-pointer">Features</Link>
+            <Link href="#compliance" className="hover:text-primary transition-colors cursor-pointer">Security</Link>
           </div>
 
           {/* Desktop Action Buttons */}
           <div className="hidden md:flex items-center space-x-3">
-            <Link href="/login">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground font-medium">Log in</Button>
+            <Link href="/login" className="cursor-pointer">
+              <Button variant="ghost" className="text-muted-foreground hover:text-foreground font-medium cursor-pointer">Log in</Button>
             </Link>
-            <Link href="/register">
-              <Button className="bg-primary hover:bg-primary/95 text-secondary font-bold shadow-md shadow-primary/20 rounded-xl">
+            <Link href="/register" className="cursor-pointer">
+              <Button className="bg-primary hover:bg-primary/95 text-secondary font-bold shadow-md shadow-primary/20 rounded-xl cursor-pointer">
                 Get Started Free
               </Button>
             </Link>
@@ -51,7 +51,7 @@ export default function LandingPage() {
               variant="ghost" 
               size="icon" 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-foreground focus:outline-none"
+              className="text-foreground focus:outline-none cursor-pointer"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
@@ -65,27 +65,27 @@ export default function LandingPage() {
               <Link 
                 href="#features" 
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-muted-foreground font-medium py-2 hover:text-primary"
+                className="text-muted-foreground font-medium py-2 hover:text-primary cursor-pointer"
               >
                 Features
               </Link>
               <Link 
                 href="#compliance" 
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-muted-foreground font-medium py-2 hover:text-primary"
+                className="text-muted-foreground font-medium py-2 hover:text-primary cursor-pointer"
               >
                 Security
               </Link>
             </div>
             <hr className="border-border/60" />
             <div className="flex flex-col space-y-3 pt-2">
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full justify-center border-border text-foreground hover:bg-muted/10">
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="cursor-pointer">
+                <Button variant="outline" className="w-full justify-center border-border text-foreground hover:bg-muted/10 cursor-pointer">
                   Log in
                 </Button>
               </Link>
-              <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                <Button className="w-full justify-center bg-primary hover:bg-primary/95 text-secondary font-bold">
+              <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="cursor-pointer">
+                <Button className="w-full justify-center bg-primary hover:bg-primary/95 text-secondary font-bold cursor-pointer">
                   Get Started Free
                 </Button>
               </Link>
@@ -115,13 +115,13 @@ export default function LandingPage() {
           </p>
           
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/register" className="w-full sm:w-auto">
-              <Button size="lg" className="h-14 px-8 text-base bg-primary hover:bg-primary/95 text-secondary font-bold shadow-xl shadow-primary/25 w-full rounded-xl">
+            <Link href="/register" className="w-full sm:w-auto cursor-pointer">
+              <Button size="lg" className="h-14 px-8 text-base bg-primary hover:bg-primary/95 text-secondary font-bold shadow-xl shadow-primary/25 w-full rounded-xl cursor-pointer">
                 Start 14-Day Free Trial <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/login" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="h-14 px-8 text-base border-border text-foreground hover:bg-muted/20 w-full rounded-xl">
+            <Link href="/login" className="w-full sm:w-auto cursor-pointer">
+              <Button size="lg" variant="outline" className="h-14 px-8 text-base border-border text-foreground hover:bg-muted/20 w-full rounded-xl cursor-pointer">
                 Explore Live Demo
               </Button>
             </Link>
@@ -134,8 +134,10 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      
 
-      {/* 3. TRUSTED BY SECTION */}
+      
+      {/* 3. TRUSTED BY SECTION
       <section className="border-y border-border/80 bg-card py-12">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest mb-8">Trusted by hyper-growth tech & healthcare teams worldwide</p>
@@ -147,7 +149,7 @@ export default function LandingPage() {
             <div className="text-lg font-bold tracking-widest text-foreground">UMBRELLA</div>
           </div>
         </div>
-      </section>
+      </section>  */}
 
       {/* 4. FEATURES GRID */}
       <section id="features" className="py-24 bg-background scroll-mt-12">
@@ -208,8 +210,8 @@ export default function LandingPage() {
             <div className="bg-gradient-to-br from-secondary to-secondary/80 p-8 rounded-2xl border border-border shadow-xl flex flex-col justify-center items-center text-center text-white">
               <h3 className="text-2xl font-bold mb-2">Ready to transform your HR?</h3>
               <p className="text-primary/80 text-sm mb-6">Join hundreds of modern companies today.</p>
-              <Link href="/register" className="w-full">
-                <Button className="bg-primary hover:bg-primary/90 text-secondary font-bold w-full rounded-xl shadow-lg shadow-primary/20 border-0">
+              <Link href="/register" className="w-full cursor-pointer">
+                <Button className="bg-primary hover:bg-primary/90 text-secondary font-bold w-full rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
                   Start Your Free Account
                 </Button>
               </Link>

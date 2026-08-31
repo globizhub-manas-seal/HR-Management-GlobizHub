@@ -110,7 +110,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => router.push("/forgot-password")}
-                      className="text-sm text-emerald-600 hover:underline font-medium"
+                      className="text-sm text-emerald-600 hover:underline font-medium cursor-pointer"
                     >
                       Forgot?
                     </button>
@@ -125,7 +125,7 @@ export default function LoginPage() {
 
             <Button 
               type="submit" 
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -145,7 +145,7 @@ export default function LoginPage() {
             Don't have a workspace yet?{" "}
             <button 
               onClick={() => router.push("/register/wizard")} 
-              className="text-emerald-600 hover:underline font-medium"
+              className="text-emerald-600 hover:underline font-medium cursor-pointer"
             >
               Register your company
             </button>
