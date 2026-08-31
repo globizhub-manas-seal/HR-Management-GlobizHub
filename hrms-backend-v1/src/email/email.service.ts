@@ -6,8 +6,8 @@ export class EmailService {
   private resend: Resend;
 
   constructor() {
-    // Initialize Resend with the API key from your .env
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    // Initialize Resend with the API key from your .env or fallback for test environments
+    this.resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_key');
   }
 
   async sendPasswordResetEmail(email: string, resetUrl: string) {
