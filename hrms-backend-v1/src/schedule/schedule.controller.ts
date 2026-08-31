@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
 import { ScheduleService } from './schedule.service';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -12,9 +23,27 @@ export class ScheduleController {
     return this.scheduleService.getMySchedule(req.user.sub, req.user.companyId);
   }
 
+  @Get('employee/:employeeId')
+  async getEmployeeSchedule(
+    @Request() req,
+    @Param('employeeId') employeeId: string,
+    @Query('date') date: string,
+  ) {
+    return this.scheduleService.getEmployeeScheduleOnDate(
+      employeeId,
+      date,
+      req.user.companyId,
+    );
+  }
+
   @Post('shifts')
   async createShift(@Request() req, @Body() dto: any) {
-    return this.scheduleService.createShift(req.user.companyId, dto, req.user.role, req.user.sub);
+    return this.scheduleService.createShift(
+      req.user.companyId,
+      dto,
+      req.user.role,
+      req.user.sub,
+    );
   }
 
   @Get('shifts')
@@ -25,17 +54,33 @@ export class ScheduleController {
   // NEW: Update Endpoint
   @Patch('shifts/:id')
   async updateShift(@Request() req, @Param('id') id: string, @Body() dto: any) {
-    return this.scheduleService.updateShift(id, req.user.companyId, dto, req.user.role, req.user.sub);
+    return this.scheduleService.updateShift(
+      id,
+      req.user.companyId,
+      dto,
+      req.user.role,
+      req.user.sub,
+    );
   }
 
   // NEW: Delete Endpoint
   @Delete('shifts/:id')
   async deleteShift(@Request() req, @Param('id') id: string) {
-    return this.scheduleService.deleteShift(id, req.user.companyId, req.user.role, req.user.sub);
+    return this.scheduleService.deleteShift(
+      id,
+      req.user.companyId,
+      req.user.role,
+      req.user.sub,
+    );
   }
 
   @Post('assign')
   async assignSchedule(@Request() req, @Body() dto: any) {
-    return this.scheduleService.assignSchedule(req.user.companyId, dto, req.user.role, req.user.sub);
+    return this.scheduleService.assignSchedule(
+      req.user.companyId,
+      dto,
+      req.user.role,
+      req.user.sub,
+    );
   }
 }

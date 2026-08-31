@@ -136,6 +136,32 @@ export class AttendanceService {
       );
     }
 
+    // Check for shift assignment overrides for today
+    const override = await this.prisma.shiftAssignmentOverride.findFirst({
+      where: {
+        employeeId,
+        date: today,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (override && override.overrideShiftId === null) {
+      throw new BadRequestException(
+        'Attendance Denied: You have given this shift away (Shift Transfer / Proxy).',
+      );
+    }
+
+    let shiftId = override?.overrideShiftId || null;
+    const shiftSwapRequestId = override?.relatedSwapRequestId || null;
+
+    // Fall back to standard scheduled shift if no override exists
+    if (!shiftId) {
+      const schedule = await this.prisma.schedule.findFirst({
+        where: { employeeId, date: today },
+      });
+      shiftId = schedule?.shiftId || null;
+    }
+
     // 6. Create attendance record
     const attendance = await this.prisma.attendance.create({
       data: {
@@ -145,6 +171,8 @@ export class AttendanceService {
         checkInTime: new Date(),
         status: 'PRESENT',
         verificationMethod,
+        shiftId,
+        shiftSwapRequestId,
       },
     });
 
@@ -193,6 +221,15 @@ export class AttendanceService {
       where: {
         employeeId,
         companyId,
+      },
+      include: {
+        shift: true,
+        shiftSwapRequest: {
+          include: {
+            requester: { select: { id: true, firstName: true, lastName: true } },
+            target: { select: { id: true, firstName: true, lastName: true } },
+          }
+        }
       },
       orderBy: {
         date: 'desc',

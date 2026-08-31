@@ -18,4 +18,16 @@ export class UpdateEmployeeDto {
   @IsOptional()
   @IsEnum(EmployeeRole)
   role?: EmployeeRole;
+
+  @IsOptional()
+  @IsString()
+  designationId?: string;
+
+  @IsOptional()
+  @IsString()
+  departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  reportingManagerId?: string;
 }

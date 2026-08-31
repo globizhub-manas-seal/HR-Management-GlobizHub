@@ -81,7 +81,7 @@ export default function LeaveSettingsPage() {
             <Settings className="w-8 h-8 mr-3 text-indigo-600" />
             Leave Policies
           </h1>
-          <p className="text-slate-500 mt-1">Configure company-wide time off rules, accruals, and payroll impacts.</p>
+          <p className="text-slate-500 mt-1">Configure company-wide Leave rules, accruals, and payroll impacts.</p>
         </div>
 
         {/* CREATE POLICY BUTTON & MODAL */}

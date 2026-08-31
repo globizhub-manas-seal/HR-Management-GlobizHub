@@ -17,7 +17,7 @@ export class ScheduleService {
     const nextWeek = new Date(today);
     nextWeek.setDate(today.getDate() + 7);
 
-    return this.prisma.schedule.findMany({
+    const schedules = await this.prisma.schedule.findMany({
       where: {
         employeeId,
         companyId,
@@ -27,6 +27,42 @@ export class ScheduleService {
         shift: true,
       },
       orderBy: { date: 'asc' },
+    });
+
+    const overrides = await this.prisma.shiftAssignmentOverride.findMany({
+      where: {
+        employeeId,
+        companyId,
+        date: { gte: today, lte: nextWeek },
+        status: 'ACTIVE',
+      },
+      include: {
+        overrideShift: true,
+        relatedSwapRequest: {
+          include: {
+            requester: { select: { id: true, firstName: true, lastName: true } },
+            target: { select: { id: true, firstName: true, lastName: true } },
+          }
+        }
+      },
+    });
+
+    return schedules.map((schedule) => {
+      const override = overrides.find(
+        (o) => o.date.toDateString() === schedule.date.toDateString()
+      );
+      if (override) {
+        return {
+          ...schedule,
+          isOverride: true,
+          originalShift: schedule.shift,
+          isDayOff: override.overrideShiftId === null ? true : schedule.isDayOff,
+          shift: override.overrideShift,
+          overrideSource: override.source,
+          relatedSwapRequest: override.relatedSwapRequest,
+        };
+      }
+      return schedule;
     });
   }
 
@@ -157,5 +193,21 @@ export class ScheduleService {
     );
 
     return schedule;
+  }
+
+  // 7. Get an employee's schedule on a specific date (for Shift Swap helper)
+  async getEmployeeScheduleOnDate(employeeId: string, dateStr: string, companyId: string) {
+    const queryDate = new Date(dateStr);
+    queryDate.setUTCHours(0, 0, 0, 0);
+    return this.prisma.schedule.findFirst({
+      where: {
+        employeeId,
+        companyId,
+        date: queryDate,
+      },
+      include: {
+        shift: true,
+      },
+    });
   }
 }

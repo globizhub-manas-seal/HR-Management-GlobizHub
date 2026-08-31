@@ -18,6 +18,7 @@ import { DocumentModule } from './document/document.module';
 import { AnnouncementModule } from './announcement/announcement.module';
 import { TaskModule } from './task/task.module';
 import { AuditModule } from './audit/audit.module';
+import { ShiftSwapModule } from './shift-swap/shift-swap.module';
 
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -49,6 +50,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     AnnouncementModule,
     TaskModule,
     AuditModule,
+    ShiftSwapModule,
   ],
   controllers: [AppController],
   providers: [

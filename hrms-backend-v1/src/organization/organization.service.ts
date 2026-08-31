@@ -91,4 +91,111 @@ export class OrganizationService {
 
     return this.prisma.role.delete({ where: { id: roleId } });
   }
+
+  // ==========================================
+  // DESIGNATIONS & PERMISSIONS
+  // ==========================================
+
+  async getDesignations(companyId: string) {
+    const designations = await this.prisma.designation.findMany({
+      where: { companyId },
+      include: {
+        _count: {
+          select: { employees: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return designations.map((d) => ({
+      ...d,
+      employeeCount: d._count.employees,
+    }));
+  }
+
+  async createDesignation(
+    companyId: string,
+    dto: {
+      name: string;
+      description?: string;
+      baseRole: any;
+      color?: string;
+      sidebarModules?: string[];
+      modulePermissions?: any;
+      dashboardWidgets?: string[];
+    },
+  ) {
+    return this.prisma.designation.create({
+      data: {
+        companyId,
+        name: dto.name,
+        description: dto.description,
+        baseRole: dto.baseRole,
+        color: dto.color || '#6366F1',
+        sidebarModules: dto.sidebarModules || [],
+        modulePermissions: dto.modulePermissions || {},
+        dashboardWidgets: dto.dashboardWidgets || [],
+      },
+    });
+  }
+
+  async updateDesignation(
+    companyId: string,
+    id: string,
+    dto: {
+      name?: string;
+      description?: string;
+      color?: string;
+    },
+  ) {
+    const designation = await this.prisma.designation.findFirst({
+      where: { id, companyId },
+    });
+    if (!designation) throw new NotFoundException('Designation not found');
+
+    return this.prisma.designation.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        description: dto.description,
+        color: dto.color,
+      },
+    });
+  }
+
+  async updateDesignationPermissions(
+    companyId: string,
+    id: string,
+    dto: {
+      sidebarModules: string[];
+      modulePermissions: any;
+      dashboardWidgets: string[];
+    },
+  ) {
+    const designation = await this.prisma.designation.findFirst({
+      where: { id, companyId },
+    });
+    if (!designation) throw new NotFoundException('Designation not found');
+
+    return this.prisma.designation.update({
+      where: { id },
+      data: {
+        sidebarModules: dto.sidebarModules,
+        modulePermissions: dto.modulePermissions,
+        dashboardWidgets: dto.dashboardWidgets,
+      },
+    });
+  }
+
+  async deleteDesignation(companyId: string, id: string) {
+    const designation = await this.prisma.designation.findFirst({
+      where: { id, companyId },
+    });
+    if (!designation) throw new NotFoundException('Designation not found');
+    if (designation.isDefault) throw new ForbiddenException('Cannot delete default system designation');
+
+    return this.prisma.designation.delete({
+      where: { id },
+    });
+  }
 }

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Pencil, Plus, Trash2, GraduationCap, ShieldAlert } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2, GraduationCap, ShieldAlert, User, Mail, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +39,9 @@ const employeeSchema = z.object({
   lastName: z.string().min(2, "Last name is required"),
   email: z.string().email("Invalid email address"),
   role: z.enum(["SUPER_ADMIN", "HR_HEAD", "OWNER", "MANAGER", "EMPLOYEE"]),
+  reportingManagerId: z.string().optional().nullable(),
+  departmentId: z.string().optional().nullable(),
+  designationId: z.string().optional().nullable(),
 });
 
 type EmployeeForEdit = z.infer<typeof employeeSchema> & { id: string };
@@ -46,6 +49,9 @@ type EmployeeForEdit = z.infer<typeof employeeSchema> & { id: string };
 export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [managers, setManagers] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [designations, setDesignations] = useState<any[]>([]);
   const queryClient = useQueryClient();
 
   // Local state for skills and emergency contacts forms
@@ -59,7 +65,44 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
 
   useEffect(() => {
     if (open) {
-      form.reset(employee);
+      const token = localStorage.getItem("hrms_token");
+      const headers = { Authorization: `Bearer ${token}` };
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+      axios.get(`${apiUrl}/employees`, { headers })
+        .then(res => {
+          console.log("DEBUG: fetched managers list:", res.data);
+          setManagers(res.data);
+        })
+        .catch(err => console.error("Failed to load employees for managers list", err));
+
+      axios.get(`${apiUrl}/organization/departments`, { headers })
+        .then(res => {
+          console.log("DEBUG: fetched departments list:", res.data);
+          setDepartments(res.data);
+        })
+        .catch(err => console.error("Failed to load departments", err));
+
+      axios.get(`${apiUrl}/organization/designations`, { headers })
+        .then(res => {
+          console.log("DEBUG: fetched designations list:", res.data);
+          setDesignations(res.data);
+        })
+        .catch(err => console.error("Failed to load designations", err));
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && employee) {
+      form.reset({
+        firstName: employee.firstName || "",
+        lastName: employee.lastName || "",
+        email: employee.email || "",
+        role: employee.role,
+        reportingManagerId: (employee as any).reportingManagerId || ((employee as any).reportingManager?.id) || "",
+        departmentId: (employee as any).departmentId || ((employee as any).department?.id) || "",
+        designationId: (employee as any).designationId || ((employee as any).designation?.id) || "",
+      });
     }
   }, [employee, form, open]);
 
@@ -82,9 +125,15 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("hrms_token");
+      const payload = {
+        ...values,
+        departmentId: values.departmentId === "none" || !values.departmentId ? null : values.departmentId,
+        reportingManagerId: values.reportingManagerId === "none" || !values.reportingManagerId ? null : values.reportingManagerId,
+        designationId: values.designationId === "none" || !values.designationId ? null : values.designationId,
+      };
       await axios.patch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employee.id}`,
-        values,
+        payload,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setOpen(false);
@@ -96,7 +145,6 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
       setIsSubmitting(false);
     }
   }
-
   // Mutation: Add Skill
   const addSkillMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -192,48 +240,173 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
           {/* TAB: DETAILS */}
           <TabsContent value="details" className="focus-visible:outline-none">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-1">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="firstName" render={({ field }) => (
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pt-1">
+                
+                {/* SECTION 1: Personal Profile */}
+                <div className="bg-slate-50/60 p-4 rounded-xl border border-slate-100/80 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-100 pb-2 mb-1">
+                    <User className="h-4 w-4 text-emerald-600" />
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Personal Profile</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="firstName" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold text-slate-600">First Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-9 text-sm border-slate-200 focus-visible:ring-emerald-500 rounded-lg bg-white" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="lastName" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold text-slate-600">Last Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-9 text-sm border-slate-200 focus-visible:ring-emerald-500 rounded-lg bg-white" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <FormField control={form.control} name="email" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="lastName" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
+                      <FormLabel className="text-xs font-semibold text-slate-600">Work Email</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input type="email" {...field} className="h-9 pl-9 text-sm border-slate-200 focus-visible:ring-emerald-500 rounded-lg bg-white" />
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
-                <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Work Email</FormLabel>
-                    <FormControl><Input type="email" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="role" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>System Role</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
-                        <SelectItem value="HR_HEAD">HR Admin</SelectItem>
-                        <SelectItem value="OWNER">Owner</SelectItem>
-                        <SelectItem value="MANAGER">Manager</SelectItem>
-                        <SelectItem value="EMPLOYEE">Standard Employee</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <div className="flex justify-end pt-4">
-                  <Button type="submit" disabled={isSubmitting} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+
+                {/* SECTION 2: Employment & Org Hierarchy */}
+                <div className="bg-slate-50/60 p-4 rounded-xl border border-slate-100/80 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-100 pb-2 mb-1">
+                    <Building className="h-4 w-4 text-emerald-600" />
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Employment & Org Hierarchy</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="role" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold text-slate-600">System Role</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="h-9 text-sm border-slate-200 focus:ring-emerald-500 rounded-lg bg-white">
+                              <SelectValue placeholder="Select a role">
+                                {(value) => {
+                                  const rolesMap: Record<string, string> = {
+                                    SUPER_ADMIN: "Super Admin",
+                                    HR_HEAD: "HR Admin",
+                                    OWNER: "Owner",
+                                    MANAGER: "Manager",
+                                    EMPLOYEE: "Standard Employee",
+                                  };
+                                  return rolesMap[value as string] || value;
+                                }}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                            <SelectItem value="HR_HEAD">HR Admin</SelectItem>
+                            <SelectItem value="OWNER">Owner</SelectItem>
+                            <SelectItem value="MANAGER">Manager</SelectItem>
+                            <SelectItem value="EMPLOYEE">Standard Employee</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="departmentId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold text-slate-600">Department</FormLabel>
+                        <Select key={departments.length} value={field.value || "none"} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="h-9 text-sm border-slate-200 focus:ring-emerald-500 rounded-lg bg-white">
+                              <SelectValue placeholder="Select department">
+                                {(value) => {
+                                  if (value === "none" || !value) return "None";
+                                  return departments.find(d => d.id === value)?.name || value;
+                                }}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {departments.map((dept) => (
+                              <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="designationId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold text-slate-600">Designation</FormLabel>
+                        <Select key={designations.length} value={field.value || "none"} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="h-9 text-sm border-slate-200 focus:ring-emerald-500 rounded-lg bg-white">
+                              <SelectValue placeholder="Select designation">
+                                {(value) => {
+                                  if (value === "none" || !value) return "None";
+                                  return designations.find(d => d.id === value)?.name || value;
+                                }}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {designations.map((designation) => (
+                              <SelectItem key={designation.id} value={designation.id}>{designation.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="reportingManagerId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold text-slate-600">Reporting Manager</FormLabel>
+                        <Select key={managers.length} value={field.value || "none"} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="h-9 text-sm border-slate-200 focus:ring-emerald-500 rounded-lg bg-white">
+                              <SelectValue placeholder="Select manager">
+                                {(value) => {
+                                  if (value === "none" || !value) return "None";
+                                  const mgr = managers.find(m => m.id === value);
+                                  return mgr ? `${mgr.firstName} ${mgr.lastName} (${mgr.role.replace('_', ' ').toLowerCase()})` : value;
+                                }}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {managers.filter(mgr => mgr.id !== employee?.id).map((mgr) => (
+                              <SelectItem key={mgr.id} value={mgr.id}>
+                                {mgr.firstName} {mgr.lastName} ({mgr.role.replace('_', ' ').toLowerCase()})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+
+
+                <div className="flex justify-end pt-2">
+                  <Button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2 rounded-lg transition-all shadow-sm">
                     {isSubmitting ? <><Loader2 className="mr-2 size-4 animate-spin" />Saving...</> : "Save changes"}
                   </Button>
                 </div>

@@ -6,12 +6,13 @@ import { ManagerDashboardView } from "@/components/dashboard/ManagerDashboardVie
 import { HRDashboardView } from "@/components/dashboard/HRDashboardView";
 import { AdminDashboardView } from "@/components/dashboard/AdminDashboardView";
 import { useViewMode } from "@/context/ViewModeContext";
+import { usePermissions } from "@/context/PermissionContext";
 
 export default function DashboardRouter() {
-  // Fetch current logged-in user's profile to check their active role
   const { activeRole, isLoading: userLoading } = useViewMode();
+  const { designation, isLoading: permLoading } = usePermissions();
 
-  if (userLoading) {
+  if (userLoading || permLoading) {
     return (
       <div className="flex h-96 items-center justify-center bg-slate-50/50 min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
@@ -19,8 +20,12 @@ export default function DashboardRouter() {
     );
   }
 
-  // Route to the appropriate dashboard component based on their active role
-  switch (activeRole) {
+  // If a designation is assigned, use its baseRole for the dashboard view
+  // This allows custom designations to map to the correct dashboard layout
+  const effectiveRole = designation?.baseRole || activeRole;
+
+  // Route to the appropriate dashboard component based on their effective role
+  switch (effectiveRole) {
     case 'EMPLOYEE':
       return <EmployeeDashboardView />;
     case 'MANAGER':

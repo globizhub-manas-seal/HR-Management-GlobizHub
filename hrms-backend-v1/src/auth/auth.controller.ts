@@ -47,6 +47,12 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
+  @Get('me/permissions')
+  async getPermissions(@Request() req) {
+    return this.authService.getPermissions(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard)
   @Patch('change-password')
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.sub, dto);
