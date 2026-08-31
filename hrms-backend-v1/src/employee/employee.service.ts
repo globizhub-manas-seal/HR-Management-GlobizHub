@@ -53,7 +53,9 @@ export class EmployeeService {
     private s3Service: S3Service,
     private auditService: AuditService,
   ) {
-    this.resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_key');
+    this.resend = new Resend(
+      process.env.RESEND_API_KEY || 're_placeholder_key',
+    );
   }
 
   async findAllByCompany(companyId: string) {

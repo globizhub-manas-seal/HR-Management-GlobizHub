@@ -13,7 +13,9 @@ export class SentryInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       catchError((error) => {
-        Sentry.captureException(error);
+        if (process.env.SENTRY_DSN) {
+          Sentry.captureException(error);
+        }
         return throwError(() => error);
       }),
     );
