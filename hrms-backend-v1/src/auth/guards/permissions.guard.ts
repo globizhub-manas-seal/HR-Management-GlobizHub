@@ -1,8 +1,8 @@
-import { 
-  Injectable, 
-  CanActivate, 
-  ExecutionContext, 
-  ForbiddenException 
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -12,14 +12,14 @@ import { PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
 export class PermissionsGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    private prisma: PrismaService
+    private prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // 1. Get the required permissions for this specific route
     const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
       PERMISSIONS_KEY,
-      [context.getHandler(), context.getClass()]
+      [context.getHandler(), context.getClass()],
     );
 
     // If the route doesn't require any specific permissions, allow access
@@ -66,7 +66,8 @@ export class PermissionsGuard implements CanActivate {
         if (moduleKey === 'announcement') moduleKey = 'employees';
         if (moduleKey === 'system') moduleKey = 'settings';
 
-        const modulePerms = (designation.modulePermissions as any)?.[moduleKey] || [];
+        const modulePerms =
+          (designation.modulePermissions as any)?.[moduleKey] || [];
 
         // 'manage' requires any mutation permission (create/edit/delete)
         if (action === 'manage') {
@@ -85,7 +86,7 @@ export class PermissionsGuard implements CanActivate {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        `Action denied. You need the following permissions: ${requiredPermissions.join(', ')}`
+        `Action denied. You need the following permissions: ${requiredPermissions.join(', ')}`,
       );
     }
 

@@ -34,7 +34,10 @@ export class EmailService {
       });
       console.log(`✅ Password reset email sent to ${email}`);
     } catch (error) {
-      console.error('❌ Failed to send password reset email via Resend:', error);
+      console.error(
+        '❌ Failed to send password reset email via Resend:',
+        error,
+      );
       throw new InternalServerErrorException('Failed to send email');
     }
   }

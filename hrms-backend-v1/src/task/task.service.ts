@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -50,7 +54,9 @@ export class TaskService {
     }
 
     if (task.employeeId !== employeeId) {
-      throw new ForbiddenException('You cannot update status of a task not assigned to you');
+      throw new ForbiddenException(
+        'You cannot update status of a task not assigned to you',
+      );
     }
 
     return this.prisma.task.update({

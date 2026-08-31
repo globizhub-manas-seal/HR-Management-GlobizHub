@@ -33,9 +33,15 @@ export class NotificationService {
   // ========================================================
   // INTERNAL HELPER: Call this from LeaveService, AttendanceService, etc.
   // ========================================================
-  async sendInternalNotification(companyId: string, userId: string, title: string, message: string, type: 'LEAVE' | 'ATTENDANCE' | 'SYSTEM' = 'SYSTEM') {
+  async sendInternalNotification(
+    companyId: string,
+    userId: string,
+    title: string,
+    message: string,
+    type: 'LEAVE' | 'ATTENDANCE' | 'SYSTEM' = 'SYSTEM',
+  ) {
     return this.prisma.notification.create({
-      data: { companyId, userId, title, message, type }
+      data: { companyId, userId, title, message, type },
     });
   }
 }

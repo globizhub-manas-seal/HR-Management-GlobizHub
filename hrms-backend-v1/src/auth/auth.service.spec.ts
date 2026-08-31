@@ -60,9 +60,9 @@ describe('AuthService', () => {
     });
     jwt.signAsync.mockResolvedValue('token');
 
-    await expect(
-      service.login('  Alex@Acme.COM  ', password),
-    ).resolves.toEqual({ access_token: 'token' });
+    await expect(service.login('  Alex@Acme.COM  ', password)).resolves.toEqual(
+      { access_token: 'token' },
+    );
 
     expect(prisma.employee.findUnique).toHaveBeenCalledWith({
       where: { email: 'alex@acme.com' },
@@ -73,7 +73,7 @@ describe('AuthService', () => {
     it('normalizes the email, sets tokens in DB, and sends reset email', async () => {
       const email = '  Alex@Acme.COM  ';
       const normalizedEmail = 'alex@acme.com';
-      
+
       prisma.employee.findUnique.mockResolvedValue({
         id: 'employee-1',
         email: normalizedEmail,
@@ -105,4 +105,3 @@ describe('AuthService', () => {
     });
   });
 });
-

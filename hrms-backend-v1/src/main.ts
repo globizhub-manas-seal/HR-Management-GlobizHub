@@ -12,9 +12,7 @@ async function bootstrap() {
   // Initialize Sentry
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
-    integrations: [
-      nodeProfilingIntegration(),
-    ],
+    integrations: [nodeProfilingIntegration()],
     // Tracing
     tracesSampleRate: 1.0, //  Capture 100% of the transactions
     // Set sampling rate for profiling - this is relative to tracesSampleRate
@@ -28,12 +26,14 @@ async function bootstrap() {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       const allowedOrigins = process.env.FRONTEND_ORIGIN?.split(',') ?? [];
-      const isAllowed = allowedOrigins.some(allowed => {
-        const pattern = allowed.trim()
-          .replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&') // escape regex chars
-          .replace(/\*/g, '.*'); // turn wildcard * into .*
-        return new RegExp(`^${pattern}$`).test(origin);
-      }) || allowedOrigins.length === 0;
+      const isAllowed =
+        allowedOrigins.some((allowed) => {
+          const pattern = allowed
+            .trim()
+            .replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&') // escape regex chars
+            .replace(/\*/g, '.*'); // turn wildcard * into .*
+          return new RegExp(`^${pattern}$`).test(origin);
+        }) || allowedOrigins.length === 0;
 
       if (isAllowed) {
         callback(null, true);

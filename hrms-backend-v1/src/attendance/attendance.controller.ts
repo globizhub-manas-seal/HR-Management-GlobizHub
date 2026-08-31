@@ -1,4 +1,12 @@
-import { Controller, Post, Body, UseGuards, Request, Ip, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Ip,
+  Get,
+} from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ClockInDto } from './dto/clock-in.dto';
@@ -12,7 +20,12 @@ export class AttendanceController {
   async clockIn(@Request() req, @Ip() ip: string, @Body() dto: ClockInDto) {
     // req.user contains the decoded JWT (employeeId and companyId)
     // @Ip() automatically extracts the user's IP address
-    return this.attendanceService.clockIn(req.user.sub, req.user.companyId, dto, ip);
+    return this.attendanceService.clockIn(
+      req.user.sub,
+      req.user.companyId,
+      dto,
+      ip,
+    );
   }
 
   @Post('clock-out')
@@ -23,7 +36,10 @@ export class AttendanceController {
   @Get('my-history')
   async getMyHistory(@Request() req) {
     // req.user.sub is the employeeId securely extracted from their JWT token
-    return this.attendanceService.getMyHistory(req.user.sub, req.user.companyId);
+    return this.attendanceService.getMyHistory(
+      req.user.sub,
+      req.user.companyId,
+    );
   }
 
   // NEW: Admin Dashboard Stats
@@ -37,6 +53,9 @@ export class AttendanceController {
   @Get('my-stats')
   async getMyStats(@Request() req) {
     // req.user.sub is the logged-in employee's ID from their JWT token
-    return this.attendanceService.getMyDashboardStats(req.user.sub, req.user.companyId);
+    return this.attendanceService.getMyDashboardStats(
+      req.user.sub,
+      req.user.companyId,
+    );
   }
 }

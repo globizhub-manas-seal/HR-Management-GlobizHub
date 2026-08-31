@@ -11,7 +11,10 @@ const getEncryptionKey = (): Buffer => {
     return Buffer.from(envKey, 'hex');
   }
   // Fallback dev key (exactly 32 bytes)
-  return Buffer.from('f3c7d6e8a1b2c3d4e5f60718293a4b5c6d7e8f900112233445566778899aabbc', 'hex');
+  return Buffer.from(
+    'f3c7d6e8a1b2c3d4e5f60718293a4b5c6d7e8f900112233445566778899aabbc',
+    'hex',
+  );
 };
 
 export function encrypt(text: string | null | undefined): string | null {
@@ -29,7 +32,9 @@ export function encrypt(text: string | null | undefined): string | null {
   }
 }
 
-export function decrypt(encryptedText: string | null | undefined): string | null {
+export function decrypt(
+  encryptedText: string | null | undefined,
+): string | null {
   if (!encryptedText) return null;
   try {
     const parts = encryptedText.split(':');

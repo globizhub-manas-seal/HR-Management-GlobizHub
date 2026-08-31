@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -8,7 +12,7 @@ export class OrganizationService {
   // ==========================================
   // BRANCHES
   // ==========================================
-  
+
   async getBranches(companyId: string) {
     return this.prisma.branch.findMany({
       where: { companyId },
@@ -28,7 +32,9 @@ export class OrganizationService {
 
   async deleteBranch(companyId: string, branchId: string) {
     // Verify it belongs to the company before deleting
-    const branch = await this.prisma.branch.findFirst({ where: { id: branchId, companyId } });
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, companyId },
+    });
     if (!branch) throw new NotFoundException('Branch not found');
 
     return this.prisma.branch.delete({ where: { id: branchId } });
@@ -57,7 +63,9 @@ export class OrganizationService {
   }
 
   async deleteDepartment(companyId: string, departmentId: string) {
-    const dept = await this.prisma.department.findFirst({ where: { id: departmentId, companyId } });
+    const dept = await this.prisma.department.findFirst({
+      where: { id: departmentId, companyId },
+    });
     if (!dept) throw new NotFoundException('Department not found');
 
     return this.prisma.department.delete({ where: { id: departmentId } });
@@ -86,7 +94,9 @@ export class OrganizationService {
   }
 
   async deleteRole(companyId: string, roleId: string) {
-    const role = await this.prisma.role.findFirst({ where: { id: roleId, companyId } });
+    const role = await this.prisma.role.findFirst({
+      where: { id: roleId, companyId },
+    });
     if (!role) throw new NotFoundException('Role not found');
 
     return this.prisma.role.delete({ where: { id: roleId } });
@@ -192,7 +202,8 @@ export class OrganizationService {
       where: { id, companyId },
     });
     if (!designation) throw new NotFoundException('Designation not found');
-    if (designation.isDefault) throw new ForbiddenException('Cannot delete default system designation');
+    if (designation.isDefault)
+      throw new ForbiddenException('Cannot delete default system designation');
 
     return this.prisma.designation.delete({
       where: { id },

@@ -41,7 +41,10 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined,
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? { target: 'pino-pretty' }
+            : undefined,
       },
     }),
     ServeStaticModule.forRoot({
@@ -49,10 +52,12 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
       serveRoot: '/uploads', // The URL prefix
     }),
 
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100, // 100 requests per minute
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100, // 100 requests per minute
+      },
+    ]),
 
     CronModule.forRoot(), // Initializes the background cron job timer
     ScheduleModule, // Initializes your custom employee shift schedule module

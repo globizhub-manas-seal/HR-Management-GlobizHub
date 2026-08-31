@@ -6,12 +6,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { AuditModule } from '../audit/audit.module';
 
-
 @Module({
   imports: [
     JwtModule.register({
       global: true,
-      secret: 'SUPER_SECRET_HRMS_KEY_FOR_NOW', 
+      secret: 'SUPER_SECRET_HRMS_KEY_FOR_NOW',
       signOptions: { expiresIn: '1d' },
     }),
     EmailModule,

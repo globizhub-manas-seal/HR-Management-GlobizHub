@@ -1,4 +1,11 @@
-import { Controller, Get, Body, Patch, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Body,
+  Patch,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -14,6 +21,11 @@ export class SettingsController {
 
   @Patch()
   async updateSettings(@Request() req, @Body() dto: any) {
-    return this.settingsService.updateSettings(req.user.companyId, dto, req.user.role, req.user.sub);
+    return this.settingsService.updateSettings(
+      req.user.companyId,
+      dto,
+      req.user.role,
+      req.user.sub,
+    );
   }
 }

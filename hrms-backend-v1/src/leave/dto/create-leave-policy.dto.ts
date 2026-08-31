@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsEnum, IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsEnum,
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
 import { LeaveType, PeriodType } from '../../../generated/prisma/client';
 
 export class CreateLeavePolicyDto {

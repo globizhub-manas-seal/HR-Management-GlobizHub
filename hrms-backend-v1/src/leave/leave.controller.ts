@@ -96,6 +96,10 @@ export class LeaveController {
   @Delete('holidays/:id')
   @RequirePermissions('leave.manage')
   async removeHoliday(@Request() req, @Param('id') id: string) {
-    return this.leaveService.removeHoliday(req.user.companyId, id, req.user.sub);
+    return this.leaveService.removeHoliday(
+      req.user.companyId,
+      id,
+      req.user.sub,
+    );
   }
 }

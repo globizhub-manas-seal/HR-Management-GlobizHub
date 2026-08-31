@@ -14,8 +14,16 @@ describe('LeaveService', () => {
           useValue: {
             holiday: { findMany: jest.fn() },
             leavePolicy: { findMany: jest.fn() },
-            leaveAllocation: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn() },
-            leaveRequest: { aggregate: jest.fn(), findMany: jest.fn(), create: jest.fn() },
+            leaveAllocation: {
+              findFirst: jest.fn(),
+              create: jest.fn(),
+              findMany: jest.fn(),
+            },
+            leaveRequest: {
+              aggregate: jest.fn(),
+              findMany: jest.fn(),
+              create: jest.fn(),
+            },
             employee: { findUnique: jest.fn() },
           },
         },
@@ -36,7 +44,7 @@ describe('LeaveService', () => {
         startDate: 'not-a-date',
         endDate: '2026-08-14',
         reason: 'Sick leave',
-      })
+      }),
     ).rejects.toThrow('Invalid leave date');
   });
 });

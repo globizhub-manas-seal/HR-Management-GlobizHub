@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -40,23 +44,26 @@ export class ScheduleService {
         overrideShift: true,
         relatedSwapRequest: {
           include: {
-            requester: { select: { id: true, firstName: true, lastName: true } },
+            requester: {
+              select: { id: true, firstName: true, lastName: true },
+            },
             target: { select: { id: true, firstName: true, lastName: true } },
-          }
-        }
+          },
+        },
       },
     });
 
     return schedules.map((schedule) => {
       const override = overrides.find(
-        (o) => o.date.toDateString() === schedule.date.toDateString()
+        (o) => o.date.toDateString() === schedule.date.toDateString(),
       );
       if (override) {
         return {
           ...schedule,
           isOverride: true,
           originalShift: schedule.shift,
-          isDayOff: override.overrideShiftId === null ? true : schedule.isDayOff,
+          isDayOff:
+            override.overrideShiftId === null ? true : schedule.isDayOff,
           shift: override.overrideShift,
           overrideSource: override.source,
           relatedSwapRequest: override.relatedSwapRequest,
@@ -67,7 +74,12 @@ export class ScheduleService {
   }
 
   // 2. Admin: Create a new Shift Template
-  async createShift(companyId: string, dto: any, userRole: string, actorId?: string) {
+  async createShift(
+    companyId: string,
+    dto: any,
+    userRole: string,
+    actorId?: string,
+  ) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can create shifts.');
     }
@@ -82,7 +94,7 @@ export class ScheduleService {
       'Shift',
       shift.id,
       null,
-      { name: shift.name, startTime: shift.startTime, endTime: shift.endTime }
+      { name: shift.name, startTime: shift.startTime, endTime: shift.endTime },
     );
 
     return shift;
@@ -92,12 +104,18 @@ export class ScheduleService {
   async getShifts(companyId: string) {
     return this.prisma.shift.findMany({
       where: { companyId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   // 4. Admin: Update a Shift Template
-  async updateShift(shiftId: string, companyId: string, dto: any, userRole: string, actorId?: string) {
+  async updateShift(
+    shiftId: string,
+    companyId: string,
+    dto: any,
+    userRole: string,
+    actorId?: string,
+  ) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can edit shifts.');
     }
@@ -106,7 +124,8 @@ export class ScheduleService {
     const shift = await this.prisma.shift.findFirst({
       where: { id: shiftId, companyId },
     });
-    if (!shift) throw new NotFoundException('Shift not found in your organization.');
+    if (!shift)
+      throw new NotFoundException('Shift not found in your organization.');
 
     const updated = await this.prisma.shift.update({
       where: { id: shiftId },
@@ -120,14 +139,23 @@ export class ScheduleService {
       'Shift',
       shiftId,
       { name: shift.name, startTime: shift.startTime, endTime: shift.endTime },
-      { name: updated.name, startTime: updated.startTime, endTime: updated.endTime }
+      {
+        name: updated.name,
+        startTime: updated.startTime,
+        endTime: updated.endTime,
+      },
     );
 
     return updated;
   }
 
   // 5. Admin: Delete a Shift Template
-  async deleteShift(shiftId: string, companyId: string, userRole: string, actorId?: string) {
+  async deleteShift(
+    shiftId: string,
+    companyId: string,
+    userRole: string,
+    actorId?: string,
+  ) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can delete shifts.');
     }
@@ -136,7 +164,8 @@ export class ScheduleService {
     const shift = await this.prisma.shift.findFirst({
       where: { id: shiftId, companyId },
     });
-    if (!shift) throw new NotFoundException('Shift not found in your organization.');
+    if (!shift)
+      throw new NotFoundException('Shift not found in your organization.');
 
     const deleted = await this.prisma.shift.delete({
       where: { id: shiftId },
@@ -149,25 +178,30 @@ export class ScheduleService {
       'Shift',
       shiftId,
       { name: shift.name, startTime: shift.startTime, endTime: shift.endTime },
-      null
+      null,
     );
 
     return deleted;
   }
 
   // 6. Admin: Assign Schedule to an Employee
-  async assignSchedule(companyId: string, dto: any, userRole: string, actorId?: string) {
+  async assignSchedule(
+    companyId: string,
+    dto: any,
+    userRole: string,
+    actorId?: string,
+  ) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException('Only Admins can assign schedules.');
     }
-    
+
     // Upsert ensures if a schedule already exists for that date, it updates it instead of crashing
     const schedule = await this.prisma.schedule.upsert({
       where: {
         employeeId_date: {
           employeeId: dto.employeeId,
           date: new Date(dto.date),
-        }
+        },
       },
       update: {
         shiftId: dto.shiftId || null,
@@ -189,14 +223,23 @@ export class ScheduleService {
       'Schedule',
       schedule.id,
       null,
-      { employeeId: dto.employeeId, date: dto.date, shiftId: dto.shiftId, isDayOff: dto.isDayOff }
+      {
+        employeeId: dto.employeeId,
+        date: dto.date,
+        shiftId: dto.shiftId,
+        isDayOff: dto.isDayOff,
+      },
     );
 
     return schedule;
   }
 
   // 7. Get an employee's schedule on a specific date (for Shift Swap helper)
-  async getEmployeeScheduleOnDate(employeeId: string, dateStr: string, companyId: string) {
+  async getEmployeeScheduleOnDate(
+    employeeId: string,
+    dateStr: string,
+    companyId: string,
+  ) {
     const queryDate = new Date(dateStr);
     queryDate.setUTCHours(0, 0, 0, 0);
     return this.prisma.schedule.findFirst({
