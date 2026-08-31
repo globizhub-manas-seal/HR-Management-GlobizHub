@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSwapRequestDto } from './dto/create-swap-request.dto';
 import { ShiftSwapStatus, OverrideSource } from '../../generated/prisma/client';
@@ -16,12 +21,18 @@ export class ShiftSwapService {
   }
 
   // 1. Create a Shift Transfer Request (A -> B)
-  async createRequest(requesterId: string, companyId: string, dto: CreateSwapRequestDto) {
+  async createRequest(
+    requesterId: string,
+    companyId: string,
+    dto: CreateSwapRequestDto,
+  ) {
     const targetDate = new Date(dto.date);
     targetDate.setUTCHours(0, 0, 0, 0);
 
     if (requesterId === dto.targetEmployeeId) {
-      throw new BadRequestException('You cannot request a shift transfer with yourself.');
+      throw new BadRequestException(
+        'You cannot request a shift transfer with yourself.',
+      );
     }
 
     // A. Verify Target Employee (B) exists and is in the same company
@@ -29,10 +40,14 @@ export class ShiftSwapService {
       where: { id: dto.targetEmployeeId, companyId },
     });
     if (!targetEmployee) {
-      throw new NotFoundException('Target employee not found in your organization.');
+      throw new NotFoundException(
+        'Target employee not found in your organization.',
+      );
     }
     if (!targetEmployee.reportingManagerId) {
-      throw new BadRequestException('Target employee must have a reporting manager assigned to approve the shift transfer.');
+      throw new BadRequestException(
+        'Target employee must have a reporting manager assigned to approve the shift transfer.',
+      );
     }
 
     // B. Check for existing active/pending requests
@@ -43,12 +58,18 @@ export class ShiftSwapService {
         requesterEmployeeId: requesterId,
         targetEmployeeId: dto.targetEmployeeId,
         status: {
-          in: [ShiftSwapStatus.PENDING_EMPLOYEE, ShiftSwapStatus.PENDING_MANAGER, ShiftSwapStatus.APPROVED],
+          in: [
+            ShiftSwapStatus.PENDING_EMPLOYEE,
+            ShiftSwapStatus.PENDING_MANAGER,
+            ShiftSwapStatus.APPROVED,
+          ],
         },
       },
     });
     if (existing) {
-      throw new BadRequestException('An active or pending shift transfer request already exists for this date.');
+      throw new BadRequestException(
+        'An active or pending shift transfer request already exists for this date.',
+      );
     }
 
     // C. Fetch B's schedule on that date
@@ -60,11 +81,15 @@ export class ShiftSwapService {
       include: { shift: true },
     });
     if (!bSchedule || bSchedule.isDayOff || !bSchedule.shift) {
-      throw new BadRequestException('The target employee has no shift assigned (or has a Day Off) on this date.');
+      throw new BadRequestException(
+        'The target employee has no shift assigned (or has a Day Off) on this date.',
+      );
     }
 
     if (bSchedule.shiftId !== dto.targetShiftId) {
-      throw new BadRequestException("Requested shift does not match the target employee's scheduled shift.");
+      throw new BadRequestException(
+        "Requested shift does not match the target employee's scheduled shift.",
+      );
     }
 
     const targetShift = bSchedule.shift;
@@ -113,13 +138,19 @@ export class ShiftSwapService {
       throw new NotFoundException('Shift transfer request not found.');
     }
     if (request.targetEmployeeId !== targetId) {
-      throw new ForbiddenException('You are not authorized to respond to this request.');
+      throw new ForbiddenException(
+        'You are not authorized to respond to this request.',
+      );
     }
     if (request.status !== ShiftSwapStatus.PENDING_EMPLOYEE) {
-      throw new BadRequestException('Request is no longer pending employee response.');
+      throw new BadRequestException(
+        'Request is no longer pending employee response.',
+      );
     }
 
-    const updatedStatus = accept ? ShiftSwapStatus.PENDING_MANAGER : ShiftSwapStatus.REJECTED_BY_EMPLOYEE;
+    const updatedStatus = accept
+      ? ShiftSwapStatus.PENDING_MANAGER
+      : ShiftSwapStatus.REJECTED_BY_EMPLOYEE;
     const responseText = accept ? 'ACCEPTED' : 'REJECTED';
 
     return this.prisma.shiftSwapRequest.update({
@@ -141,7 +172,9 @@ export class ShiftSwapService {
       throw new NotFoundException('Shift transfer request not found.');
     }
     if (request.managerId !== managerId) {
-      throw new ForbiddenException('You are not authorized to approve/reject this request.');
+      throw new ForbiddenException(
+        'You are not authorized to approve/reject this request.',
+      );
     }
     if (request.status !== ShiftSwapStatus.PENDING_MANAGER) {
       throw new BadRequestException('Request is not pending manager approval.');
@@ -226,7 +259,12 @@ export class ShiftSwapService {
   }
 
   // 4. Cancellation Flow
-  async cancelRequest(userId: string, userRole: string, requestId: string, reason?: string) {
+  async cancelRequest(
+    userId: string,
+    userRole: string,
+    requestId: string,
+    reason?: string,
+  ) {
     const request = await this.prisma.shiftSwapRequest.findUnique({
       where: { id: requestId },
     });
@@ -237,14 +275,22 @@ export class ShiftSwapService {
 
     const isRequester = request.requesterEmployeeId === userId;
     const isTarget = request.targetEmployeeId === userId;
-    const isManager = request.managerId === userId || userRole === 'SUPER_ADMIN' || userRole === 'HR_HEAD';
+    const isManager =
+      request.managerId === userId ||
+      userRole === 'SUPER_ADMIN' ||
+      userRole === 'HR_HEAD';
 
     if (!isRequester && !isTarget && !isManager) {
-      throw new ForbiddenException('You are not authorized to cancel this request.');
+      throw new ForbiddenException(
+        'You are not authorized to cancel this request.',
+      );
     }
 
     // A. Cancellation before manager approval
-    if (request.status === ShiftSwapStatus.PENDING_EMPLOYEE || request.status === ShiftSwapStatus.PENDING_MANAGER) {
+    if (
+      request.status === ShiftSwapStatus.PENDING_EMPLOYEE ||
+      request.status === ShiftSwapStatus.PENDING_MANAGER
+    ) {
       return this.prisma.shiftSwapRequest.update({
         where: { id: requestId },
         data: { status: ShiftSwapStatus.CANCELLED },
@@ -253,11 +299,16 @@ export class ShiftSwapService {
 
     // B. Cancellation after manager approval
     if (request.status === ShiftSwapStatus.APPROVED) {
-      const shiftStart = this.getShiftStartDateTime(request.date, request.originalShiftStart);
+      const shiftStart = this.getShiftStartDateTime(
+        request.date,
+        request.originalShiftStart,
+      );
       const now = new Date();
 
       if (now >= shiftStart) {
-        throw new BadRequestException('Cannot cancel a shift transfer after the shift has started.');
+        throw new BadRequestException(
+          'Cannot cancel a shift transfer after the shift has started.',
+        );
       }
 
       const diffMs = shiftStart.getTime() - now.getTime();
@@ -275,7 +326,8 @@ export class ShiftSwapService {
             where: { id: requestId },
             data: {
               status: ShiftSwapStatus.CANCELLED,
-              cancellationReason: reason || 'Cancelled directly by Manager/Admin',
+              cancellationReason:
+                reason || 'Cancelled directly by Manager/Admin',
             },
           });
         });
@@ -289,20 +341,24 @@ export class ShiftSwapService {
             where: { id: requestId },
             data: {
               cancellationRequested: true,
-              cancellationReason: reason || 'Cancellation requested by requester (>24h prior)',
+              cancellationReason:
+                reason || 'Cancellation requested by requester (>24h prior)',
               cancellationRequestedAt: new Date(),
               cancellationTargetAck: false, // reset ack
             },
           });
         }
-        throw new BadRequestException('Only the requester can initiate cancellation for this approved swap.');
+        throw new BadRequestException(
+          'Only the requester can initiate cancellation for this approved swap.',
+        );
       } else {
         // Within 24h of shift: Requester/Target can request, but requires Manager approval directly (no B ack needed, or either A/B initiates request)
         return this.prisma.shiftSwapRequest.update({
           where: { id: requestId },
           data: {
             cancellationRequested: true,
-            cancellationReason: reason || 'Urgent cancellation requested within 24h of shift',
+            cancellationReason:
+              reason || 'Urgent cancellation requested within 24h of shift',
             cancellationRequestedAt: new Date(),
             cancellationTargetAck: true, // Bypass target ack directly to manager
           },
@@ -310,7 +366,9 @@ export class ShiftSwapService {
       }
     }
 
-    throw new BadRequestException('Request is in a state that cannot be cancelled.');
+    throw new BadRequestException(
+      'Request is in a state that cannot be cancelled.',
+    );
   }
 
   // 5. Target employee acknowledges cancellation (>24h)
@@ -323,10 +381,14 @@ export class ShiftSwapService {
       throw new NotFoundException('Shift transfer request not found.');
     }
     if (request.targetEmployeeId !== targetId) {
-      throw new ForbiddenException('You are not authorized to acknowledge this cancellation.');
+      throw new ForbiddenException(
+        'You are not authorized to acknowledge this cancellation.',
+      );
     }
     if (!request.cancellationRequested) {
-      throw new BadRequestException('No cancellation has been requested for this shift transfer.');
+      throw new BadRequestException(
+        'No cancellation has been requested for this shift transfer.',
+      );
     }
 
     return this.prisma.shiftSwapRequest.update({
@@ -338,7 +400,12 @@ export class ShiftSwapService {
   }
 
   // 6. Manager approves cancellation request
-  async approveCancellation(managerId: string, userRole: string, requestId: string, approve: boolean) {
+  async approveCancellation(
+    managerId: string,
+    userRole: string,
+    requestId: string,
+    approve: boolean,
+  ) {
     const request = await this.prisma.shiftSwapRequest.findUnique({
       where: { id: requestId },
     });
@@ -346,15 +413,22 @@ export class ShiftSwapService {
     if (!request) {
       throw new NotFoundException('Shift transfer request not found.');
     }
-    const isManager = request.managerId === managerId || userRole === 'SUPER_ADMIN' || userRole === 'HR_HEAD';
+    const isManager =
+      request.managerId === managerId ||
+      userRole === 'SUPER_ADMIN' ||
+      userRole === 'HR_HEAD';
     if (!isManager) {
-      throw new ForbiddenException('Only managers or admins can review cancellation requests.');
+      throw new ForbiddenException(
+        'Only managers or admins can review cancellation requests.',
+      );
     }
     if (!request.cancellationRequested) {
       throw new BadRequestException('No cancellation has been requested.');
     }
     if (!request.cancellationTargetAck) {
-      throw new BadRequestException('Cancellation must be acknowledged by the target employee first.');
+      throw new BadRequestException(
+        'Cancellation must be acknowledged by the target employee first.',
+      );
     }
 
     if (!approve) {
@@ -388,7 +462,8 @@ export class ShiftSwapService {
 
   // 7. Get requests lists for the user
   async getMyRequests(userId: string, companyId: string, role: string) {
-    const isManagerOrAdmin = role === 'MANAGER' || role === 'SUPER_ADMIN' || role === 'HR_HEAD';
+    const isManagerOrAdmin =
+      role === 'MANAGER' || role === 'SUPER_ADMIN' || role === 'HR_HEAD';
 
     const sent = await this.prisma.shiftSwapRequest.findMany({
       where: { requesterEmployeeId: userId, companyId },

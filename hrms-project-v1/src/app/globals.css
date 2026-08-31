@@ -62,7 +62,7 @@
 }
 
 :root {
-  --background: #FAF8F2;
+  --background: #FFFFFF;
   --foreground: #1E2022;
   --card: #FFFFFF;
   --card-foreground: #1E2022;
@@ -71,28 +71,28 @@
   --primary: #FDCD56;
   --primary-foreground: #1E2022;
   --secondary: #262729;
-  --secondary-foreground: #FAF8F2;
-  --muted: #F3EFE3;
+  --secondary-foreground: #FFFFFF;
+  --muted: #F8FAFC;
   --muted-foreground: #65686C;
   --accent: #FDCD56;
   --accent-foreground: #1E2022;
   --destructive: #E11D48;
-  --border: #E6E2D6;
-  --input: #E6E2D6;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
   --ring: #FDCD56;
   --chart-1: #FDCD56;
   --chart-2: #262729;
-  --chart-3: #E6E2D6;
+  --chart-3: #E2E8F0;
   --chart-4: #65686C;
-  --chart-5: #FAF8F2;
+  --chart-5: #FFFFFF;
   --radius: 0.625rem;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #1E2022;
   --sidebar-primary: #FDCD56;
   --sidebar-primary-foreground: #1E2022;
-  --sidebar-accent: #FAF8F2;
+  --sidebar-accent: #F8FAFC;
   --sidebar-accent-foreground: #1E2022;
-  --sidebar-border: #E6E2D6;
+  --sidebar-border: #E2E8F0;
   --sidebar-ring: #FDCD56;
 
   /* Standard Slate palette */
@@ -165,6 +165,63 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* Universal Hand Pointer for all clickable and interactive elements */
+  a,
+  a *,
+  button,
+  button *,
+  [role="button"],
+  [role="button"] *,
+  [role="tab"],
+  [role="tab"] *,
+  [role="menuitem"],
+  [role="menuitem"] *,
+  [role="option"],
+  [role="option"] *,
+  [role="link"],
+  [role="link"] *,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  summary,
+  label[for],
+  label[for] *,
+  .cursor-pointer,
+  .cursor-pointer *,
+  [data-slot="button"],
+  [data-slot="button"] *,
+  [data-slot="tabs-trigger"],
+  [data-slot="tabs-trigger"] *,
+  [data-slot="select-trigger"],
+  [data-slot="select-trigger"] *,
+  [data-slot="select-item"],
+  [data-slot="select-item"] *,
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-item"] *,
+  [data-slot="dropdown-menu-sub-trigger"],
+  [data-slot="dropdown-menu-sub-trigger"] *,
+  [data-slot="dropdown-menu-checkbox-item"],
+  [data-slot="dropdown-menu-checkbox-item"] *,
+  [data-slot="dropdown-menu-radio-item"],
+  [data-slot="dropdown-menu-radio-item"] *,
+  [data-slot="dialog-close"],
+  [data-slot="dialog-close"] * {
+    cursor: pointer !important;
+  }
+
+  button:disabled,
+  button:disabled *,
+  input:disabled,
+  select:disabled,
+  [aria-disabled="true"],
+  [aria-disabled="true"] *,
+  .disabled {
+    cursor: not-allowed !important;
   }
 }
 

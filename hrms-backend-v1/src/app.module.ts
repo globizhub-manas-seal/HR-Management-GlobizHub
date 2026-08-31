@@ -20,20 +20,44 @@ import { TaskModule } from './task/task.module';
 import { AuditModule } from './audit/audit.module';
 import { ShiftSwapModule } from './shift-swap/shift-swap.module';
 
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ConfigModule } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
+import * as Joi from 'joi';
+import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: Joi.object({
+        PORT: Joi.number().default(5000),
+        DATABASE_URL: Joi.string().required(),
+        JWT_SECRET: Joi.string().required(),
+        FRONTEND_ORIGIN: Joi.string().allow(''),
+        SENTRY_DSN: Joi.string().allow(''),
+      }),
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? { target: 'pino-pretty' }
+            : undefined,
+      },
+    }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads', // The URL prefix
     }),
 
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100, // 100 requests per minute
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100, // 100 requests per minute
+      },
+    ]),
 
     CronModule.forRoot(), // Initializes the background cron job timer
     ScheduleModule, // Initializes your custom employee shift schedule module
@@ -58,6 +82,10 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: SentryInterceptor,
     },
   ],
 })

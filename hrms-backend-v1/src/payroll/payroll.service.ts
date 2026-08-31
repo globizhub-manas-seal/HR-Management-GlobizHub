@@ -24,7 +24,7 @@ export class PayrollService {
   private async attachPayslipLetterheadUrls(records: any[]) {
     return Promise.all(
       records.map(async (record) => {
-        const breakdown = record.breakdown as any;
+        const breakdown = record.breakdown;
         const snapshotUrl = breakdown?.meta?.letterheadUrl;
         const currentUrl = record.company?.settings?.payslipHeaderUrl;
         const sourceUrl = snapshotUrl || currentUrl;
@@ -75,7 +75,7 @@ export class PayrollService {
 
     const holidayDates = holidays.map((h) => h.date.getTime());
     let workingDays = 0;
-    let currentDate = new Date(start);
+    const currentDate = new Date(start);
 
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay();
@@ -406,10 +406,10 @@ export class PayrollService {
     }
 
     const {
-      id,
+      id: _id,
       companyId: _companyId,
-      createdAt,
-      updatedAt,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
       ...templateData
     } = data;
 
@@ -419,24 +419,30 @@ export class PayrollService {
     });
   }
 
-  async logPayslipDownload(employeeId: string, companyId: string, payrollId: string) {
+  async logPayslipDownload(
+    employeeId: string,
+    companyId: string,
+    payrollId: string,
+  ) {
     const employee = await this.prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { firstName: true, lastName: true, role: true }
+      select: { firstName: true, lastName: true, role: true },
     });
 
     const payroll = await this.prisma.payrollRecord.findUnique({
       where: { id: payrollId },
-      select: { 
-        month: true, 
-        year: true, 
-        employee: { select: { firstName: true, lastName: true } } 
-      }
+      select: {
+        month: true,
+        year: true,
+        employee: { select: { firstName: true, lastName: true } },
+      },
     });
 
     if (!payroll) throw new NotFoundException('Payroll record not found.');
 
-    const actorName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+    const actorName = employee
+      ? `${employee.firstName} ${employee.lastName}`
+      : 'Unknown';
     const targetName = `${payroll.employee.firstName} ${payroll.employee.lastName}`;
     const desc = `${actorName} (${employee?.role || 'User'}) downloaded payslip of ${targetName} for Month ${payroll.month}/${payroll.year}`;
 
@@ -447,7 +453,7 @@ export class PayrollService {
       'PayrollRecord',
       payrollId,
       null,
-      { description: desc }
+      { description: desc },
     );
 
     return { success: true };

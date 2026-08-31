@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { extname } from 'path';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class S3Service {
@@ -101,7 +105,10 @@ export class S3Service {
       // URL expires in 900 seconds (15 minutes)
       return await getSignedUrl(this.s3Client, command, { expiresIn: 900 });
     } catch (error) {
-      console.error('Failed to generate pre-signed URL, returning original link:', error);
+      console.error(
+        'Failed to generate pre-signed URL, returning original link:',
+        error,
+      );
       return fileKey;
     }
   }
@@ -109,7 +116,7 @@ export class S3Service {
   // 3. Delete file from S3 / MinIO
   async deleteFile(fileKey: string): Promise<void> {
     if (!fileKey) return;
-    
+
     // If it's mock or external testing key, bypass actual deletion
     if (
       process.env.AWS_S3_MOCK === 'true' ||
@@ -150,4 +157,3 @@ export class S3Service {
     }
   }
 }
-

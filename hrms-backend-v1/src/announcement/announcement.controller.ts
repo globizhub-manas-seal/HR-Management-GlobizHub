@@ -20,7 +20,10 @@ export class AnnouncementController {
 
   @Post()
   @RequirePermissions('announcement.manage') // Admins/HR
-  async create(@Request() req, @Body() body: { title: string; content: string }) {
+  async create(
+    @Request() req,
+    @Body() body: { title: string; content: string },
+  ) {
     return this.announcementService.createAnnouncement(
       req.user.companyId,
       body.title,

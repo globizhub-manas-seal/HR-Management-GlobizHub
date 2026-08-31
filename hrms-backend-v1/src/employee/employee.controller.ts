@@ -12,8 +12,6 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 
 import { EmployeeService } from './employee.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -21,7 +19,6 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
-
 
 @Controller('employees')
 @UseGuards(AuthGuard, PermissionsGuard)
@@ -36,7 +33,11 @@ export class EmployeeController {
   @Post('invite')
   @RequirePermissions('employee.create')
   async inviteEmployee(@Request() req, @Body() dto: CreateEmployeeDto) {
-    return this.employeeService.inviteEmployee(req.user.companyId, dto, req.user.sub);
+    return this.employeeService.inviteEmployee(
+      req.user.companyId,
+      dto,
+      req.user.sub,
+    );
   }
 
   // --- UPDATED: Update own profile (Handles S3 Image Uploads) ---
@@ -86,11 +87,15 @@ export class EmployeeController {
     @Param('id') id: string,
     @Body() dto: UpdateEmployeeDto,
   ) {
-    return this.employeeService.updateEmployee(req.user.companyId, id, dto, req.user.sub);
+    return this.employeeService.updateEmployee(
+      req.user.companyId,
+      id,
+      dto,
+      req.user.sub,
+    );
   }
 
   // Delete an employee (Admin feature)
- 
 
   // --- LIFECYCLE & DETAILS ENDPOINTS (Admin/HR feature) ---
 
@@ -126,19 +131,29 @@ export class EmployeeController {
   }
 
   @Delete(':id/skills/:skillId')
-  async removeSkill(@Param('id') id: string, @Param('skillId') skillId: string) {
+  async removeSkill(
+    @Param('id') id: string,
+    @Param('skillId') skillId: string,
+  ) {
     return this.employeeService.removeSkill(id, skillId);
   }
 
   @Delete(':id/emergency-contacts/:contactId')
-  async removeEmergencyContact(@Param('id') id: string, @Param('contactId') contactId: string) {
+  async removeEmergencyContact(
+    @Param('id') id: string,
+    @Param('contactId') contactId: string,
+  ) {
     return this.employeeService.removeEmergencyContact(id, contactId);
   }
 
   // 3. Protect this specific route!
   @Delete(':id')
-  @RequirePermissions('employee.delete') 
+  @RequirePermissions('employee.delete')
   async removeEmployee(@Request() req, @Param('id') id: string) {
-    return this.employeeService.removeEmployee(req.user.companyId, id, req.user.sub);
+    return this.employeeService.removeEmployee(
+      req.user.companyId,
+      id,
+      req.user.sub,
+    );
   }
 }

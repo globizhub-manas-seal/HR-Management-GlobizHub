@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
-import * as bcrypt from 'bcrypt'; 
+import * as bcrypt from 'bcrypt';
 import { Resend } from 'resend';
 import { randomBytes } from 'crypto';
 import { S3Service } from '../s3/s3.service';
@@ -47,13 +47,13 @@ function decryptEmployee(employee: any) {
 @Injectable()
 export class EmployeeService {
   private resend: Resend;
-  
+
   constructor(
     private prisma: PrismaService,
     private s3Service: S3Service,
     private auditService: AuditService,
   ) {
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    this.resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_key');
   }
 
   async findAllByCompany(companyId: string) {
@@ -65,7 +65,7 @@ export class EmployeeService {
         lastName: true,
         email: true,
         phone: true,
-        role: true, 
+        role: true,
         profilePhoto: true, // ✅ Fetch profile photo for card/list view
         employeeCode: true, // ✅ Ensure the code is fetched for the frontend list
         gender: true, // ✅ Fetch gender for stats
@@ -92,33 +92,52 @@ export class EmployeeService {
     });
   }
 
-  async inviteEmployee(companyId: string, dto: CreateEmployeeDto, actorId?: string) {
+  async inviteEmployee(
+    companyId: string,
+    dto: CreateEmployeeDto,
+    actorId?: string,
+  ) {
     const existingEmployee = await this.prisma.employee.findUnique({
       where: { email: dto.email },
     });
 
     if (existingEmployee) {
-      throw new ConflictException('An employee with this email already exists.');
+      throw new ConflictException(
+        'An employee with this email already exists.',
+      );
     }
 
     // ==========================================
     // --- EMPLOYEE ID GENERATION LOGIC ---
     // ==========================================
-    
+
     // 1. Fetch Company to get the first prefix (e.g., TCS)
-    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+    });
     if (!company) throw new NotFoundException('Company not found');
 
     // 2. Fetch Department to get the second prefix (if a departmentId is provided)
     let department: any = null;
     const deptId = dto.departmentId;
     if (deptId) {
-      department = await this.prisma.department.findUnique({ where: { id: deptId } });
+      department = await this.prisma.department.findUnique({
+        where: { id: deptId },
+      });
     }
 
     // 3. Create Prefixes (First 3 alphanumeric letters, uppercase)
-    const compPrefix = company.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase() || 'EMP';
-    const deptPrefix = department ? department.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase() || 'GEN' : 'GEN';
+    const compPrefix =
+      company.name
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .substring(0, 3)
+        .toUpperCase() || 'EMP';
+    const deptPrefix = department
+      ? department.name
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .substring(0, 3)
+          .toUpperCase() || 'GEN'
+      : 'GEN';
 
     // 4. Find the max sequential number from existing employee codes to avoid duplicate collisions on deletion
     const existingEmployees = await this.prisma.employee.findMany({
@@ -157,18 +176,21 @@ export class EmployeeService {
         role: dto.role,
         password: tempPassword,
         companyId: companyId,
-        inviteToken: inviteToken, 
+        inviteToken: inviteToken,
         employeeCode: generatedEmployeeCode, // ✅ Injected here
         ...(dto.departmentId && { departmentId: dto.departmentId }),
         ...(dto.designationId && { designationId: dto.designationId }),
-        ...(dto.reportingManagerId && { reportingManagerId: dto.reportingManagerId }),
+        ...(dto.reportingManagerId && {
+          reportingManagerId: dto.reportingManagerId,
+        }),
       },
     });
 
     const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${inviteToken}`;
 
     try {
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+      const fromEmail =
+        process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
       await this.resend.emails.send({
         from: fromEmail,
         to: dto.email,
@@ -186,7 +208,10 @@ export class EmployeeService {
       });
       console.log(`✅ Onboarding invitation email sent to ${dto.email}`);
     } catch (emailError) {
-      console.error('❌ Failed to send onboarding invitation email via Resend:', emailError);
+      console.error(
+        '❌ Failed to send onboarding invitation email via Resend:',
+        emailError,
+      );
       // We log the error but do not throw, so the creation process completes successfully.
     }
 
@@ -197,14 +222,27 @@ export class EmployeeService {
       'Employee',
       newEmployee.id,
       null,
-      { email: newEmployee.email, role: newEmployee.role, employeeCode: newEmployee.employeeCode },
+      {
+        email: newEmployee.email,
+        role: newEmployee.role,
+        employeeCode: newEmployee.employeeCode,
+      },
     );
 
-    const { password, inviteToken: hiddenToken, ...result } = newEmployee;
+    const {
+      password: _password,
+      inviteToken: _hiddenToken,
+      ...result
+    } = newEmployee;
     return result;
   }
 
-  async updateEmployee(companyId: string, employeeId: string, dto: UpdateEmployeeDto, actorId?: string) {
+  async updateEmployee(
+    companyId: string,
+    employeeId: string,
+    dto: UpdateEmployeeDto,
+    actorId?: string,
+  ) {
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, companyId: companyId },
     });
@@ -234,14 +272,26 @@ export class EmployeeService {
       'UPDATE',
       'Employee',
       employeeId,
-      { firstName: employee.firstName, lastName: employee.lastName, role: employee.role },
-      { firstName: updated.firstName, lastName: updated.lastName, role: updated.role },
+      {
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        role: employee.role,
+      },
+      {
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        role: updated.role,
+      },
     );
 
     return updated;
   }
 
-  async removeEmployee(companyId: string, employeeId: string, actorId?: string) {
+  async removeEmployee(
+    companyId: string,
+    employeeId: string,
+    actorId?: string,
+  ) {
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, companyId: companyId },
     });
@@ -260,7 +310,10 @@ export class EmployeeService {
       'DELETE',
       'Employee',
       employeeId,
-      { email: employee.email, name: `${employee.firstName} ${employee.lastName}` },
+      {
+        email: employee.email,
+        name: `${employee.firstName} ${employee.lastName}`,
+      },
       null,
     );
 
@@ -271,34 +324,45 @@ export class EmployeeService {
   // EMPLOYEE SELF-SERVICE
   // ==========================================
 
-  async updateMyProfile(employeeId: string, data: any, file?: Express.Multer.File) { 
+  async updateMyProfile(
+    employeeId: string,
+    data: any,
+    file?: Express.Multer.File,
+  ) {
     delete data.id;
     delete data.companyId;
     delete data.departmentId;
     delete data.roleId;
-    delete data.email; 
-    delete data.employeeId; 
+    delete data.email;
+    delete data.employeeId;
     delete data.joiningDate;
 
     if (file) {
-      data.profilePhoto = await this.s3Service.uploadFile(file, 'profile-photos');
+      data.profilePhoto = await this.s3Service.uploadFile(
+        file,
+        'profile-photos',
+      );
     }
 
-    if (data.bloodGroup === "") {
+    if (data.bloodGroup === '') {
       data.bloodGroup = null;
     } else if (data.bloodGroup) {
       const mapping: Record<string, string> = {
-        "O+": "O_POS", "O-": "O_NEG",
-        "A+": "A_POS", "A-": "A_NEG",
-        "B+": "B_POS", "B-": "B_NEG",
-        "AB+": "AB_POS", "AB-": "AB_NEG",
+        'O+': 'O_POS',
+        'O-': 'O_NEG',
+        'A+': 'A_POS',
+        'A-': 'A_NEG',
+        'B+': 'B_POS',
+        'B-': 'B_NEG',
+        'AB+': 'AB_POS',
+        'AB-': 'AB_NEG',
       };
       if (mapping[data.bloodGroup]) {
         data.bloodGroup = mapping[data.bloodGroup];
       }
     }
 
-    if (data.gender === "") {
+    if (data.gender === '') {
       data.gender = null;
     }
 
@@ -329,7 +393,11 @@ export class EmployeeService {
     });
   }
 
-  async registerMyDevice(employeeId: string, deviceName: string, deviceIdentifier: string) {
+  async registerMyDevice(
+    employeeId: string,
+    deviceName: string,
+    deviceIdentifier: string,
+  ) {
     return this.prisma.employeeDevice.upsert({
       where: { deviceIdentifier },
       update: { lastUsedAt: new Date(), deviceName },
@@ -366,25 +434,49 @@ export class EmployeeService {
   // EMPLOYEE LIFECYCLE & DETAILS
   // ==========================================
 
-  async addEmergencyContact(employeeId: string, data: { name: string; relationship: string; phone: string; email?: string; isPrimary?: boolean }) {
+  async addEmergencyContact(
+    employeeId: string,
+    data: {
+      name: string;
+      relationship: string;
+      phone: string;
+      email?: string;
+      isPrimary?: boolean;
+    },
+  ) {
     return this.prisma.emergencyContact.create({
       data: { ...data, employeeId },
     });
   }
 
-  async addSkill(employeeId: string, data: { name: string; proficiencyLevel: string }) {
+  async addSkill(
+    employeeId: string,
+    data: { name: string; proficiencyLevel: string },
+  ) {
     return this.prisma.employeeSkill.create({
       data: { ...data, employeeId },
     });
   }
 
-  async addEmploymentHistory(employeeId: string, data: { companyName: string; jobTitle: string; startDate: Date; endDate?: Date; reasonForLeaving?: string }) {
+  async addEmploymentHistory(
+    employeeId: string,
+    data: {
+      companyName: string;
+      jobTitle: string;
+      startDate: Date;
+      endDate?: Date;
+      reasonForLeaving?: string;
+    },
+  ) {
     return this.prisma.employmentHistory.create({
       data: { ...data, employeeId },
     });
   }
 
-  async processEmployeeExit(employeeId: string, data: { exitDate: Date; reason: string; notes?: string }) {
+  async processEmployeeExit(
+    employeeId: string,
+    data: { exitDate: Date; reason: string; notes?: string },
+  ) {
     return this.prisma.employeeExit.upsert({
       where: { employeeId },
       update: {
@@ -420,8 +512,9 @@ export class EmployeeService {
     const skill = await this.prisma.employeeSkill.findFirst({
       where: { id: skillId, employeeId },
     });
-    if (!skill) throw new NotFoundException('Skill not found for this employee');
-    
+    if (!skill)
+      throw new NotFoundException('Skill not found for this employee');
+
     return this.prisma.employeeSkill.delete({ where: { id: skillId } });
   }
 

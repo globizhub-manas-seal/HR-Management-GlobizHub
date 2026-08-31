@@ -1,6 +1,5 @@
 import { IsString, IsEmail, IsOptional, IsEnum } from 'class-validator';
-import { EmployeeRole } from '../../../generated/prisma/client';// Import the strict enum from Prisma!
-
+import { EmployeeRole } from '../../../generated/prisma/client'; // Import the strict enum from Prisma!
 
 export class UpdateEmployeeDto {
   @IsOptional()

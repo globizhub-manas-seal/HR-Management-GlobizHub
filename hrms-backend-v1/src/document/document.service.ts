@@ -38,13 +38,18 @@ export class DocumentService {
   // ==========================================
   // NEW: PAYSLIP LETTERHEAD (HR ADMIN)
   // ==========================================
-  async uploadPayslipLetterhead(file: Express.Multer.File, companyId: string): Promise<string> {
+  async uploadPayslipLetterhead(
+    file: Express.Multer.File,
+    companyId: string,
+  ): Promise<string> {
     // 1. Validate file type (Block SVGs for security, only allow safe images)
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Invalid file type. Only JPG, PNG, and WEBP are allowed.');
+      throw new BadRequestException(
+        'Invalid file type. Only JPG, PNG, and WEBP are allowed.',
+      );
     }
-    
+
     // 2. Max size: 2MB
     if (file.size > 2 * 1024 * 1024) {
       throw new BadRequestException('File is too large. Maximum size is 2MB.');
@@ -58,7 +63,10 @@ export class DocumentService {
 
     // 4. Upload the replacement first, preserving the current letterhead if
     // storage is unavailable.
-    const fileUrl = await this.s3Service.uploadFile(file, `company-${companyId}/letterheads`);
+    const fileUrl = await this.s3Service.uploadFile(
+      file,
+      `company-${companyId}/letterheads`,
+    );
 
     // 5. Persist the replacement before best-effort cleanup of the old file.
     try {
@@ -100,7 +108,7 @@ export class DocumentService {
       } catch (err) {
         console.error('Failed to delete letterhead from storage:', err);
       }
-      
+
       await this.prisma.companySettings.update({
         where: { companyId },
         data: { payslipHeaderUrl: null },
@@ -171,7 +179,8 @@ export class DocumentService {
     uploaderRole: string,
     companyId: string,
   ) {
-    const isAdmin = uploaderRole === 'SUPER_ADMIN' || uploaderRole === 'HR_HEAD';
+    const isAdmin =
+      uploaderRole === 'SUPER_ADMIN' || uploaderRole === 'HR_HEAD';
 
     // A. Upload against an existing document request
     if (documentId) {
@@ -185,15 +194,25 @@ export class DocumentService {
       }
 
       if (!isAdmin && existing.employeeId !== uploaderId) {
-        throw new ForbiddenException('You cannot upload files for this document request.');
+        throw new ForbiddenException(
+          'You cannot upload files for this document request.',
+        );
       }
 
-      if (isAdmin && existing.employee && existing.employee.companyId !== companyId) {
-        throw new ForbiddenException('This document request belongs to an employee of a different company.');
+      if (
+        isAdmin &&
+        existing.employee &&
+        existing.employee.companyId !== companyId
+      ) {
+        throw new ForbiddenException(
+          'This document request belongs to an employee of a different company.',
+        );
       }
 
       if (existing.status === DocumentStatus.VERIFIED) {
-        throw new ForbiddenException('Verified documents are locked and cannot be re-uploaded.');
+        throw new ForbiddenException(
+          'Verified documents are locked and cannot be re-uploaded.',
+        );
       }
 
       return this.prisma.document.update({
@@ -209,7 +228,9 @@ export class DocumentService {
     // B. Create a new document (voluntary or company policy)
     if (category === DocumentCategory.COMPANY) {
       if (!isAdmin) {
-        throw new ForbiddenException('Only Admins can upload company policies.');
+        throw new ForbiddenException(
+          'Only Admins can upload company policies.',
+        );
       }
 
       return this.prisma.document.create({
@@ -240,11 +261,15 @@ export class DocumentService {
 
     if (isAdmin) {
       if (employee.companyId !== companyId) {
-        throw new ForbiddenException('Target employee belongs to a different company.');
+        throw new ForbiddenException(
+          'Target employee belongs to a different company.',
+        );
       }
     } else {
       if (employeeId !== uploaderId) {
-        throw new ForbiddenException('You can only upload documents for yourself.');
+        throw new ForbiddenException(
+          'You can only upload documents for yourself.',
+        );
       }
     }
 
@@ -284,7 +309,9 @@ export class DocumentService {
     }
 
     if (document.employee && document.employee.companyId !== companyId) {
-      throw new ForbiddenException('This document belongs to an employee of a different company.');
+      throw new ForbiddenException(
+        'This document belongs to an employee of a different company.',
+      );
     }
 
     const updated = await this.prisma.document.update({
@@ -362,7 +389,9 @@ export class DocumentService {
     });
 
     if (!employee || employee.companyId !== companyId) {
-      throw new ForbiddenException('Access denied or employee not found in your company.');
+      throw new ForbiddenException(
+        'Access denied or employee not found in your company.',
+      );
     }
 
     const docs = await this.prisma.document.findMany({
@@ -445,9 +474,13 @@ export class DocumentService {
       throw new NotFoundException('Document not found');
     }
 
-    const belongsToCompany = document.companyId === companyId || (document.employee && document.employee.companyId === companyId);
+    const belongsToCompany =
+      document.companyId === companyId ||
+      (document.employee && document.employee.companyId === companyId);
     if (!belongsToCompany) {
-      throw new ForbiddenException('This document belongs to a different company.');
+      throw new ForbiddenException(
+        'This document belongs to a different company.',
+      );
     }
 
     // Delete from S3 if file URL exists
@@ -455,7 +488,10 @@ export class DocumentService {
       try {
         await this.s3Service.deleteFile(document.fileUrl);
       } catch (err) {
-        console.error(`Failed to delete S3 file for document ${documentId}:`, err);
+        console.error(
+          `Failed to delete S3 file for document ${documentId}:`,
+          err,
+        );
       }
     }
 
@@ -487,9 +523,13 @@ export class DocumentService {
       throw new NotFoundException('Document not found');
     }
 
-    const belongsToCompany = document.companyId === companyId || (document.employee && document.employee.companyId === companyId);
+    const belongsToCompany =
+      document.companyId === companyId ||
+      (document.employee && document.employee.companyId === companyId);
     if (!belongsToCompany) {
-      throw new ForbiddenException('This document belongs to a different company.');
+      throw new ForbiddenException(
+        'This document belongs to a different company.',
+      );
     }
 
     let targetEmployeeId = employeeId;
@@ -507,7 +547,9 @@ export class DocumentService {
         select: { companyId: true },
       });
       if (!employee || employee.companyId !== companyId) {
-        throw new ForbiddenException('Target employee belongs to a different company or does not exist.');
+        throw new ForbiddenException(
+          'Target employee belongs to a different company or does not exist.',
+        );
       }
       targetCompanyId = employee.companyId;
     }

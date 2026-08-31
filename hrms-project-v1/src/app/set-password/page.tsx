@@ -97,7 +97,7 @@ function SetPasswordForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white mt-4" disabled={mutation.isPending}>
+            <Button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white mt-4 cursor-pointer" disabled={mutation.isPending}>
               {mutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : "Save & Continue"}
             </Button>
           </form>

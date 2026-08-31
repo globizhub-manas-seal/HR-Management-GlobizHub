@@ -1,14 +1,11 @@
-import { 
-  Injectable, 
-  NotFoundException, 
-  BadRequestException, 
-  ForbiddenException 
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
-  LeaveStatus, 
-  TransactionType 
-} from '../../generated/prisma/client';
+import { LeaveStatus, TransactionType } from '../../generated/prisma/client';
 import { CreateLeaveDto } from './dto/create-leave.dto';
 import { CreateLeavePolicyDto } from './dto/create-leave-policy.dto';
 import { AuditService } from '../audit/audit.service';
@@ -24,16 +21,22 @@ export class LeaveService {
   // HELPERS: SMART DATE CALCULATION
   // ==========================================
 
-  private parseValidDate(dateValue: string | Date, label: 'start' | 'end'): Date {
+  private parseValidDate(
+    dateValue: string | Date,
+    label: 'start' | 'end',
+  ): Date {
     if (!dateValue) {
-      throw new BadRequestException(`Invalid leave date: ${label} date is invalid.`);
+      throw new BadRequestException(
+        `Invalid leave date: ${label} date is invalid.`,
+      );
     }
 
     if (dateValue instanceof Date) {
       return dateValue;
     }
 
-    const dateStr = typeof dateValue === 'string' ? dateValue.trim() : String(dateValue);
+    const dateStr =
+      typeof dateValue === 'string' ? dateValue.trim() : String(dateValue);
     let parsed = new Date(dateStr);
 
     // If standard parsing fails (returns NaN) or is incorrect, check for DD-MM-YYYY, DD/MM/YYYY, or DD.MM.YYYY
@@ -48,14 +51,22 @@ export class LeaveService {
     }
 
     if (Number.isNaN(parsed.getTime())) {
-      console.error(`Invalid leave date parsing error. Label: ${label}, Received Value: ${JSON.stringify(dateValue)}`);
-      throw new BadRequestException(`Invalid leave date: ${label} date is invalid.`);
+      console.error(
+        `Invalid leave date parsing error. Label: ${label}, Received Value: ${JSON.stringify(dateValue)}`,
+      );
+      throw new BadRequestException(
+        `Invalid leave date: ${label} date is invalid.`,
+      );
     }
 
     return parsed;
   }
-  
-  private async calculateWorkingDays(startDate: Date, endDate: Date, companyId: string): Promise<number> {
+
+  private async calculateWorkingDays(
+    startDate: Date,
+    endDate: Date,
+    companyId: string,
+  ): Promise<number> {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -69,15 +80,15 @@ export class LeaveService {
     const holidays = await this.prisma.holiday.findMany({
       where: {
         companyId,
-        date: { gte: start, lte: end }
+        date: { gte: start, lte: end },
       },
-      select: { date: true }
+      select: { date: true },
     });
 
-    const holidayDates = holidays.map(h => h.date.getTime());
-    
+    const holidayDates = holidays.map((h) => h.date.getTime());
+
     let workingDays = 0;
-    let currentDate = new Date(start);
+    const currentDate = new Date(start);
 
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay();
@@ -96,19 +107,19 @@ export class LeaveService {
   // ==========================================
   // HR/ADMIN: Create Company Leave Policies
   // ==========================================
-  
+
   async createLeavePolicy(companyId: string, dto: CreateLeavePolicyDto) {
     return this.prisma.leavePolicy.create({
-      data: { 
-        ...dto, 
-        companyId 
-      }
+      data: {
+        ...dto,
+        companyId,
+      },
     });
   }
 
   async getCompanyPolicies(companyId: string) {
-    return this.prisma.leavePolicy.findMany({ 
-      where: { companyId } 
+    return this.prisma.leavePolicy.findMany({
+      where: { companyId },
     });
   }
 
@@ -123,7 +134,7 @@ export class LeaveService {
 
     // 1. Get all leave policies of the company
     const policies = await this.prisma.leavePolicy.findMany({
-      where: { companyId }
+      where: { companyId },
     });
 
     // 2. For each policy, ensure there is an allocation for the current year
@@ -133,8 +144,8 @@ export class LeaveService {
           employeeId,
           leavePolicyId: policy.id,
           year: currentYear,
-          periodNumber: 1
-        }
+          periodNumber: 1,
+        },
       });
 
       if (!existing) {
@@ -151,8 +162,8 @@ export class LeaveService {
             expiredDays: 0,
             startDate,
             endDate,
-            isExpired: false
-          }
+            isExpired: false,
+          },
         });
       }
     }
@@ -169,15 +180,15 @@ export class LeaveService {
         employeeId,
         isExpired: false,
         startDate: { lte: today },
-        endDate: { gte: today }
+        endDate: { gte: today },
       },
-      include: { leavePolicy: true }
+      include: { leavePolicy: true },
     });
 
     const balance: Record<string, number> = {
       casual: 0,
       medical: 0,
-      earned: 0
+      earned: 0,
     };
 
     for (const alloc of allocations) {
@@ -185,50 +196,55 @@ export class LeaveService {
       const pendingRequests = await this.prisma.leaveRequest.aggregate({
         where: {
           allocationId: alloc.id,
-          status: LeaveStatus.PENDING
+          status: LeaveStatus.PENDING,
         },
-        _sum: { totalDays: true }
+        _sum: { totalDays: true },
       });
 
       const pendingDays = pendingRequests._sum.totalDays || 0;
-      const available = alloc.allocatedDays - alloc.usedDays - alloc.expiredDays - pendingDays;
-      
+      const available =
+        alloc.allocatedDays - alloc.usedDays - alloc.expiredDays - pendingDays;
+
       const typeKey = alloc.leavePolicy.type.toLowerCase();
       balance[typeKey] = Math.max(0, available);
     }
 
     return balance;
   }
-  
+
   async getMyAllocations(employeeId: string) {
     const today = new Date();
     const employee = await this.prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { companyId: true }
+      select: { companyId: true },
     });
     if (employee) {
       await this.ensureAllocations(employeeId, employee.companyId);
     }
 
     return this.prisma.leaveAllocation.findMany({
-      where: { 
-        employeeId, 
+      where: {
+        employeeId,
         isExpired: false,
         startDate: { lte: today },
-        endDate: { gte: today }
+        endDate: { gte: today },
       },
-      include: { leavePolicy: true }
+      include: { leavePolicy: true },
     });
   }
 
   // ==========================================
   // EMPLOYEE: Apply for Leave
   // ==========================================
-  
-  async createLeaveRequest(employeeId: string, companyId: string, dto: CreateLeaveDto) {
+
+  async createLeaveRequest(
+    employeeId: string,
+    companyId: string,
+    dto: CreateLeaveDto,
+  ) {
     const start = this.parseValidDate(dto.startDate, 'start');
     const end = this.parseValidDate(dto.endDate, 'end');
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -239,11 +255,13 @@ export class LeaveService {
     if (end < start) {
       throw new BadRequestException('End date cannot be before start date.');
     }
-    
+
     const totalDays = await this.calculateWorkingDays(start, end, companyId);
-    
+
     if (totalDays === 0) {
-      throw new BadRequestException('The selected date range contains only weekends or holidays.');
+      throw new BadRequestException(
+        'The selected date range contains only weekends or holidays.',
+      );
     }
 
     // Ensure allocations exist
@@ -257,8 +275,8 @@ export class LeaveService {
           isExpired: false,
           startDate: { lte: start },
           endDate: { gte: end },
-          leavePolicy: { type: dto.type }
-        }
+          leavePolicy: { type: dto.type },
+        },
       });
 
       if (activeAllocation) {
@@ -266,19 +284,27 @@ export class LeaveService {
         const pendingRequests = await tx.leaveRequest.aggregate({
           where: {
             allocationId: activeAllocation.id,
-            status: LeaveStatus.PENDING
+            status: LeaveStatus.PENDING,
           },
-          _sum: { totalDays: true }
+          _sum: { totalDays: true },
         });
 
         const pendingDays = pendingRequests._sum.totalDays || 0;
-        const available = activeAllocation.allocatedDays - activeAllocation.usedDays - activeAllocation.expiredDays - pendingDays;
-        
+        const available =
+          activeAllocation.allocatedDays -
+          activeAllocation.usedDays -
+          activeAllocation.expiredDays -
+          pendingDays;
+
         if (available < totalDays) {
-          throw new BadRequestException(`Insufficient leave. Available: ${available} days, Requested: ${totalDays} working days.`);
+          throw new BadRequestException(
+            `Insufficient leave. Available: ${available} days, Requested: ${totalDays} working days.`,
+          );
         }
       } else if (dto.type !== 'UNPAID') {
-        throw new BadRequestException(`No active allocation found for ${dto.type} in this period.`);
+        throw new BadRequestException(
+          `No active allocation found for ${dto.type} in this period.`,
+        );
       }
 
       return tx.leaveRequest.create({
@@ -292,7 +318,7 @@ export class LeaveService {
           totalDays,
           reason: dto.reason,
           status: LeaveStatus.PENDING,
-        }
+        },
       });
     });
 
@@ -303,7 +329,12 @@ export class LeaveService {
       'LeaveRequest',
       request.id,
       null,
-      { type: request.type, startDate: request.startDate, endDate: request.endDate, totalDays: request.totalDays },
+      {
+        type: request.type,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        totalDays: request.totalDays,
+      },
     );
 
     return request;
@@ -312,49 +343,62 @@ export class LeaveService {
   // ==========================================
   // HR/MANAGER: Process Request (The Ledger Transaction)
   // ==========================================
-  
-  async updateLeaveStatus(companyId: string, requestId: string, status: LeaveStatus, role: string, managerId: string) {
+
+  async updateLeaveStatus(
+    companyId: string,
+    requestId: string,
+    status: LeaveStatus,
+    role: string,
+    managerId: string,
+  ) {
     if (!['SUPER_ADMIN', 'HR_HEAD', 'MANAGER'].includes(role)) {
       throw new ForbiddenException('Access denied');
     }
 
-    const request = await this.prisma.leaveRequest.findUnique({ 
-      where: { id: requestId } 
+    const request = await this.prisma.leaveRequest.findUnique({
+      where: { id: requestId },
     });
-    
-    if (!request || request.companyId !== companyId) throw new NotFoundException('Request not found');
-    if (request.status !== LeaveStatus.PENDING) throw new BadRequestException('Already processed');
+
+    if (!request || request.companyId !== companyId)
+      throw new NotFoundException('Request not found');
+    if (request.status !== LeaveStatus.PENDING)
+      throw new BadRequestException('Already processed');
 
     let result;
     if (status === LeaveStatus.REJECTED) {
-      result = await this.prisma.leaveRequest.update({ 
-        where: { id: requestId }, 
-        data: { status, managerId } 
+      result = await this.prisma.leaveRequest.update({
+        where: { id: requestId },
+        data: { status, managerId },
       });
     } else if (status === LeaveStatus.APPROVED) {
       result = await this.prisma.$transaction(async (tx) => {
         const approved = await tx.leaveRequest.update({
           where: { id: requestId },
-          data: { status, managerId }
+          data: { status, managerId },
         });
 
         if (request.allocationId) {
           const allocation = await tx.leaveAllocation.findUnique({
-            where: { id: request.allocationId }
+            where: { id: request.allocationId },
           });
 
           if (!allocation) throw new NotFoundException('Allocation missing');
 
-          const available = allocation.allocatedDays - allocation.usedDays - allocation.expiredDays;
-          
+          const available =
+            allocation.allocatedDays -
+            allocation.usedDays -
+            allocation.expiredDays;
+
           // Failsafe concurrency check at the exact moment of approval
           if (available < request.totalDays) {
-            throw new BadRequestException(`Concurrency error: Employee only has ${available} days left.`);
+            throw new BadRequestException(
+              `Concurrency error: Employee only has ${available} days left.`,
+            );
           }
 
           await tx.leaveAllocation.update({
             where: { id: request.allocationId },
-            data: { usedDays: { increment: request.totalDays } }
+            data: { usedDays: { increment: request.totalDays } },
           });
 
           await tx.leaveTransaction.create({
@@ -364,8 +408,8 @@ export class LeaveService {
               allocationId: request.allocationId,
               type: TransactionType.LEAVE_USED,
               amount: -Math.abs(request.totalDays),
-              description: `Leave Approved: ${request.reason.substring(0, 30)}...`
-            }
+              description: `Leave Approved: ${request.reason.substring(0, 30)}...`,
+            },
           });
         }
         return approved;
@@ -380,7 +424,7 @@ export class LeaveService {
         'LeaveRequest',
         requestId,
         { status: request.status },
-        { status: result.status }
+        { status: result.status },
       );
     }
 
@@ -390,7 +434,7 @@ export class LeaveService {
   // ==========================================
   // EMPLOYEE/HR: GET HISTORY
   // ==========================================
-  
+
   async getMyLeaves(employeeId: string) {
     return this.prisma.leaveRequest.findMany({
       where: { employeeId },
@@ -401,7 +445,11 @@ export class LeaveService {
   async getAllCompanyLeaves(companyId: string) {
     return this.prisma.leaveRequest.findMany({
       where: { companyId },
-      include: { employee: { select: { firstName: true, lastName: true, employeeCode: true } } },
+      include: {
+        employee: {
+          select: { firstName: true, lastName: true, employeeCode: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -409,22 +457,26 @@ export class LeaveService {
   // ==========================================
   // HR: HOLIDAY MANAGEMENT
   // ==========================================
-  
+
   async getHolidays(companyId: string) {
     return this.prisma.holiday.findMany({
       where: { companyId },
-      orderBy: { date: 'asc' }
+      orderBy: { date: 'asc' },
     });
   }
 
-  async addHoliday(companyId: string, data: { name: string; date: string; type?: string }, actorId?: string) {
+  async addHoliday(
+    companyId: string,
+    data: { name: string; date: string; type?: string },
+    actorId?: string,
+  ) {
     const holiday = await this.prisma.holiday.create({
       data: {
         name: data.name,
         date: new Date(data.date),
         type: data.type || 'NATIONAL',
         companyId,
-      }
+      },
     });
 
     await this.auditService.logAction(
@@ -434,7 +486,7 @@ export class LeaveService {
       'Holiday',
       holiday.id,
       null,
-      { name: holiday.name, date: holiday.date, type: holiday.type }
+      { name: holiday.name, date: holiday.date, type: holiday.type },
     );
 
     return holiday;
@@ -442,19 +494,21 @@ export class LeaveService {
 
   async removeHoliday(companyId: string, id: string, actorId?: string) {
     const holiday = await this.prisma.holiday.findFirst({
-      where: { id, companyId }
+      where: { id, companyId },
     });
 
     // Safest way to delete by composite matching when not explicitly defined as a unique compound index
     const result = await this.prisma.holiday.deleteMany({
       where: {
         id: id,
-        companyId: companyId
-      }
+        companyId: companyId,
+      },
     });
 
     if (result.count === 0) {
-      throw new NotFoundException('Holiday not found or you are not authorized to delete it.');
+      throw new NotFoundException(
+        'Holiday not found or you are not authorized to delete it.',
+      );
     }
 
     if (holiday) {
@@ -465,7 +519,7 @@ export class LeaveService {
         'Holiday',
         id,
         { name: holiday.name, date: holiday.date, type: holiday.type },
-        null
+        null,
       );
     }
 
@@ -481,7 +535,7 @@ export class LeaveService {
         lastName: true,
         employeeCode: true,
         email: true,
-      }
+      },
     });
 
     const results: any[] = [];
@@ -493,7 +547,7 @@ export class LeaveService {
         lastName: emp.lastName,
         employeeCode: emp.employeeCode,
         email: emp.email,
-        balance
+        balance,
       });
     }
     return results;

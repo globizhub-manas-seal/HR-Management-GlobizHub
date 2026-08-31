@@ -23,7 +23,13 @@ export class TaskController {
   @RequirePermissions('task.manage') // Admins/Managers
   async create(
     @Request() req,
-    @Body() body: { employeeId: string; title: string; description?: string; dueDate?: string },
+    @Body()
+    body: {
+      employeeId: string;
+      title: string;
+      description?: string;
+      dueDate?: string;
+    },
   ) {
     return this.taskService.createTask(
       req.user.companyId,

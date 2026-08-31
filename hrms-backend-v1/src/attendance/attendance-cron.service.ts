@@ -10,22 +10,26 @@ export class AttendanceCronService {
   constructor(private prisma: PrismaService) {}
 
   // Helper to calculate shift duration in hours
-  private getShiftDurationHours(startTimeStr: string, endTimeStr: string, isNightShift: boolean): number {
+  private getShiftDurationHours(
+    startTimeStr: string,
+    endTimeStr: string,
+    isNightShift: boolean,
+  ): number {
     const [startH, startM] = startTimeStr.split(':').map(Number);
     const [endH, endM] = endTimeStr.split(':').map(Number);
-    
-    let start = startH + startM / 60;
+
+    const start = startH + startM / 60;
     let end = endH + endM / 60;
-    
+
     if (isNightShift || end < start) {
       end += 24; // spans past midnight
     }
-    
+
     return Math.round((end - start) * 100) / 100;
   }
 
   // This runs automatically every night at 11:59 PM
-  @Cron('59 23 * * *') 
+  @Cron('59 23 * * *')
   async handleDailyAttendanceCalculation() {
     this.logger.log('Starting daily attendance calculation...');
 
@@ -36,7 +40,7 @@ export class AttendanceCronService {
 
     // 1. Fetch all active employees
     const employees = await this.prisma.employee.findMany({
-      include: { company: { include: { settings: true } } }
+      include: { company: { include: { settings: true } } },
     });
 
     for (const employee of employees) {
@@ -58,7 +62,12 @@ export class AttendanceCronService {
       });
 
       // 2. Mark SHIFT_GIVEN if they gave their shift away and didn't clock in
-      if (!record && override && override.overrideShiftId === null && override.source === OverrideSource.SHIFT_SWAP) {
+      if (
+        !record &&
+        override &&
+        override.overrideShiftId === null &&
+        override.source === OverrideSource.SHIFT_SWAP
+      ) {
         await this.prisma.attendance.create({
           data: {
             employeeId: employee.id,
@@ -119,7 +128,7 @@ export class AttendanceCronService {
       shiftStart.setHours(startH, startM, 0, 0);
 
       // Determine default checkOutTime if not checked out (shift end time)
-      let defaultCheckOut = new Date(today);
+      const defaultCheckOut = new Date(today);
       const [endH, endM] = shiftEndTimeStr.split(':').map(Number);
       defaultCheckOut.setHours(endH, endM, 0, 0);
       if (isNight || endH < startH) {
@@ -135,7 +144,9 @@ export class AttendanceCronService {
 
         // Calculate if late
         const shiftStartWithGrace = new Date(shiftStart);
-        shiftStartWithGrace.setMinutes(shiftStartWithGrace.getMinutes() + grace);
+        shiftStartWithGrace.setMinutes(
+          shiftStartWithGrace.getMinutes() + grace,
+        );
 
         if (record.checkInTime > shiftStartWithGrace) {
           isLate = true;
@@ -149,11 +160,16 @@ export class AttendanceCronService {
         }
 
         // Calculate overtime
-        const shiftDuration = this.getShiftDurationHours(shiftStartTimeStr, shiftEndTimeStr, isNight);
+        const shiftDuration = this.getShiftDurationHours(
+          shiftStartTimeStr,
+          shiftEndTimeStr,
+          isNight,
+        );
         if (totalHours > shiftDuration) {
           const extra = totalHours - shiftDuration;
           if (record.shiftSwapRequestId) {
-            const otIncludesSwap = employee.company.settings?.overtimeIncludesShiftSwaps ?? false;
+            const otIncludesSwap =
+              employee.company.settings?.overtimeIncludesShiftSwaps ?? false;
             overtimeHours = otIncludesSwap ? extra : 0;
           } else {
             overtimeHours = extra;
@@ -169,7 +185,9 @@ export class AttendanceCronService {
           workingHours: totalHours,
           overtimeHours,
           isLate,
-          checkOutTime: record.checkOutTime ? record.checkOutTime : checkOutTime, // Save the auto-checkout if they forgot
+          checkOutTime: record.checkOutTime
+            ? record.checkOutTime
+            : checkOutTime, // Save the auto-checkout if they forgot
         },
       });
     }

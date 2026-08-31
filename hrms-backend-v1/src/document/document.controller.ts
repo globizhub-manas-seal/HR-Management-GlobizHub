@@ -36,10 +36,7 @@ export class DocumentController {
   }
 
   @Get('employee/:id')
-  async getEmployeeDocuments(
-    @Request() req,
-    @Param('id') employeeId: string,
-  ) {
+  async getEmployeeDocuments(@Request() req, @Param('id') employeeId: string) {
     return this.documentService.getEmployeeDocuments(
       employeeId,
       req.user.role,
@@ -91,26 +88,36 @@ export class DocumentController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('No file provided');
-    
+
     // Security check: only Admins should upload company letterheads
-    const isAdmin = req.user.role === 'SUPER_ADMIN' || req.user.role === 'HR_HEAD' || req.user.role === 'OWNER';
+    const isAdmin =
+      req.user.role === 'SUPER_ADMIN' ||
+      req.user.role === 'HR_HEAD' ||
+      req.user.role === 'OWNER';
     if (!isAdmin) {
-      throw new ForbiddenException('Only Admins can upload company letterheads.');
+      throw new ForbiddenException(
+        'Only Admins can upload company letterheads.',
+      );
     }
 
     const fileUrl = await this.documentService.uploadPayslipLetterhead(
       file,
       req.user.companyId,
     );
-    
+
     return { fileUrl, message: 'Letterhead uploaded successfully' };
   }
 
   @Delete('payslip-letterhead')
   async removeLetterhead(@Request() req) {
-    const isAdmin = req.user.role === 'SUPER_ADMIN' || req.user.role === 'HR_HEAD' || req.user.role === 'OWNER';
+    const isAdmin =
+      req.user.role === 'SUPER_ADMIN' ||
+      req.user.role === 'HR_HEAD' ||
+      req.user.role === 'OWNER';
     if (!isAdmin) {
-      throw new ForbiddenException('Only Admins can remove company letterheads.');
+      throw new ForbiddenException(
+        'Only Admins can remove company letterheads.',
+      );
     }
 
     await this.documentService.removePayslipLetterhead(req.user.companyId);
@@ -140,10 +147,14 @@ export class DocumentController {
     );
 
     // Enforce that only Admins can specify employeeId on upload, and set it to null for COMPANY policies
-    const isAdmin = req.user.role === 'SUPER_ADMIN' || req.user.role === 'HR_HEAD';
-    const targetEmployeeId = body.category === DocumentCategory.COMPANY
-      ? null
-      : (isAdmin ? (body.employeeId || req.user.sub) : req.user.sub);
+    const isAdmin =
+      req.user.role === 'SUPER_ADMIN' || req.user.role === 'HR_HEAD';
+    const targetEmployeeId =
+      body.category === DocumentCategory.COMPANY
+        ? null
+        : isAdmin
+          ? body.employeeId || req.user.sub
+          : req.user.sub;
 
     return this.documentService.uploadDocument(
       body.documentId || null,
@@ -175,10 +186,7 @@ export class DocumentController {
   }
 
   @Delete(':id')
-  async deleteDocument(
-    @Request() req,
-    @Param('id') id: string,
-  ) {
+  async deleteDocument(@Request() req, @Param('id') id: string) {
     return this.documentService.deleteDocument(
       id,
       req.user.sub,
@@ -191,7 +199,12 @@ export class DocumentController {
   async editDocument(
     @Request() req,
     @Param('id') id: string,
-    @Body() body: { name: string; category: DocumentCategory; employeeId: string | null },
+    @Body()
+    body: {
+      name: string;
+      category: DocumentCategory;
+      employeeId: string | null;
+    },
   ) {
     return this.documentService.editDocument(
       id,

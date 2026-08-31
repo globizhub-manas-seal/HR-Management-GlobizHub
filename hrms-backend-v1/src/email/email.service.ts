@@ -6,8 +6,8 @@ export class EmailService {
   private resend: Resend;
 
   constructor() {
-    // Initialize Resend with the API key from your .env
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    // Initialize Resend with the API key from your .env or fallback for test environments
+    this.resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_key');
   }
 
   async sendPasswordResetEmail(email: string, resetUrl: string) {
@@ -34,7 +34,10 @@ export class EmailService {
       });
       console.log(`✅ Password reset email sent to ${email}`);
     } catch (error) {
-      console.error('❌ Failed to send password reset email via Resend:', error);
+      console.error(
+        '❌ Failed to send password reset email via Resend:',
+        error,
+      );
       throw new InternalServerErrorException('Failed to send email');
     }
   }

@@ -1,5 +1,11 @@
-import { IsString, IsEmail, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
-import { EmployeeRole } from '../../../generated/prisma/client';// Import the strict enum from Prisma!
+import {
+  IsString,
+  IsEmail,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
+import { EmployeeRole } from '../../../generated/prisma/client'; // Import the strict enum from Prisma!
 
 export class CreateEmployeeDto {
   @IsString()

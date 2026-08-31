@@ -226,10 +226,12 @@ export class AttendanceService {
         shift: true,
         shiftSwapRequest: {
           include: {
-            requester: { select: { id: true, firstName: true, lastName: true } },
+            requester: {
+              select: { id: true, firstName: true, lastName: true },
+            },
             target: { select: { id: true, firstName: true, lastName: true } },
-          }
-        }
+          },
+        },
       },
       orderBy: {
         date: 'desc',

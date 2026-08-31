@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
           <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center space-y-3">
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
             <p className="text-sm font-medium">Check your email for a link to reset your password. If it doesn't appear within a few minutes, check your spam folder.</p>
-            <Link href="/login" className="text-emerald-700 font-bold hover:underline mt-2 inline-block">
+            <Link href="/login" className="text-emerald-700 font-bold hover:underline mt-2 inline-block cursor-pointer">
               Return to Login
             </Link>
           </div>
@@ -64,13 +64,13 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            <Button type="submit" disabled={loading || !email} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button type="submit" disabled={loading || !email} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {loading ? "Sending..." : "Send Reset Link"}
             </Button>
 
             <div className="text-center mt-6">
-              <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 inline-flex items-center transition-colors">
+              <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 inline-flex items-center transition-colors cursor-pointer">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Login
               </Link>
             </div>

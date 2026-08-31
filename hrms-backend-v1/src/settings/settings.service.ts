@@ -25,7 +25,12 @@ export class SettingsService {
   }
 
   // Update company settings (restricted to Admin/HR)
-  async updateSettings(companyId: string, dto: any, userRole: string, actorId?: string) {
+  async updateSettings(
+    companyId: string,
+    dto: any,
+    userRole: string,
+    actorId?: string,
+  ) {
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
       throw new ForbiddenException(
         'Only Admins or HR can modify system settings.',

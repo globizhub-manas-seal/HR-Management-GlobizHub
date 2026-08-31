@@ -14,8 +14,6 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import * as crypto from 'crypto';
 import { EmailService } from '../email/email.service';
 
-
-
 import { AuditService } from '../audit/audit.service';
 
 @Injectable()
@@ -45,7 +43,11 @@ export class AuthService {
     // 4. THE MASSIVE TRANSACTION
     // We create the Company, the Settings, the Departments, the Roles, and the Admin Employee all at once!
     // Inside registerWizard function:
-    const compPrefix = dto.companyName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase() || 'EMP';
+    const compPrefix =
+      dto.companyName
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .substring(0, 3)
+        .toUpperCase() || 'EMP';
     const generatedEmployeeCode = `${compPrefix}-GEN-001`;
 
     const company = await this.prisma.company.create({
@@ -109,30 +111,55 @@ export class AuthService {
           create: dto.branches?.map((name) => ({ name })) || [],
         },
         leavePolicies: {
-          create: dto.leavePolicies && dto.leavePolicies.length > 0
-            ? dto.leavePolicies.map((name) => {
-                let type = 'UNPAID';
-                let days = 0;
-                const upperName = name.toUpperCase();
-                if (upperName.includes('CASUAL')) { type = 'CASUAL'; days = 12; }
-                else if (upperName.includes('MEDICAL') || upperName.includes('SICK')) { type = 'MEDICAL'; days = 10; }
-                else if (upperName.includes('EARNED') || upperName.includes('ANNUAL')) { type = 'EARNED'; days = 15; }
-                else if (upperName.includes('MATERNITY')) { type = 'MATERNITY'; days = 84; }
-                else if (upperName.includes('PATERNITY')) { type = 'PATERNITY'; days = 14; }
-                else if (upperName.includes('COMP')) { type = 'COMP_OFF'; days = 0; }
-                else if (upperName.includes('UNPAID')) { type = 'UNPAID'; days = 365; }
-                
-                return {
-                  name: name.endsWith('Leave') || name.endsWith('Off') ? name : `${name} Leave`,
-                  type: type as any,
-                  daysPerYear: days,
-                };
-              })
-            : [
-                { name: 'Casual Leave', type: 'CASUAL', daysPerYear: 12 },
-                { name: 'Medical Leave', type: 'MEDICAL', daysPerYear: 10 },
-                { name: 'Earned Leave', type: 'EARNED', daysPerYear: 15 }
-              ]
+          create:
+            dto.leavePolicies && dto.leavePolicies.length > 0
+              ? dto.leavePolicies.map((name) => {
+                  let type = 'UNPAID';
+                  let days = 0;
+                  const upperName = name.toUpperCase();
+                  if (upperName.includes('CASUAL')) {
+                    type = 'CASUAL';
+                    days = 12;
+                  } else if (
+                    upperName.includes('MEDICAL') ||
+                    upperName.includes('SICK')
+                  ) {
+                    type = 'MEDICAL';
+                    days = 10;
+                  } else if (
+                    upperName.includes('EARNED') ||
+                    upperName.includes('ANNUAL')
+                  ) {
+                    type = 'EARNED';
+                    days = 15;
+                  } else if (upperName.includes('MATERNITY')) {
+                    type = 'MATERNITY';
+                    days = 84;
+                  } else if (upperName.includes('PATERNITY')) {
+                    type = 'PATERNITY';
+                    days = 14;
+                  } else if (upperName.includes('COMP')) {
+                    type = 'COMP_OFF';
+                    days = 0;
+                  } else if (upperName.includes('UNPAID')) {
+                    type = 'UNPAID';
+                    days = 365;
+                  }
+
+                  return {
+                    name:
+                      name.endsWith('Leave') || name.endsWith('Off')
+                        ? name
+                        : `${name} Leave`,
+                    type: type as any,
+                    daysPerYear: days,
+                  };
+                })
+              : [
+                  { name: 'Casual Leave', type: 'CASUAL', daysPerYear: 12 },
+                  { name: 'Medical Leave', type: 'MEDICAL', daysPerYear: 10 },
+                  { name: 'Earned Leave', type: 'EARNED', daysPerYear: 15 },
+                ],
         },
         shifts: {
           create:
@@ -171,7 +198,9 @@ export class AuthService {
   // ... KEEP YOUR EXISTING login() FUNCTION EXACTLY AS IT IS BELOW ...
   async login(email: string, pass: string) {
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await this.prisma.employee.findUnique({ where: { email: normalizedEmail } });
+    const user = await this.prisma.employee.findUnique({
+      where: { email: normalizedEmail },
+    });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
@@ -182,7 +211,7 @@ export class AuthService {
       user.id,
       'LOGIN',
       'Employee',
-      user.id
+      user.id,
     );
 
     const payload = {
@@ -200,7 +229,7 @@ export class AuthService {
       employeeId,
       'LOGOUT',
       'Employee',
-      employeeId
+      employeeId,
     );
     return { success: true };
   }
@@ -300,7 +329,10 @@ export class AuthService {
       throw new UnauthorizedException('Employee not found');
     }
 
-    const isMatch = await bcrypt.compare(dto.currentPassword, employee.password);
+    const isMatch = await bcrypt.compare(
+      dto.currentPassword,
+      employee.password,
+    );
     if (!isMatch) {
       throw new BadRequestException('Incorrect current password');
     }
@@ -316,8 +348,10 @@ export class AuthService {
 
   async forgotPassword(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
-    const employee = await this.prisma.employee.findUnique({ where: { email: normalizedEmail } });
-    
+    const employee = await this.prisma.employee.findUnique({
+      where: { email: normalizedEmail },
+    });
+
     // Security best practice: Don't reveal if the email exists or not to prevent user enumeration
     if (!employee) {
       return { message: 'If that email exists, a reset link has been sent.' };
@@ -325,10 +359,13 @@ export class AuthService {
 
     // 1. Generate a secure random token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    
+
     // 2. Hash it before saving to the DB (Security best practice)
-    const passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    
+    const passwordResetToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
     // 3. Set expiration (e.g., 15 minutes from now)
     const passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -342,7 +379,7 @@ export class AuthService {
 
     // 4. Send Email
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-    
+
     await this.emailService.sendPasswordResetEmail(normalizedEmail, resetUrl);
 
     return { message: 'If that email exists, a reset link has been sent.' };

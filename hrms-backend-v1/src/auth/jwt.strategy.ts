@@ -16,10 +16,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   // NestJS automatically calls this if the token signature is valid
   async validate(payload: any) {
     // We return this object, and NestJS will automatically attach it to `req.user` in our controllers
-    return { 
-      userId: payload.sub, 
-      email: payload.email, 
-      companyId: payload.companyId 
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      companyId: payload.companyId,
     };
   }
 }
