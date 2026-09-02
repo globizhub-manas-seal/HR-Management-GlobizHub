@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff } from "lucide-react";
+import api from "@/lib/api";
 
 // 1. Define the validation rules for Step 1
 const step1Schema = z.object({
@@ -31,10 +32,16 @@ const step1Schema = z.object({
   adminEmail: z.string().email("Invalid admin email address"),
   adminPhone: z.string().min(10, "Valid admin phone required"),
   adminPassword: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please retype your password"),
+}).refine((data) => data.adminPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 export default function Step1CompanyInfo() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   
   // 2. Connect to our Zustand memory bank
   const { formData, updateFormData, nextStep } = useSetupWizardStore();
@@ -54,13 +61,39 @@ export default function Step1CompanyInfo() {
       adminEmail: formData.adminEmail || "",
       adminPhone: formData.adminPhone || "",
       adminPassword: formData.adminPassword || "",
+      confirmPassword: "",
     },
   });
 
   // 4. When the user hits "Next", save to Zustand and move to Step 2
-  function onSubmit(values: z.infer<typeof step1Schema>) {
-    updateFormData(values);
-    nextStep();
+  async function onSubmit(values: z.infer<typeof step1Schema>) {
+    setIsCheckingEmail(true);
+    form.clearErrors("adminEmail");
+
+    try {
+      const response = await api.post("/auth/check-registration-email", {
+        email: values.adminEmail,
+      });
+
+      if (!response.data.available) {
+        form.setError("adminEmail", {
+          type: "manual",
+          message: "An account already exists with this email",
+        });
+        return;
+      }
+
+      const { confirmPassword: _confirmPassword, ...step1Data } = values;
+      updateFormData(step1Data);
+      nextStep();
+    } catch {
+      form.setError("adminEmail", {
+        type: "manual",
+        message: "Unable to verify this email. Please try again.",
+      });
+    } finally {
+      setIsCheckingEmail(false);
+    }
   }
 
   return (
@@ -238,13 +271,44 @@ export default function Step1CompanyInfo() {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Retype Admin Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-700"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
 
         {/* SUBMIT BUTTON */}
         <div className="pt-6 flex justify-end">
-          <Button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-            Next Step
+          <Button type="submit" disabled={isCheckingEmail} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+            {isCheckingEmail ? "Checking…" : "Next Step"}
           </Button>
         </div>
       </form>

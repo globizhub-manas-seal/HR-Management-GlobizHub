@@ -25,7 +25,20 @@ export class AuthService {
     private auditService: AuditService,
   ) {}
 
+  async checkRegistrationEmail(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await this.prisma.employee.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+
+    return { available: !existingUser };
+  }
+
   async registerWizard(dto: RegisterWizardDto) {
+    dto.adminEmail = dto.adminEmail.trim().toLowerCase();
+    dto.email = dto.email.trim().toLowerCase();
+
     // 1. Check if the admin email is already registered
     const existingUser = await this.prisma.employee.findUnique({
       where: { email: dto.adminEmail },
