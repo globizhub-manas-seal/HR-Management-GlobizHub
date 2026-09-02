@@ -25,18 +25,30 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useQuery({
     queryKey: ["userProfileBase"],
     queryFn: async () => {
+      if (typeof window === "undefined") return null;
       const token = localStorage.getItem("hrms_token");
       if (!token) return null;
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      try {
+        const res = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        return res.data;
+      } catch (err: any) {
+        if (err.response?.status === 401) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("hrms_token");
+          }
         }
-      );
-      return res.data;
+        return null;
+      }
     },
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {

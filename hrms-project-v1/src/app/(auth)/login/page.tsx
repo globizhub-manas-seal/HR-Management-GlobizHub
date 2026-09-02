@@ -53,8 +53,8 @@ export default function LoginPage() {
       // Save the JWT token to local storage
       localStorage.setItem("hrms_token", response.data.access_token);
 
-      // Redirect to the dashboard
-      router.push("/workspace/dashboard");
+      // Redirect to the dashboard with full state refresh
+      window.location.href = "/workspace/dashboard";
     } catch (error: any) {
       setErrorMessage(
         error.response?.data?.message || "Invalid email or password. Please try again."

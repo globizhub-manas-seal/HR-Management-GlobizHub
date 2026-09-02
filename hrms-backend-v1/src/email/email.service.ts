@@ -43,4 +43,39 @@ export class EmailService {
       throw new InternalServerErrorException('Failed to send email');
     }
   }
+
+  async sendEmployeeInvitationEmail(
+    email: string,
+    firstName: string,
+    employeeCode: string,
+    inviteToken: string,
+  ) {
+    const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${inviteToken}`;
+    const fromEmail =
+      process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+    try {
+      await this.resend.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: 'Welcome to the Team! Set your password',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #10b981;">Welcome to TeamHub, ${firstName}!</h2>
+            <p>You have been invited to join your company's HRMS workspace.</p>
+            <p>Your official Employee ID is: <strong>${employeeCode}</strong></p>
+            <p>Please click the secure link below to set your permanent password and log in.</p>
+            <a href="${magicLink}" style="display: inline-block; padding: 12px 24px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Set My Password</a>
+            <p style="margin-top: 30px; font-size: 12px; color: #888;">If you didn't expect this invitation, you can safely ignore this email.</p>
+          </div>
+        `,
+      });
+      console.log(`✅ Onboarding invitation email sent to ${email}`);
+    } catch (emailError) {
+      console.error(
+        '❌ Failed to send onboarding invitation email via Resend:',
+        emailError,
+      );
+      // Gracefully continue so user creation doesn't fail if SMTP/Resend key is mock
+    }
+  }
 }

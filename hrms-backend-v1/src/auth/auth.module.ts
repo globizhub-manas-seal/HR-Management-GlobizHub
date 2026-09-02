@@ -10,7 +10,7 @@ import { AuditModule } from '../audit/audit.module';
   imports: [
     JwtModule.register({
       global: true,
-      secret: 'SUPER_SECRET_HRMS_KEY_FOR_NOW',
+      secret: process.env.JWT_SECRET || 'SUPER_SECRET_HRMS_KEY_FOR_NOW',
       signOptions: { expiresIn: '1d' },
     }),
     EmailModule,
