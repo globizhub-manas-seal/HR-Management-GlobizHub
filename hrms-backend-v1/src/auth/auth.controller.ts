@@ -15,6 +15,7 @@ import { RegisterWizardDto } from './dto/register-wizard.dto';
 import { AuthGuard } from './auth.guard';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { CheckRegistrationEmailDto } from './dto/check-registration-email.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -24,6 +25,11 @@ export class AuthController {
   async register(@Body() dto: RegisterWizardDto) {
     // Calling our new massive wizard transaction!
     return this.authService.registerWizard(dto);
+  }
+
+  @Post('check-registration-email')
+  async checkRegistrationEmail(@Body() dto: CheckRegistrationEmailDto) {
+    return this.authService.checkRegistrationEmail(dto.email);
   }
 
   @HttpCode(HttpStatus.OK)
