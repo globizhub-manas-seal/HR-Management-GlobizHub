@@ -1,4 +1,15 @@
-import { IsString, IsEmail, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class InvitedEmployeeDto {
+  @IsString() @IsOptional() firstName?: string;
+  @IsString() @IsOptional() lastName?: string;
+  @IsEmail() email: string;
+  @IsString() @IsOptional() phone?: string;
+  @IsString() @IsOptional() department?: string;
+  @IsString() @IsOptional() designation?: string;
+  @IsString() @IsOptional() role?: string;
+}
 
 export class RegisterWizardDto {
   @IsString() companyName: string;
@@ -33,6 +44,11 @@ export class RegisterWizardDto {
 
   @IsString() @IsOptional() holidayRegion?: string;
   @IsString() @IsOptional() inviteEmails?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => InvitedEmployeeDto)
+  @IsOptional()
+  invitedEmployees?: InvitedEmployeeDto[];
 
   @IsString() @IsOptional() themeColor?: string;
   @IsArray() @IsString({ each: true }) @IsOptional() workDays?: string[];
@@ -40,3 +56,4 @@ export class RegisterWizardDto {
   @IsString() @IsOptional() shiftEndTime?: string;
   @IsString() @IsOptional() attendanceMethod?: string;
 }
+

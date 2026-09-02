@@ -1,15 +1,31 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { Loader2 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // Fetch active role from ViewModeContext
-  const { activeRole, isLoading } = useViewMode();
+  const router = useRouter();
+  const { user, activeRole, isLoading } = useViewMode();
+  const [mounted, setMounted] = useState(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isLoading) {
+      const token = typeof window !== "undefined" ? localStorage.getItem("hrms_token") : null;
+      if (!token || !user) {
+        router.replace("/login");
+      }
+    }
+  }, [mounted, isLoading, user, router]);
+
+  if (!mounted || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -179,10 +179,161 @@ export class AuthService {
 
     const newAdmin = company.employees[0];
 
-    // Note: The extra arrays (leavePolicies, branches, shifts, etc.) from the DTO
-    // are successfully received! We will create the Prisma tables for those in our upcoming Payroll/Leave modules.
+    // 5. Process and Invite Additional Employees (from Bulk Excel/CSV upload or comma-separated emails)
+    const employeesToInvite: Array<{
+      firstName?: string;
+      lastName?: string;
+      email: string;
+      phone?: string;
+      department?: string;
+      designation?: string;
+      role?: string;
+    }> = [];
 
-    // 5. Generate their JWT token to log them in automatically
+    // Add structured employees from bulk upload
+    if (dto.invitedEmployees && Array.isArray(dto.invitedEmployees)) {
+      for (const emp of dto.invitedEmployees) {
+        if (emp.email && emp.email.trim()) {
+          employeesToInvite.push({
+            firstName: emp.firstName?.trim() || '',
+            lastName: emp.lastName?.trim() || '',
+            email: emp.email.trim().toLowerCase(),
+            phone: emp.phone?.trim(),
+            department: emp.department?.trim(),
+            designation: emp.designation?.trim(),
+            role: emp.role?.trim(),
+          });
+        }
+      }
+    }
+
+    // Add comma-separated emails from textarea
+    if (dto.inviteEmails && typeof dto.inviteEmails === 'string') {
+      const parsedEmails = dto.inviteEmails
+        .split(/[,;\n]+/)
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => e && e.includes('@'));
+
+      for (const email of parsedEmails) {
+        if (!employeesToInvite.some((e) => e.email === email)) {
+          employeesToInvite.push({
+            firstName: 'Team',
+            lastName: 'Member',
+            email,
+          });
+        }
+      }
+    }
+
+    // Deduplicate and exclude the Admin email
+    const adminEmailNorm = dto.adminEmail.trim().toLowerCase();
+    const uniqueInvites = employeesToInvite.filter(
+      (item, index, self) =>
+        item.email !== adminEmailNorm &&
+        index === self.findIndex((t) => t.email === item.email),
+    );
+
+    if (uniqueInvites.length > 0) {
+      // Fetch departments for mapping
+      const companyDepts = await this.prisma.department.findMany({
+        where: { companyId: company.id },
+      });
+      const deptMap = new Map<string, { id: string; name: string }>();
+      companyDepts.forEach((d) => {
+        deptMap.set(d.name.trim().toLowerCase(), d);
+      });
+
+      const tempPasswordHash = await bcrypt.hash('Welcome123!', 10);
+
+      for (let i = 0; i < uniqueInvites.length; i++) {
+        const inv = uniqueInvites[i];
+        try {
+          // Check if employee with this email already exists globally
+          const alreadyExists = await this.prisma.employee.findUnique({
+            where: { email: inv.email },
+          });
+          if (alreadyExists) continue;
+
+          let deptId: string | null = null;
+          let deptPrefix = 'GEN';
+
+          if (inv.department) {
+            const matchedDept = deptMap.get(inv.department.toLowerCase());
+            if (matchedDept) {
+              deptId = matchedDept.id;
+              deptPrefix =
+                matchedDept.name
+                  .replace(/[^a-zA-Z0-9]/g, '')
+                  .substring(0, 3)
+                  .toUpperCase() || 'GEN';
+            }
+          }
+
+          const sequentialNumber = String(i + 2).padStart(3, '0');
+          const empCode = `${compPrefix}-${deptPrefix}-${sequentialNumber}`;
+          const inviteToken = crypto.randomBytes(32).toString('hex');
+
+          let assignedRole: any = 'EMPLOYEE';
+          if (inv.role) {
+            const upperRole = inv.role.toUpperCase().replace(/\s+/g, '_');
+            if (
+              ['HR_HEAD', 'MANAGER', 'EMPLOYEE', 'SUPER_ADMIN'].includes(
+                upperRole,
+              )
+            ) {
+              assignedRole = upperRole;
+            }
+          }
+
+          const fName = inv.firstName || inv.email.split('@')[0] || 'Team';
+          const lName = inv.lastName || 'Member';
+
+          const createdEmp = await this.prisma.employee.create({
+            data: {
+              companyId: company.id,
+              firstName: fName,
+              lastName: lName,
+              email: inv.email,
+              phone: inv.phone || null,
+              password: tempPasswordHash,
+              role: assignedRole,
+              employeeCode: empCode,
+              departmentId: deptId,
+              inviteToken: inviteToken,
+            },
+          });
+
+          // Send onboarding invitation email
+          await this.emailService.sendEmployeeInvitationEmail(
+            inv.email,
+            fName,
+            empCode,
+            inviteToken,
+          );
+
+          await this.auditService.logAction(
+            company.id,
+            newAdmin.id,
+            'CREATE',
+            'Employee',
+            createdEmp.id,
+            null,
+            {
+              email: createdEmp.email,
+              role: createdEmp.role,
+              employeeCode: createdEmp.employeeCode,
+            },
+          );
+        } catch (inviteErr) {
+          console.error(
+            `Failed to onboard invited employee (${inv.email}):`,
+            inviteErr,
+          );
+        }
+      }
+    }
+
+    // 6. Generate their JWT token to log them in automatically
     const payload = {
       sub: newAdmin.id,
       email: newAdmin.email,
@@ -192,6 +343,7 @@ export class AuthService {
     return {
       access_token: await this.jwtService.signAsync(payload),
       message: 'Workspace successfully configured!',
+      invitedCount: uniqueInvites.length,
     };
   }
 

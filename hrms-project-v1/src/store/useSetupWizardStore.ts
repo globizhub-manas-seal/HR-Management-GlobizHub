@@ -1,6 +1,16 @@
 // src/store/useSetupWizardStore.ts
 import { create } from 'zustand';
 
+export interface WizardInvitedEmployee {
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone?: string;
+  department?: string;
+  designation?: string;
+  role?: string;
+}
+
 // Define the shape of our massive data collection
 interface SetupWizardData {
   // Step 1: Basic Info
@@ -23,6 +33,7 @@ interface SetupWizardData {
   shifts: string[];
   branches: string[];
   inviteEmails: string;
+  invitedEmployees: WizardInvitedEmployee[];
   
   // Step 2: Settings
   themeColor: string;
@@ -89,6 +100,7 @@ const initialData: SetupWizardData = {
     "Remote"
   ],
   inviteEmails: "",
+  invitedEmployees: [],
 
   // Step 2 Defaults
   themeColor: '#10b981', // Default emerald
