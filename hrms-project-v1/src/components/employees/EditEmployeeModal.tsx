@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const employeeSchema = z.object({
   firstName: z.string().min(2, "First name is required"),
@@ -222,7 +223,7 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Edit employee</DialogTitle>
+          <DialogTitle> yee</DialogTitle>
           <DialogDescription>Update directory information, system role, skills, and emergency contacts.</DialogDescription>
         </DialogHeader>
 
@@ -247,7 +248,7 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
                   <div className="flex items-center gap-2 border-b border-slate-100 pb-2 mb-1">
                     <User className="h-4 w-4 text-emerald-600" />
                     <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Personal Profile</h3>
-                  </div>
+              </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="firstName" render={({ field }) => (
@@ -420,7 +421,10 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
               <h4 className="text-sm font-semibold text-slate-800">Current Skills & Certifications</h4>
               <div className="space-y-1.5 max-h-48 overflow-y-auto border rounded-md p-2 bg-slate-50 min-h-[80px]">
                 {isLoadingEmployee ? (
-                  <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-emerald-500" /></div>
+                  <div className="space-y-1.5 p-1">
+                    <Skeleton className="h-8 w-full rounded" />
+                    <Skeleton className="h-8 w-full rounded" />
+                  </div>
                 ) : !fullEmployee?.skills?.length ? (
                   <p className="text-xs text-slate-500 py-4 text-center">No skills added yet.</p>
                 ) : (
@@ -487,7 +491,10 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
               <h4 className="text-sm font-semibold text-slate-800">Current Emergency Contacts</h4>
               <div className="space-y-1.5 max-h-48 overflow-y-auto border rounded-md p-2 bg-slate-50 min-h-[80px]">
                 {isLoadingEmployee ? (
-                  <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-emerald-500" /></div>
+                  <div className="space-y-1.5 p-1">
+                    <Skeleton className="h-8 w-full rounded" />
+                    <Skeleton className="h-8 w-full rounded" />
+                  </div>
                 ) : !fullEmployee?.emergencyContacts?.length ? (
                   <p className="text-xs text-slate-500 py-4 text-center">No emergency contacts added yet.</p>
                 ) : (

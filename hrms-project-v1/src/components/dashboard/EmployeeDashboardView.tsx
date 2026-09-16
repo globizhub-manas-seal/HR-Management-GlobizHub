@@ -92,7 +92,7 @@ export function EmployeeDashboardView() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       
       {/* TOP ROW: Welcome Banner & Quick Timer Widget */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -190,8 +190,8 @@ export function EmployeeDashboardView() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">Have questions about your payroll, leaves, or policies? Reach out directly.</p>
-              <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-xs h-9">
-                Send us a message
+              <Button asChild className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-xs h-9">
+                <Link href="/workspace/support">Contact HR support</Link>
               </Button>
             </CardContent>
           </Card>

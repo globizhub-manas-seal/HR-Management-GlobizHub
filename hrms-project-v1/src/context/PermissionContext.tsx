@@ -45,7 +45,7 @@ interface PermissionContextType {
 const PermissionContext = createContext<PermissionContextType | undefined>(undefined);
 
 export function PermissionProvider({ children }: { children: React.ReactNode }) {
-  const { user, activeRole, isLoading: userLoading } = useViewMode();
+  const { user, activeRole, isViewAsUser, isLoading: userLoading } = useViewMode();
 
   // Fetch designation permissions for the current user
   const { data: designation, isLoading: designationLoading } = useQuery<Designation | null>({
@@ -70,19 +70,30 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   });
 
   const isLoading = userLoading || designationLoading;
-  const effectiveRole = activeRole || "EMPLOYEE";
+  const effectiveRole = isViewAsUser ? "EMPLOYEE" : (activeRole || "EMPLOYEE");
 
-  // Resolve sidebar modules — use designation config if available, else defaults
-  const sidebarModuleKeys = designation?.sidebarModules
-    ?? getDefaultSidebarModules(effectiveRole);
+  // Resolve sidebar modules:
+  // When in User View (isViewAsUser), strictly use standard EMPLOYEE modules without onboarding.
+  // Otherwise use designation config if available, fallback to effectiveRole defaults.
+  const rawSidebarModules = isViewAsUser
+    ? getDefaultSidebarModules("EMPLOYEE").filter((k) => k !== "onboarding")
+    : (designation?.sidebarModules ?? getDefaultSidebarModules(effectiveRole));
+
+  // Ensure "resignation" is included if the role has default access to it, even for pre-existing designations
+  const resignationAllowed = SIDEBAR_MODULES.find((m) => m.key === "resignation")?.defaultRoles.includes(effectiveRole);
+  const sidebarModuleKeys = (rawSidebarModules.includes("resignation") || !resignationAllowed)
+    ? rawSidebarModules
+    : [...rawSidebarModules, "resignation"];
 
   // Resolve dashboard widgets
-  const dashboardWidgetKeys = designation?.dashboardWidgets
-    ?? getDefaultDashboardWidgets(effectiveRole);
+  const dashboardWidgetKeys = isViewAsUser
+    ? getDefaultDashboardWidgets("EMPLOYEE")
+    : (designation?.dashboardWidgets ?? getDefaultDashboardWidgets(effectiveRole));
 
   // Resolve module permissions
-  const modulePermissions = designation?.modulePermissions
-    ?? getDefaultModulePermissions(effectiveRole);
+  const modulePermissions = isViewAsUser
+    ? getDefaultModulePermissions("EMPLOYEE")
+    : (designation?.modulePermissions ?? getDefaultModulePermissions(effectiveRole));
 
   const canAccessModule = (moduleKey: string): boolean => {
     return sidebarModuleKeys.includes(moduleKey);

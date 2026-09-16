@@ -29,4 +29,8 @@ export class UpdateEmployeeDto {
   @IsOptional()
   @IsString()
   reportingManagerId?: string;
+
+  @IsOptional()
+  @IsString()
+  employeeCode?: string | null;
 }

@@ -27,8 +27,13 @@ import {
   Trash2,
   Upload,
   X,
+  IdCard,
+  Sparkles,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { SettingsSkeleton } from "@/components/skeletons";
 
 const HOURS = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0"));
 const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
@@ -273,6 +278,7 @@ export default function SettingsPage() {
       officeLongitude: formData.officeLongitude
         ? parseFloat(formData.officeLongitude)
         : null,
+      employeeIdDigits: parseInt(formData.employeeIdDigits || 3, 10),
     };
     saveMutation.mutate(dataToSave);
   };
@@ -364,12 +370,30 @@ export default function SettingsPage() {
     }
   };
 
+  const previewFormat = formData.employeeIdFormat || "{PREFIX}-{DEPT}-{NUMBER}";
+  const defaultCompPrefix = formData.companyName
+    ? formData.companyName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 3).toUpperCase()
+    : "EMP";
+  const previewPrefix = formData.employeeIdPrefix || defaultCompPrefix;
+  const previewDigits = parseInt(formData.employeeIdDigits || 3, 10);
+  const currentYear = new Date().getFullYear().toString();
+  const shortYear = currentYear.slice(-2);
+  const previewSeq = "1".padStart(previewDigits || 3, "0");
+
+  let previewEmployeeId = previewFormat
+    .replace(/\{PREFIX\}|\[PREFIX\]/gi, previewPrefix || "EMP")
+    .replace(/\{DEPT\}|\[DEPT\]/gi, "HR")
+    .replace(/\{YEAR\}|\[YEAR\]/gi, currentYear)
+    .replace(/\{YY\}|\[YY\]/gi, shortYear);
+
+  if (/\{NUMBER\}|\[NUMBER\]/gi.test(previewEmployeeId)) {
+    previewEmployeeId = previewEmployeeId.replace(/\{NUMBER\}|\[NUMBER\]/gi, previewSeq);
+  } else {
+    previewEmployeeId = `${previewEmployeeId}-${previewSeq}`;
+  }
+
   if (isLoading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   return (
@@ -861,6 +885,177 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* EMPLOYEE ID FORMAT & GENERATION CARD */}
+          <Card className="mt-6 border-border shadow-sm">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                    <IdCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Employee ID Format & Generation</CardTitle>
+                    <CardDescription>
+                      Configure the automated numbering pattern assigned to employees upon onboarding activation.
+                    </CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-50/80 border border-emerald-200/80 px-3.5 py-1.5 rounded-xl self-start sm:self-auto">
+                  <Sparkles className="w-4 h-4 text-emerald-600 animate-pulse" />
+                  <span className="text-xs font-medium text-slate-600">Live Preview:</span>
+                  <Badge variant="outline" className="font-mono bg-white text-emerald-700 border-emerald-300 font-bold text-xs tracking-wide shadow-xs">
+                    {previewEmployeeId}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {/* Presets Grid */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700">Choose a Format Template</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "Company - Dept - Number",
+                      value: "{PREFIX}-{DEPT}-{NUMBER}",
+                      desc: "Default standard pattern (e.g. EMP-HR-001)",
+                    },
+                    {
+                      label: "Company - Number",
+                      value: "{PREFIX}-{NUMBER}",
+                      desc: "Simple sequence (e.g. EMP-001)",
+                    },
+                    {
+                      label: "Company - Year - Number",
+                      value: "{PREFIX}-{YEAR}-{NUMBER}",
+                      desc: "Yearly batch tracking (e.g. EMP-2026-001)",
+                    },
+                    {
+                      label: "Company - Dept - Year - No",
+                      value: "{PREFIX}-{DEPT}-{YEAR}-{NUMBER}",
+                      desc: "Comprehensive breakdown (e.g. EMP-HR-2026-001)",
+                    },
+                  ].map((preset) => {
+                    const isSelected = (formData.employeeIdFormat || "{PREFIX}-{DEPT}-{NUMBER}") === preset.value;
+                    return (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            employeeIdFormat: preset.value,
+                          }))
+                        }
+                        className={`text-left p-3.5 rounded-xl border transition-all text-xs flex flex-col justify-between ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20 text-emerald-950 font-medium shadow-xs"
+                            : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="font-bold">{preset.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                        </div>
+                        <span className="text-[11px] text-slate-500">{preset.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Detailed Configuration */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700">Company ID Prefix</label>
+                  <Input
+                    name="employeeIdPrefix"
+                    value={formData.employeeIdPrefix ?? ""}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        employeeIdPrefix: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    placeholder={defaultCompPrefix}
+                    className="font-mono uppercase text-xs"
+                    maxLength={10}
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Default is first 3 letters of company name ({defaultCompPrefix}).
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700">Sequence Digits</label>
+                  <select
+                    name="employeeIdDigits"
+                    value={formData.employeeIdDigits || 3}
+                    onChange={handleChange}
+                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <option value={3}>3 Digits (e.g. 001, 002...)</option>
+                    <option value={4}>4 Digits (e.g. 0001, 0002...)</option>
+                    <option value={5}>5 Digits (e.g. 00001, 00002...)</option>
+                    <option value={6}>6 Digits (e.g. 000001+)</option>
+                  </select>
+                  <p className="text-[11px] text-slate-500">
+                    Zero-padding length for the sequential number.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700">Custom Format Pattern</label>
+                  <Input
+                    name="employeeIdFormat"
+                    value={formData.employeeIdFormat || "{PREFIX}-{DEPT}-{NUMBER}"}
+                    onChange={handleChange}
+                    placeholder="{PREFIX}-{DEPT}-{NUMBER}"
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Supports delimiters like <code className="font-mono text-emerald-600">-</code> or <code className="font-mono text-emerald-600">/</code>
+                  </p>
+                </div>
+              </div>
+
+              {/* Available Tokens helper chips */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+                <span className="text-xs font-semibold text-slate-700 block">
+                  Click a token to append to custom format:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { token: "{PREFIX}", label: "Prefix", desc: formData.employeeIdPrefix || defaultCompPrefix },
+                    { token: "{DEPT}", label: "Dept", desc: "3-letter department code" },
+                    { token: "{YEAR}", label: "Year (4-digit)", desc: new Date().getFullYear().toString() },
+                    { token: "{YY}", label: "Year (2-digit)", desc: new Date().getFullYear().toString().slice(-2) },
+                    { token: "{NUMBER}", label: "Sequential Number", desc: previewSeq },
+                  ].map((item) => (
+                    <button
+                      key={item.token}
+                      type="button"
+                      onClick={() => {
+                        const current = formData.employeeIdFormat || "";
+                        if (!current.includes(item.token)) {
+                          const separator = current.endsWith("-") || current.endsWith("/") || !current ? "" : "-";
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            employeeIdFormat: `${current}${separator}${item.token}`,
+                          }));
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-900 transition-colors shadow-2xs font-mono"
+                    >
+                      <span className="font-bold text-emerald-600">{item.token}</span>
+                      <span className="text-slate-400 font-sans text-[11px]">({item.desc})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ... TAB 3: ATTENDANCE ... */}

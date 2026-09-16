@@ -107,7 +107,7 @@ export class OrganizationService {
   // ==========================================
 
   async getDesignations(companyId: string) {
-    const designations = await this.prisma.designation.findMany({
+    let designations = await this.prisma.designation.findMany({
       where: { companyId },
       include: {
         _count: {
@@ -116,6 +116,37 @@ export class OrganizationService {
       },
       orderBy: { createdAt: 'asc' },
     });
+
+    // Workspaces created before Designation was introduced stored the job
+    // titles selected during setup as legacy roles. Promote those titles the
+    // first time they are requested so recruitment forms have valid IDs to use.
+    if (designations.length === 0) {
+      const legacyRoles = await this.prisma.role.findMany({
+        where: { companyId },
+        select: { name: true },
+      });
+
+      if (legacyRoles.length > 0) {
+        await this.prisma.designation.createMany({
+          data: legacyRoles.map((role) => ({
+            companyId,
+            name: role.name,
+            baseRole: 'EMPLOYEE',
+          })),
+          skipDuplicates: true,
+        });
+
+        designations = await this.prisma.designation.findMany({
+          where: { companyId },
+          include: {
+            _count: {
+              select: { employees: true },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+      }
+    }
 
     return designations.map((d) => ({
       ...d,

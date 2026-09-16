@@ -5,6 +5,7 @@ import axios from "axios";
 import Link from "next/link";
 import { Loader2, Users, UserCheck, UserX, Clock, Settings, Calendar, ShieldCheck, Activity, Megaphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AttendanceWidget } from "@/components/dashboard/AttendanceWidget";
 import { usePermissions } from "@/context/PermissionContext";
 
@@ -111,9 +112,13 @@ export function AdminDashboardView() {
                 <div>
                   <p className="text-sm font-medium text-primary">Total Employees</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-secondary-foreground">
-                      {statsLoading ? "--" : stats?.totalEmployees}
-                    </span>
+                    {statsLoading ? (
+                      <Skeleton className="h-9 w-16 bg-white/10" />
+                    ) : (
+                      <span className="text-4xl font-bold text-secondary-foreground">
+                        {stats?.totalEmployees ?? 0}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-3 bg-primary/20 text-primary rounded-lg"><Users className="w-5 h-5" /></div>
@@ -129,9 +134,13 @@ export function AdminDashboardView() {
                 <div>
                   <p className="text-sm font-medium text-secondary/80">Present Today</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-secondary">
-                      {statsLoading ? "--" : stats?.presentToday}
-                    </span>
+                    {statsLoading ? (
+                      <Skeleton className="h-9 w-16 bg-primary/30" />
+                    ) : (
+                      <span className="text-4xl font-bold text-secondary">
+                        {stats?.presentToday ?? 0}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-3 bg-primary text-secondary rounded-lg"><UserCheck className="w-5 h-5" /></div>
@@ -147,9 +156,13 @@ export function AdminDashboardView() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Absent / Pending</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-foreground">
-                      {statsLoading ? "--" : stats?.absentToday}
-                    </span>
+                    {statsLoading ? (
+                      <Skeleton className="h-9 w-16" />
+                    ) : (
+                      <span className="text-4xl font-bold text-foreground">
+                        {stats?.absentToday ?? 0}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-3 bg-rose-500/10 text-rose-600 rounded-lg"><UserX className="w-5 h-5" /></div>
@@ -165,9 +178,13 @@ export function AdminDashboardView() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Late Arrivals</p>
                   <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-bold text-foreground">
-                      {statsLoading ? "--" : stats?.lateToday}
-                    </span>
+                    {statsLoading ? (
+                      <Skeleton className="h-9 w-16" />
+                    ) : (
+                      <span className="text-4xl font-bold text-foreground">
+                        {stats?.lateToday ?? 0}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-3 bg-amber-500/10 text-amber-600 rounded-lg"><Clock className="w-5 h-5" /></div>
@@ -192,8 +209,16 @@ export function AdminDashboardView() {
           </CardHeader>
           <CardContent className="p-0">
             {logsLoading ? (
-              <div className="flex justify-center items-center h-48">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <div className="p-4 divide-y divide-border space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={`log-skel-${i}`} className="pt-3 first:pt-0 flex justify-between items-start gap-4">
+                    <div className="space-y-1.5 flex-1">
+                      <Skeleton className="h-3.5 w-3/4 rounded" />
+                      <Skeleton className="h-2.5 w-1/3 rounded" />
+                    </div>
+                    <Skeleton className="h-4 w-12 rounded" />
+                  </div>
+                ))}
               </div>
             ) : !auditLogs || auditLogs.length === 0 ? (
               <p className="text-xs text-muted-foreground italic text-center py-12">No recent employee activities logged.</p>
@@ -259,8 +284,20 @@ export function AdminDashboardView() {
           </CardHeader>
           <CardContent className="p-0">
             {balancesLoading ? (
-              <div className="flex justify-center items-center h-48">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <div className="p-4 divide-y divide-border space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={`bal-skel-${i}`} className="pt-3 first:pt-0 flex items-center justify-between gap-4">
+                    <div className="space-y-1.5 flex-1">
+                      <Skeleton className="h-4 w-32 rounded" />
+                      <Skeleton className="h-3 w-20 rounded" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-20 rounded" />
+                      <Skeleton className="h-6 w-20 rounded" />
+                      <Skeleton className="h-6 w-20 rounded" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : !leaveBalances || leaveBalances.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground text-sm">No employee leave balance allocations found.</div>

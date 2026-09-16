@@ -14,21 +14,17 @@ import Step8ShiftManagement from "@/components/wizard/Step8ShiftManagement";
 import Step9Branches from "@/components/wizard/Step9Branches";
 import Step10InviteEmployees from "@/components/wizard/Step10InviteEmployees";
 
+import WizardProgressBar from "@/components/wizard/WizardProgressBar";
+
 export default function SetupWizardPage() {
   const { currentStep, prevStep } = useSetupWizardStore();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center py-10 px-4 sm:px-6 lg:px-8">
       
-      {/* Progress Indicator */}
-      <div className="w-full max-w-4xl mb-8">
-        <p className="text-sm font-medium text-emerald-600 mb-2">Step {currentStep} of 10</p>
-        <div className="w-full bg-slate-200 rounded-full h-2">
-          <div 
-            className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${(currentStep / 10) * 100}%` }}
-          ></div>
-        </div>
+      {/* Dynamic 10-Step Progress Bar with 5 visible per screen & hidden scrollbar */}
+      <div className="w-full max-w-4xl">
+        <WizardProgressBar />
       </div>
 
       {/* Dynamic Form Content Container */}

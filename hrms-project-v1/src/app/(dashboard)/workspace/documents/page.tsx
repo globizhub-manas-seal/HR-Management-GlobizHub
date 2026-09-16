@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { useViewMode } from "@/context/ViewModeContext";
+import { CardGridSkeleton } from "@/components/skeletons";
 
 export default function EmployeeDocumentsPage() {
   const router = useRouter();
@@ -325,6 +326,18 @@ export default function EmployeeDocumentsPage() {
     { id: "company", name: "Company Documents", icon: FileText },
     { id: "personal", name: "Personal Files", icon: FolderOpen },
   ];
+
+  if (isLoading || isLoadingProfile || redirecting) {
+    return (
+      <div className="p-6 md:p-8 space-y-6 font-sans">
+        <div className="space-y-2">
+          <div className="h-8 w-64 bg-muted/70 rounded animate-pulse" />
+          <div className="h-4 w-96 bg-muted/70 rounded animate-pulse" />
+        </div>
+        <CardGridSkeleton count={4} columns={4} showAvatar={false} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-8 space-y-8 font-sans bg-slate-50/50 min-h-screen">

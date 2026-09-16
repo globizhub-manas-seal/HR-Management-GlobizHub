@@ -60,7 +60,10 @@ export class EmployeeService {
 
   async findAllByCompany(companyId: string) {
     return this.prisma.employee.findMany({
-      where: { companyId },
+      where: {
+        companyId,
+        employmentStatus: 'ACTIVE',
+      },
       select: {
         id: true,
         firstName: true,
@@ -109,67 +112,10 @@ export class EmployeeService {
       );
     }
 
-    // ==========================================
-    // --- EMPLOYEE ID GENERATION LOGIC ---
-    // ==========================================
-
-    // 1. Fetch Company to get the first prefix (e.g., TCS)
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-    });
-    if (!company) throw new NotFoundException('Company not found');
-
-    // 2. Fetch Department to get the second prefix (if a departmentId is provided)
-    let department: any = null;
-    const deptId = dto.departmentId;
-    if (deptId) {
-      department = await this.prisma.department.findUnique({
-        where: { id: deptId },
-      });
-    }
-
-    // 3. Create Prefixes (First 3 alphanumeric letters, uppercase)
-    const compPrefix =
-      company.name
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .substring(0, 3)
-        .toUpperCase() || 'EMP';
-    const deptPrefix = department
-      ? department.name
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .substring(0, 3)
-          .toUpperCase() || 'GEN'
-      : 'GEN';
-
-    // 4. Find the max sequential number from existing employee codes to avoid duplicate collisions on deletion
-    const existingEmployees = await this.prisma.employee.findMany({
-      where: {
-        companyId,
-        employeeCode: { not: null },
-      },
-      select: { employeeCode: true },
-    });
-
-    let maxNum = 0;
-    for (const emp of existingEmployees) {
-      if (emp.employeeCode) {
-        const parts = emp.employeeCode.split('-');
-        const lastPart = parts[parts.length - 1];
-        const num = parseInt(lastPart, 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      }
-    }
-
-    // 5. Combine them into the final code (e.g., "TAT-INF-001")
-    const sequentialNumber = String(maxNum + 1).padStart(3, '0');
-    const generatedEmployeeCode = `${compPrefix}-${deptPrefix}-${sequentialNumber}`;
-    // ==========================================
-
     const tempPassword = await bcrypt.hash('Welcome123!', 10);
     const inviteToken = randomBytes(32).toString('hex');
 
+    // Create employee in INVITED status without an Employee ID yet (assigned upon onboarding completion)
     const newEmployee = await this.prisma.employee.create({
       data: {
         firstName: dto.firstName,
@@ -179,7 +125,8 @@ export class EmployeeService {
         password: tempPassword,
         companyId: companyId,
         inviteToken: inviteToken,
-        employeeCode: generatedEmployeeCode, // ✅ Injected here
+        employeeCode: null, // Defer ID generation until onboarding completion
+        employmentStatus: 'INVITED',
         ...(dto.departmentId && { departmentId: dto.departmentId }),
         ...(dto.designationId && { designationId: dto.designationId }),
         ...(dto.reportingManagerId && {
@@ -198,12 +145,12 @@ export class EmployeeService {
         to: dto.email,
         subject: 'Welcome to the Team! Set your password',
         html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">Welcome to TeamHub, ${dto.firstName}!</h2>
             <p>You have been invited to join your company's HRMS workspace.</p>
-            <p>Your official Employee ID is: <strong>${generatedEmployeeCode}</strong></p>
-            <p>Please click the secure link below to set your permanent password and log in.</p>
-            <a href="${magicLink}" style="display: inline-block; padding: 10px 20px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Set My Password</a>
+            <p>Your official Employee ID will be generated upon completion and verification of your onboarding checklist.</p>
+            <p>Please click the secure link below to set your permanent password and complete your onboarding.</p>
+            <a href="${magicLink}" style="display: inline-block; padding: 12px 24px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Set Password & Start Onboarding</a>
             <p style="margin-top: 30px; font-size: 12px; color: #888;">If you didn't expect this invitation, you can safely ignore this email.</p>
           </div>
         `,
@@ -215,6 +162,72 @@ export class EmployeeService {
         emailError,
       );
       // We log the error but do not throw, so the creation process completes successfully.
+    }
+
+    // Initialize Onboarding Case & standard checklist tasks
+    try {
+      const newCase = await this.prisma.onboardingCase.create({
+        data: {
+          companyId,
+          employeeId: newEmployee.id,
+          status: 'INVITED',
+          offerSigned: false,
+          bgvStatus: 'PENDING',
+        },
+      });
+
+      const defaultTasks = [
+        {
+          title: 'Complete Profile & Contact Details',
+          description:
+            'Provide your personal phone number, blood group, emergency contacts and address.',
+          requiredForActivation: true,
+        },
+        {
+          title: 'Digital Offer Letter Acceptance',
+          description:
+            'Read, acknowledge, and digitally accept the employment offer terms.',
+          requiredForActivation: true,
+        },
+        {
+          title: 'Upload KYC & Identity Documents',
+          description:
+            'Submit government-issued ID (Aadhaar / National ID / Passport) and PAN card.',
+          requiredForActivation: true,
+        },
+        {
+          title: 'Bank & Statutory Details Submission',
+          description:
+            'Provide bank account, IFSC, and PF/UAN details for automated payroll processing.',
+          requiredForActivation: true,
+        },
+        {
+          title: 'Company Policy & Security Orientation',
+          description:
+            'Review the Employee Handbook, code of conduct, and workplace guidelines.',
+          requiredForActivation: false,
+        },
+      ];
+
+      for (const t of defaultTasks) {
+        await this.prisma.task.create({
+          data: {
+            companyId,
+            employeeId: newEmployee.id,
+            onboardingCaseId: newCase.id,
+            title: t.title,
+            description: t.description,
+            source: 'TEMPLATE',
+            requiredForActivation: t.requiredForActivation,
+            status: 'PENDING',
+          },
+        });
+      }
+    } catch (caseErr) {
+      console.error(
+        'Failed to initialize onboarding case for invited employee:',
+        caseErr,
+      );
     }
 
     await this.auditService.logAction(
@@ -253,6 +266,30 @@ export class EmployeeService {
       throw new NotFoundException('Employee not found in your workspace');
     }
 
+    if (
+      dto.employeeCode !== undefined &&
+      dto.employeeCode !== employee.employeeCode
+    ) {
+      if (dto.employeeCode && dto.employeeCode.trim()) {
+        const trimmedCode = dto.employeeCode.trim();
+        const existingWithCode = await this.prisma.employee.findFirst({
+          where: {
+            companyId,
+            employeeCode: trimmedCode,
+            id: { not: employeeId },
+          },
+        });
+        if (existingWithCode) {
+          throw new ConflictException(
+            `Employee ID '${trimmedCode}' is already assigned to another employee.`,
+          );
+        }
+        dto.employeeCode = trimmedCode;
+      } else {
+        dto.employeeCode = null;
+      }
+    }
+
     const encryptedData = encryptPayload(dto);
 
     const updated = await this.prisma.employee.update({
@@ -265,6 +302,7 @@ export class EmployeeService {
         email: true,
         phone: true,
         role: true,
+        employeeCode: true,
       },
     });
 

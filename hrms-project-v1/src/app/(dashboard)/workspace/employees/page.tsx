@@ -1,8 +1,8 @@
 "use client";
 
 import { AddEmployeeModal } from "@/components/employees/AddEmployeeModal";
-import { EditEmployeeModal } from "@/components/employees/EditEmployeeModal";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { 
   Loader2, 
@@ -16,11 +16,14 @@ import {
   Mail, 
   Building, 
   IdCard, 
-  MoreHorizontal 
+  MoreHorizontal,
+  Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardGridSkeleton, TableSkeleton } from "@/components/skeletons";
 import { useModulePermission } from "@/context/PermissionContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -56,12 +59,17 @@ interface Employee {
 }
 
 export default function EmployeeDirectoryPage() {
+  const searchParams = useSearchParams();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get("search") || "");
+  }, [searchParams]);
 
   const canCreate = useModulePermission("employees", "create");
   const canEdit = useModulePermission("employees", "edit");
@@ -175,7 +183,7 @@ export default function EmployeeDirectoryPage() {
   ) as string[];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -304,9 +312,11 @@ export default function EmployeeDirectoryPage() {
       </div>
 
       {loading ? (
-        <div className="p-12 flex justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        viewMode === "card" ? (
+          <CardGridSkeleton count={8} columns={4} />
+        ) : (
+          <TableSkeleton rowCount={8} columnCount={6} showSearch={false} />
+        )
       ) : (
         <>
           {/* Card View (Wider layout by setting max columns to 4 on desktop, 3 on lg screens) */}
@@ -336,8 +346,13 @@ export default function EmployeeDirectoryPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-40 bg-card border border-border shadow-md rounded-xl p-1">
                                 {canEdit && (
-                                  <div className="w-full flex justify-start px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
-                                    <EditEmployeeModal employee={emp} />
+                                  <div className="w-full px-0.5 py-0.5" onClick={(e) => e.stopPropagation()}>
+                                    <Link
+                                      href={`/workspace/employees/${emp.id}`}
+                                      className="w-full flex items-center px-2 py-1.5 text-xs text-foreground hover:bg-muted rounded-md cursor-pointer font-medium transition-colors"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5 mr-2 text-primary" /> Edit Details
+                                    </Link>
                                   </div>
                                 )}
                                 {canDelete && (
@@ -478,8 +493,13 @@ export default function EmployeeDirectoryPage() {
                   ) : (
                     filteredEmployees.map((emp) => (
                       <TableRow key={emp.id} className="border-b border-border hover:bg-muted/10">
-                        <TableCell className="font-medium text-foreground">
-                          {emp.firstName} {emp.lastName}
+                        <TableCell>
+                          <Link 
+                            href={`/workspace/employees/${emp.id}`}
+                            className="font-medium text-foreground hover:text-primary hover:underline transition-colors"
+                          >
+                            {emp.firstName} {emp.lastName}
+                          </Link>
                         </TableCell>
                         
                         <TableCell>
@@ -528,7 +548,17 @@ export default function EmployeeDirectoryPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="inline-flex items-center gap-1">
-                            {canEdit && <EditEmployeeModal employee={emp} />}
+                            {canEdit && (
+                              <Link href={`/workspace/employees/${emp.id}`}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-primary hover:text-primary/80 hover:bg-primary/10 cursor-pointer text-xs h-8 px-2 font-medium"
+                                >
+                                  <Pencil className="size-3.5 mr-1" /> Edit
+                                </Button>
+                              </Link>
+                            )}
                             {canDelete && (
                               <Button
                                 variant="ghost"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { DashboardSkeleton } from "@/components/skeletons";
 import { EmployeeDashboardView } from "@/components/dashboard/EmployeeDashboardView";
 import { ManagerDashboardView } from "@/components/dashboard/ManagerDashboardView";
 import { HRDashboardView } from "@/components/dashboard/HRDashboardView";
@@ -13,11 +13,7 @@ export default function DashboardRouter() {
   const { designation, isLoading: permLoading } = usePermissions();
 
   if (userLoading || permLoading) {
-    return (
-      <div className="flex h-96 items-center justify-center bg-slate-50/50 min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // If a designation is assigned, use its baseRole for the dashboard view

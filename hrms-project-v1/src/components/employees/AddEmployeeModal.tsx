@@ -98,8 +98,7 @@ export function AddEmployeeModal() {
       setOpen(false);
       form.reset();
       
-      // Optionally: Trigger a page reload or state update here so the new employee 
-      // instantly appears in the table behind the modal!
+      alert("Invitation sent! The candidate has been added to the Onboarding Pipeline and will appear in the Employee Directory once onboarding is completed.");
       window.location.reload(); 
       
     } catch (error: any) {
@@ -116,9 +115,9 @@ export function AddEmployeeModal() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Invite New Employee</DialogTitle>
+          <DialogTitle>Invite New Candidate</DialogTitle>
           <DialogDescription>
-            Enter their details below. We will send them an email to set their password.
+            Enter candidate details. They will be added to the Onboarding Pipeline and activated in the directory upon completion.
           </DialogDescription>
         </DialogHeader>
         
@@ -173,10 +172,21 @@ export function AddEmployeeModal() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>System Role</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a role">
+                          {(value) => {
+                            const rolesMap: Record<string, string> = {
+                              EMPLOYEE: "Standard Employee",
+                              HR_HEAD: "HR Admin",
+                              MANAGER: "Manager",
+                              SUPER_ADMIN: "Super Admin",
+                              OWNER: "Owner",
+                            };
+                            return rolesMap[value as string] || value;
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -196,10 +206,15 @@ export function AddEmployeeModal() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Department</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <Select key={`dept-${departments.length}`} onValueChange={field.onChange} value={field.value || "none"}>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a department (Optional)" />
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a department (Optional)">
+                          {(value) => {
+                            if (value === "none" || !value) return "None";
+                            return departments.find((d) => d.id === value)?.name || value;
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -220,17 +235,25 @@ export function AddEmployeeModal() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Reporting Manager</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <Select key={`mgr-${managers.length}`} onValueChange={field.onChange} value={field.value || "none"}>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a manager (Optional)" />
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a manager (Optional)">
+                          {(value) => {
+                            if (value === "none" || !value) return "None";
+                            const mgr = managers.find((m) => m.id === value);
+                            return mgr
+                              ? `${mgr.firstName} ${mgr.lastName} (${mgr.role.replace("_", " ").toLowerCase()})`
+                              : value;
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
                       {managers.map((mgr) => (
                         <SelectItem key={mgr.id} value={mgr.id}>
-                          {mgr.firstName} {mgr.lastName} ({mgr.role})
+                          {mgr.firstName} {mgr.lastName} ({mgr.role.replace("_", " ").toLowerCase()})
                         </SelectItem>
                       ))}
                     </SelectContent>

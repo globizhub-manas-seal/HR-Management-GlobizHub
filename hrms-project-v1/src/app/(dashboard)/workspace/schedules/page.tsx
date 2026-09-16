@@ -7,6 +7,7 @@ import { Calendar as CalendarIcon, Clock, Users, ArrowLeft, ArrowRight, Sun, Moo
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CardGridSkeleton } from "@/components/skeletons";
 import Link from "next/link";
 
 export default function SchedulesPage() {
@@ -71,8 +72,12 @@ export default function SchedulesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      <div className="p-8 max-w-6xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <div className="h-8 w-48 bg-muted/70 rounded animate-pulse" />
+          <div className="h-4 w-72 bg-muted/70 rounded animate-pulse" />
+        </div>
+        <CardGridSkeleton count={7} columns={4} showAvatar={false} />
       </div>
     );
   }

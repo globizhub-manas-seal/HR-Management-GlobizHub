@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery,useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useRouter, usePathname } from "next/navigation";
@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import Sidebar from "./Sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationListSkeleton } from "@/components/skeletons";
 import { useViewMode } from "@/context/ViewModeContext";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -40,6 +42,8 @@ export default function Header() {
   const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [prevPathname, setPrevPathname] = useState(pathname);
 
   if (pathname !== prevPathname) {
@@ -72,6 +76,23 @@ export default function Header() {
 
     return `${firstName.charAt(0)}${lastName?.charAt(0) || ""}`.toUpperCase();
   };
+
+  const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const term = search.trim();
+    if (term) router.push(`/workspace/employees?search=${encodeURIComponent(term)}`);
+  };
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
 
   const formatBreadcrumb = () => {
     const paths = pathname.split("/").filter(Boolean);
@@ -116,14 +137,18 @@ export default function Header() {
       {/* Right Side */}
       <div className="flex items-center space-x-4 lg:space-x-6">
         {/* Search */}
-        <div className="hidden md:flex relative w-72">
+        <form onSubmit={submitSearch} className="hidden md:block relative w-72" role="search">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/60" />
 
           <Input
+            ref={searchInputRef}
             placeholder="Search employees... (Ctrl + K)"
+            aria-label="Search employees"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             className="pl-10 rounded-full bg-muted/40 border-border focus-visible:ring-primary"
           />
-        </div>
+        </form>
 
         {/* View As User Toggle (for Managers only) */}
         {!isLoading && user?.role === "MANAGER" && (
@@ -159,7 +184,7 @@ export default function Header() {
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}
-          className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 border border-transparent hover:border-border cursor-pointer focus:outline-none"
+          className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 border border-transparent hover:border-border cursor-pointer focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Toggle dark/light theme"
         >
           {theme === "dark" ? (
@@ -197,7 +222,13 @@ export default function Header() {
             })}
           >
             {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <div className="flex items-center gap-2">
+                <div className="hidden lg:flex flex-col items-end space-y-1">
+                  <Skeleton className="h-3.5 w-24 rounded" />
+                  <Skeleton className="h-3 w-16 rounded-full" />
+                </div>
+                <Skeleton className="h-9 w-9 rounded-full" />
+              </div>
             ) : (
               <>
                 <div className="hidden lg:flex flex-col items-end">
@@ -246,7 +277,7 @@ export default function Header() {
 
               {/* Manage Sessions (Fixed Navigation) */}
               <DropdownMenuItem
-                onClick={() => router.push("/workspace/manage-sessions")}
+                onClick={() => router.push("/workspace/profile?tab=security#sessions")}
                 className="flex items-center cursor-pointer"
               >
                 <Shield className="mr-2 h-4 w-4" />
@@ -315,7 +346,7 @@ function NotificationList() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] })
   });
 
-  if (isLoading) return <div className="p-8 text-center text-sm text-muted-foreground">Loading...</div>;
+  if (isLoading) return <NotificationListSkeleton count={4} />;
   if (!notifications || notifications.length === 0) {
     return <div className="p-8 text-center text-sm text-muted-foreground">You're all caught up! 🎉</div>;
   }

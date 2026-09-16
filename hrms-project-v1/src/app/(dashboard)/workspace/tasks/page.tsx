@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { TableSkeleton } from "@/components/skeletons";
 import { useViewMode } from "@/context/ViewModeContext";
 
 export default function TasksPage() {
@@ -109,8 +110,8 @@ export default function TasksPage() {
 
   if (loadingProfile || loadingMyTasks || (isAdmin && loadingCompanyTasks)) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      <div className="p-8 max-w-6xl mx-auto">
+        <TableSkeleton rowCount={5} columnCount={5} title="Tasks Dashboard" subtitle="Manage, assign, and track workspace operations." showAvatar={false} />
       </div>
     );
   }

@@ -31,9 +31,14 @@ export class SettingsService {
     userRole: string,
     actorId?: string,
   ) {
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
+    if (
+      userRole !== 'SUPER_ADMIN' &&
+      userRole !== 'OWNER' &&
+      userRole !== 'HR_HEAD' &&
+      userRole !== 'MANAGER'
+    ) {
       throw new ForbiddenException(
-        'Only Admins or HR can modify system settings.',
+        'Only Admins or Managers can modify system settings.',
       );
     }
 

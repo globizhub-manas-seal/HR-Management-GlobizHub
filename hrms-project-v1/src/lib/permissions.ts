@@ -19,6 +19,8 @@ import {
   CheckSquare,
   FolderOpen,
   CalendarIcon,
+  UserCheck,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,6 +44,22 @@ export const SIDEBAR_MODULES: SidebarModuleDefinition[] = [
     href: "/workspace/dashboard",
     description: "Main dashboard with widgets and overview",
     defaultRoles: ["EMPLOYEE", "MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+  },
+  {
+    key: "onboarding",
+    label: "Onboarding",
+    icon: UserCheck,
+    href: "/workspace/onboarding",
+    description: "New hire onboarding pipeline & checklist",
+    defaultRoles: ["MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+  }, 
+  {
+    key: "recruitment",
+    label: "Recruitment",
+    icon: Briefcase,
+    href: "/workspace/recruitment",
+    description: "Manpower requisitions, approvals & job vacancies",
+    defaultRoles: ["MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
   },
   {
     key: "employees",
@@ -148,12 +166,20 @@ export const SIDEBAR_MODULES: SidebarModuleDefinition[] = [
     defaultRoles: ["HR_HEAD", "SUPER_ADMIN", "OWNER"],
   },
   {
+    key: "resignation",
+    label: "Resignations",
+    icon: LogOut,
+    href: "/workspace/resignation",
+    description: "Employee resignation, notice period, and exit clearance",
+    defaultRoles: ["MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+  },
+  {
     key: "settings",
     label: "Settings",
     icon: Settings,
     href: "/workspace/settings",
     description: "Company configuration and system settings",
-    defaultRoles: ["SUPER_ADMIN", "OWNER"],
+    defaultRoles: ["SUPER_ADMIN", "OWNER", "HR_HEAD", "MANAGER"],
   },
 ];
 
@@ -168,6 +194,7 @@ export const PERMISSION_MODULES = [
   { key: "tasks", label: "Tasks", description: "Task assignment and tracking" },
   { key: "documents", label: "Documents", description: "Document management" },
   { key: "schedules", label: "Schedules", description: "Schedule management" },
+  { key: "resignation", label: "Resignation", description: "Resignation requests and exit clearance" },
   { key: "settings", label: "Settings", description: "System configuration" },
   { key: "reports", label: "Reports", description: "Analytics and reports" },
 ] as const;
