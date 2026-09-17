@@ -57,11 +57,32 @@ export class AuthService {
     // We create the Company, the Settings, the Departments, the Roles, and the Admin Employee all at once!
     // Inside registerWizard function:
     const compPrefix =
+      dto.employeeIdPrefix ||
       dto.companyName
         .replace(/[^a-zA-Z0-9]/g, '')
         .substring(0, 3)
-        .toUpperCase() || 'EMP';
-    const generatedEmployeeCode = `${compPrefix}-GEN-001`;
+        .toUpperCase() ||
+      'EMP';
+    const digits = dto.employeeIdDigits ? Number(dto.employeeIdDigits) : 3;
+    const format = dto.employeeIdFormat || '{PREFIX}-{DEPT}-{NUMBER}';
+    const currentYear = new Date().getFullYear().toString();
+    const shortYear = currentYear.slice(-2);
+    const seq = String(1).padStart(digits, '0');
+
+    let generatedEmployeeCode = format
+      .replace(/\{PREFIX\}|\[PREFIX\]/gi, compPrefix)
+      .replace(/\{DEPT\}|\[DEPT\]/gi, 'GEN')
+      .replace(/\{YEAR\}|\[YEAR\]/gi, currentYear)
+      .replace(/\{YY\}|\[YY\]/gi, shortYear);
+
+    if (/\{NUMBER\}|\[NUMBER\]/gi.test(generatedEmployeeCode)) {
+      generatedEmployeeCode = generatedEmployeeCode.replace(
+        /\{NUMBER\}|\[NUMBER\]/gi,
+        seq,
+      );
+    } else {
+      generatedEmployeeCode = `${generatedEmployeeCode}-${seq}`;
+    }
 
     const company = await this.prisma.company.create({
       data: {
@@ -97,6 +118,9 @@ export class AuthService {
             timeZone: dto.timeZone || 'Asia/Kolkata',
             themeColor: dto.themeColor || '#10b981',
             attendanceMethod: dto.attendanceMethod || 'GPS_OR_WIFI',
+            employeeIdFormat: format,
+            employeeIdPrefix: compPrefix,
+            employeeIdDigits: digits,
             workingDays: dto.workDays || [
               'Monday',
               'Tuesday',
@@ -119,6 +143,15 @@ export class AuthService {
         },
         roles: {
           create: dto.roles?.map((name) => ({ name })) || [],
+        },
+        // The setup wizard calls these job titles "roles", but recruitment
+        // requires Designation records (with IDs) when creating requisitions.
+        designations: {
+          create:
+            dto.roles?.map((name) => ({
+              name,
+              baseRole: 'EMPLOYEE',
+            })) || [],
         },
         branches: {
           create: dto.branches?.map((name) => ({ name })) || [],
@@ -268,22 +301,14 @@ export class AuthService {
           if (alreadyExists) continue;
 
           let deptId: string | null = null;
-          let deptPrefix = 'GEN';
 
           if (inv.department) {
             const matchedDept = deptMap.get(inv.department.toLowerCase());
             if (matchedDept) {
               deptId = matchedDept.id;
-              deptPrefix =
-                matchedDept.name
-                  .replace(/[^a-zA-Z0-9]/g, '')
-                  .substring(0, 3)
-                  .toUpperCase() || 'GEN';
             }
           }
 
-          const sequentialNumber = String(i + 2).padStart(3, '0');
-          const empCode = `${compPrefix}-${deptPrefix}-${sequentialNumber}`;
           const inviteToken = crypto.randomBytes(32).toString('hex');
 
           let assignedRole: any = 'EMPLOYEE';
@@ -310,17 +335,84 @@ export class AuthService {
               phone: inv.phone || null,
               password: tempPasswordHash,
               role: assignedRole,
-              employeeCode: empCode,
+              employeeCode: null, // Defer ID generation until onboarding completion
+              employmentStatus: 'INVITED',
               departmentId: deptId,
               inviteToken: inviteToken,
             },
           });
 
+          // Initialize Onboarding Case & standard checklist tasks
+          try {
+            const newCase = await this.prisma.onboardingCase.create({
+              data: {
+                companyId: company.id,
+                employeeId: createdEmp.id,
+                status: 'INVITED',
+                offerSigned: false,
+                bgvStatus: 'PENDING',
+              },
+            });
+
+            const defaultTasks = [
+              {
+                title: 'Complete Profile & Contact Details',
+                description:
+                  'Provide your personal phone number, blood group, emergency contacts and address.',
+                requiredForActivation: true,
+              },
+              {
+                title: 'Digital Offer Letter Acceptance',
+                description:
+                  'Read, acknowledge, and digitally accept the employment offer terms.',
+                requiredForActivation: true,
+              },
+              {
+                title: 'Upload KYC & Identity Documents',
+                description:
+                  'Submit government-issued ID (Aadhaar / National ID / Passport) and PAN card.',
+                requiredForActivation: true,
+              },
+              {
+                title: 'Bank & Statutory Details Submission',
+                description:
+                  'Provide bank account, IFSC, and PF/UAN details for automated payroll processing.',
+                requiredForActivation: true,
+              },
+              {
+                title: 'Company Policy & Security Orientation',
+                description:
+                  'Review the Employee Handbook, code of conduct, and workplace guidelines.',
+                requiredForActivation: false,
+              },
+            ];
+
+            for (const t of defaultTasks) {
+              await this.prisma.task.create({
+                data: {
+                  companyId: company.id,
+                  employeeId: createdEmp.id,
+                  onboardingCaseId: newCase.id,
+                  title: t.title,
+                  description: t.description,
+                  source: 'TEMPLATE',
+                  requiredForActivation: t.requiredForActivation,
+                  status: 'PENDING',
+                },
+              });
+            }
+          } catch (caseErr) {
+            console.error(
+              'Failed to initialize onboarding case for wizard invite:',
+              caseErr,
+            );
+          }
+
           // Send onboarding invitation email
           await this.emailService.sendEmployeeInvitationEmail(
             inv.email,
             fName,
-            empCode,
+            null,
             inviteToken,
           );
 

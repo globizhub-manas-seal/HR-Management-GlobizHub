@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter 
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardGridSkeleton } from "@/components/skeletons";
 
 export default function PayrollSettingsPage() {
   const queryClient = useQueryClient();
@@ -267,7 +268,7 @@ export default function PayrollSettingsPage() {
 
       {/* TEMPLATE GRID */}
       {isLoading ? (
-        <div className="flex justify-center p-12 text-indigo-500 animate-pulse"><Loader2 className="w-8 h-8 animate-spin" /></div>
+        <CardGridSkeleton count={6} columns={3} showAvatar={false} />
       ) : templates?.length === 0 ? (
         <div className="text-center p-16 border-2 border-dashed border-slate-200 rounded-2xl bg-white text-slate-500">
           <Receipt className="w-12 h-12 mx-auto text-slate-300 mb-3" />

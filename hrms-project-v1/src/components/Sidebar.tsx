@@ -18,10 +18,12 @@ import {
   Banknote,
   Calculator,
   Shield,
+  UserCheck,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
-import { SIDEBAR_MODULES, getDefaultSidebarModules } from "@/lib/permissions";
+import { SIDEBAR_MODULES } from "@/lib/permissions";
 import { usePermissions } from "@/context/PermissionContext";
 
 // Map string icon names to actual icon components
@@ -40,6 +42,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Banknote,
   Calculator,
   Shield,
+  UserCheck,
+  LogOut,
 };
 
 export default function Sidebar({
@@ -107,7 +111,7 @@ export default function Sidebar({
             </span>
           )}
           {/* Show designation name if assigned */}
-          {designation && (
+          {designation && !isSimulatedUser && (
             <span
               className="mt-0.5 self-start text-[8px] font-semibold px-2 py-0.5 rounded-full border"
               style={{
@@ -146,10 +150,10 @@ export default function Sidebar({
 
       {/* Footer / Support Link */}
       <div className="p-4 border-t border-border shrink-0 bg-card">
-        <button className="flex items-center w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground rounded-xl transition-colors">
+        <Link href="/workspace/support" className="flex items-center w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <HelpCircle className="w-5 h-5 mr-3 text-muted-foreground/60" />
           Help & Support
-        </button>
+        </Link>
       </div>
     </>
   );

@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -157,8 +158,16 @@ export default function DesignationsPage() {
           {/* Designation Cards */}
           <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
             {isLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="p-4 rounded-xl border border-border bg-card space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-32 rounded" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-48 rounded" />
+                  </div>
+                ))}
               </div>
             ) : filteredDesignations.length === 0 ? (
               <EmptyDesignationState onCreateClick={() => setCreateOpen(true)} />

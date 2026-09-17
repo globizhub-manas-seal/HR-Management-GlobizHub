@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/skeletons";
 
 // Helper function to color-code attendance statuses
 const getStatusBadge = (status: string) => {
@@ -52,7 +53,7 @@ export default function AttendanceHistoryPage() {
   });
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">My Attendance</h1>
         <p className="text-slate-500 mt-1">View your daily check-ins, check-outs, and working hours.</p>
@@ -68,9 +69,7 @@ export default function AttendanceHistoryPage() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex justify-center items-center h-48 text-emerald-500">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
+            <TableSkeleton rowCount={6} columnCount={5} showSearch={false} showAvatar={false} />
           ) : error ? (
             <div className="p-6 text-center text-red-500">Failed to load attendance history.</div>
           ) : history?.length === 0 ? (
@@ -78,7 +77,8 @@ export default function AttendanceHistoryPage() {
               No attendance records found. Start clocking in from your dashboard!
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto" tabIndex={0} aria-label="Attendance records table. Scroll horizontally to view all columns.">
+            <Table className="min-w-[680px]">
               <TableHeader>
                 <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
                   <TableHead className="font-semibold text-slate-700">Date</TableHead>
@@ -125,6 +125,7 @@ export default function AttendanceHistoryPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

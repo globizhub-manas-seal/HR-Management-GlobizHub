@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function PayrollDashboard() {
   const queryClient = useQueryClient();
@@ -85,7 +86,13 @@ export default function PayrollDashboard() {
     setIsModalOpen(true);
   };
 
-  if (isLoading) return <div className="p-8 text-slate-500">Loading payroll engine...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-8 max-w-6xl mx-auto">
+        <TableSkeleton rowCount={6} columnCount={6} title="Payroll Engine" subtitle="Manage salary structures and process monthly payouts." />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">

@@ -19,6 +19,10 @@ import { AnnouncementModule } from './announcement/announcement.module';
 import { TaskModule } from './task/task.module';
 import { AuditModule } from './audit/audit.module';
 import { ShiftSwapModule } from './shift-swap/shift-swap.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { NotificationModule } from './notification/notification.module';
+import { ResignationModule } from './resignation/resignation.module';
+import { RecruitmentModule } from './recruitment/recruitment.module';
 
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -75,6 +79,10 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
     TaskModule,
     AuditModule,
     ShiftSwapModule,
+    OnboardingModule,
+    NotificationModule,
+    ResignationModule,
+    RecruitmentModule,
   ],
   controllers: [AppController],
   providers: [

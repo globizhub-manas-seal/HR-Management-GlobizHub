@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function AdminScheduleManager() {
   const queryClient = useQueryClient();
@@ -115,7 +116,13 @@ export default function AdminScheduleManager() {
     setIsEditModalOpen(true);
   };
 
-  if (loadingEmps || loadingShifts) return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-emerald-500" /></div>;
+  if (loadingEmps || loadingShifts) {
+    return (
+      <div className="p-8 max-w-6xl mx-auto">
+        <TableSkeleton rowCount={5} columnCount={5} title="Schedule Manager" subtitle="Create shift templates and assign them to your team." showAvatar={false} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">

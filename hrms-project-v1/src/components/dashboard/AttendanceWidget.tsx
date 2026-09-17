@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 export function AttendanceWidget() {
   const queryClient = useQueryClient();
   const [locationError, setLocationError] = useState("");
+  const [locationNotice, setLocationNotice] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [secondsWorked, setSecondsWorked] = useState(0);
 
@@ -103,8 +104,10 @@ export function AttendanceWidget() {
   const handleClockIn = () => {
     setLocationError("");
     setSuccessMessage("");
+    setLocationNotice("");
 
     if (!navigator.geolocation) {
+      setLocationNotice("Location is unavailable in this browser. Your organization may verify this check-in using IP address instead.");
       clockInMutation.mutate({ latitude: null, longitude: null });
       return;
     }
@@ -118,6 +121,7 @@ export function AttendanceWidget() {
       },
       (error) => {
         console.warn("Geolocation error:", error);
+        setLocationNotice("Location permission was not granted. Your organization may verify this check-in using IP address instead.");
         clockInMutation.mutate({ latitude: null, longitude: null });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -215,6 +219,12 @@ export function AttendanceWidget() {
             <Alert className="py-2 bg-primary/20 text-secondary border-primary/30">
               <MapPin className="h-4 w-4 text-primary" />
               <AlertDescription className="text-xs ml-2 font-medium">{successMessage}</AlertDescription>
+            </Alert>
+          )}
+          {locationNotice && (
+            <Alert className="py-2 bg-muted text-muted-foreground border-border">
+              <MapPin className="h-4 w-4" />
+              <AlertDescription className="text-xs ml-2">{locationNotice}</AlertDescription>
             </Alert>
           )}
           {hasClockedOut && (

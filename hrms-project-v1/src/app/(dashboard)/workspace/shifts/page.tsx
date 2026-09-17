@@ -5,6 +5,7 @@ import axios from "axios";
 import { Clock, ShieldAlert, Coffee, Sun, Moon, CalendarDays, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CardGridSkeleton } from "@/components/skeletons";
 
 export default function ShiftsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -45,8 +46,12 @@ export default function ShiftsPage() {
 
   if (loadingSettings || loadingShifts) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      <div className="p-8 max-w-6xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <div className="h-8 w-64 bg-muted/70 rounded animate-pulse" />
+          <div className="h-4 w-96 bg-muted/70 rounded animate-pulse" />
+        </div>
+        <CardGridSkeleton count={4} columns={2} showAvatar={false} />
       </div>
     );
   }

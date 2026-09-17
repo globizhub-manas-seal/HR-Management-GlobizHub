@@ -1,22 +1,43 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { User, Lock, MapPin, Bell, Palette, Smartphone, Camera, Loader2 } from "lucide-react";
+import { User, Lock, MapPin, Bell, Palette, Smartphone, Camera, Loader2, LogOut, Info, AlertTriangle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileSkeleton } from "@/components/skeletons";
 
 export default function EmployeeProfileSettings() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [formData, setFormData] = useState<any>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // Fetch Resignation Status
+  const { data: resignationData } = useQuery({
+    queryKey: ["myResignationProfile"],
+    queryFn: async () => {
+      const token = localStorage.getItem("hrms_token");
+      if (!token) return null;
+      try {
+        const res = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/resignation/my`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return res.data;
+      } catch {
+        return null;
+      }
+    },
+  });
 
   // 1. Fetch live user data
   const { data: user, isLoading } = useQuery({
@@ -61,7 +82,7 @@ export default function EmployeeProfileSettings() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      setPreviewImage(URL.createObjectURL(file)); 
+      setPreviewImage(URL.createObjectURL(file));
     }
   };
 
@@ -70,21 +91,21 @@ export default function EmployeeProfileSettings() {
     mutationFn: async () => {
       const token = localStorage.getItem("hrms_token");
       const submitData = new FormData();
-      
+
       submitData.append("firstName", formData.firstName);
       submitData.append("lastName", formData.lastName);
       submitData.append("phone", formData.phone);
       submitData.append("bloodGroup", formData.bloodGroup);
       submitData.append("gender", formData.gender);
-      
+
       if (selectedFile) {
         submitData.append("profileImage", selectedFile);
       }
 
       await axios.patch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/me`, submitData, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data" 
+          "Content-Type": "multipart/form-data"
         }
       });
     },
@@ -183,7 +204,7 @@ export default function EmployeeProfileSettings() {
         if (userAgent.indexOf("Chrome") > -1) deviceName = "Chrome Browser";
         else if (userAgent.indexOf("Safari") > -1) deviceName = "Safari Browser";
         else if (userAgent.indexOf("Firefox") > -1) deviceName = "Firefox Browser";
-        
+
         if (userAgent.indexOf("Windows") > -1) deviceName = "Windows - " + deviceName;
         else if (userAgent.indexOf("Mac") > -1) deviceName = "Mac - " + deviceName;
         else if (userAgent.indexOf("Linux") > -1) deviceName = "Linux - " + deviceName;
@@ -268,7 +289,7 @@ export default function EmployeeProfileSettings() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-emerald-500" /></div>;
+    return <ProfileSkeleton />;
   }
 
   const getInitials = (first?: string, last?: string) => {
@@ -307,6 +328,9 @@ export default function EmployeeProfileSettings() {
           <TabsTrigger value="appearance" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
             <Palette className="w-4 h-4" /> Appearance
           </TabsTrigger>
+          <TabsTrigger value="resignation" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-rose-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
+            <LogOut className="w-4 h-4 text-rose-500" /> Resignation
+          </TabsTrigger>
         </TabsList>
 
         <div className="flex-1 w-full min-w-0">
@@ -317,7 +341,7 @@ export default function EmployeeProfileSettings() {
                 <CardTitle className="text-lg text-slate-800">Personal Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-8 pt-6">
-                
+
                 {/* PHOTO UPLOAD SECTION */}
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                   <Avatar className="h-24 w-24 border-4 border-white shadow-md">
@@ -327,16 +351,16 @@ export default function EmployeeProfileSettings() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-center sm:text-left space-y-3">
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleFileChange} 
-                      accept="image/png, image/jpeg, image/jpg" 
-                      className="hidden" 
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="image/png, image/jpeg, image/jpg"
+                      className="hidden"
                     />
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="bg-white"
                       onClick={() => fileInputRef.current?.click()}
                     >
@@ -396,11 +420,11 @@ export default function EmployeeProfileSettings() {
                     <div className="space-y-2"><label className="text-sm font-medium text-slate-500">Joining Date</label><Input value={formData.joiningDate} disabled className="bg-slate-50 cursor-not-allowed text-slate-600" /></div>
                   </div>
                 </div>
-                
+
                 {/* SUBMIT BUTTON */}
                 <div className="pt-4 flex justify-end">
-                  <Button 
-                    onClick={() => saveMutation.mutate()} 
+                  <Button
+                    onClick={() => saveMutation.mutate()}
                     disabled={saveMutation.isPending}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
                   >
@@ -413,7 +437,7 @@ export default function EmployeeProfileSettings() {
           </TabsContent>
 
           {/* TAB 2: SECURITY */}
-          <TabsContent value="security" className="m-0 focus-visible:outline-none focus-visible:ring-0 space-y-6">
+          <TabsContent value="security" id="sessions" className="m-0 focus-visible:outline-none focus-visible:ring-0 space-y-6">
             <Card className="border-slate-200 shadow-sm">
               <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-4">
                 <CardTitle className="text-lg text-slate-800">Change Password</CardTitle>
@@ -421,39 +445,39 @@ export default function EmployeeProfileSettings() {
               <CardContent className="space-y-4 pt-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Current Password</label>
-                  <Input 
-                    type="password" 
-                    value={passwordData.currentPassword} 
-                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} 
-                    className="bg-white" 
+                  <Input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                    className="bg-white"
                     placeholder="Enter current password"
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">New Password</label>
-                    <Input 
-                      type="password" 
-                      value={passwordData.newPassword} 
-                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} 
-                      className="bg-white" 
+                    <Input
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      className="bg-white"
                       placeholder="Minimum 8 characters"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Confirm New Password</label>
-                    <Input 
-                      type="password" 
-                      value={passwordData.confirmPassword} 
-                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} 
-                      className="bg-white" 
+                    <Input
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      className="bg-white"
                       placeholder="Re-enter new password"
                     />
                   </div>
                 </div>
                 <div className="pt-4 flex justify-end">
-                  <Button 
-                    onClick={() => changePasswordMutation.mutate()} 
+                  <Button
+                    onClick={() => changePasswordMutation.mutate()}
                     disabled={changePasswordMutation.isPending || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
                   >
@@ -485,9 +509,9 @@ export default function EmployeeProfileSettings() {
                             <p className="text-xs text-slate-400">Last Active: {new Date(dev.lastUsedAt).toLocaleString()}</p>
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                           onClick={() => revokeDeviceMutation.mutate(dev.id)}
                           disabled={revokeDeviceMutation.isPending}
@@ -535,13 +559,12 @@ export default function EmployeeProfileSettings() {
                       {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => {
                         const isWorkDay = user?.company?.settings?.workingDays?.includes(day);
                         return (
-                          <span 
-                            key={day} 
-                            className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                              isWorkDay 
-                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
+                          <span
+                            key={day}
+                            className={`px-2.5 py-1 text-xs font-semibold rounded-full ${isWorkDay
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 : "bg-slate-100 text-slate-400"
-                            }`}
+                              }`}
                           >
                             {day}
                           </span>
@@ -609,12 +632,12 @@ export default function EmployeeProfileSettings() {
                       <label className="text-sm font-semibold text-slate-800 cursor-pointer" htmlFor="attendanceReminder">Attendance Reminder</label>
                       <p className="text-xs text-slate-500">Receive alerts if you forget to clock in at your shift start.</p>
                     </div>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="attendanceReminder"
-                      checked={notifications.attendanceReminder} 
-                      onChange={(e) => handleNotificationChange("attendanceReminder", e.target.checked)} 
-                      className="w-4 h-4 text-emerald-600 rounded" 
+                      checked={notifications.attendanceReminder}
+                      onChange={(e) => handleNotificationChange("attendanceReminder", e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </div>
 
@@ -623,12 +646,12 @@ export default function EmployeeProfileSettings() {
                       <label className="text-sm font-semibold text-slate-800 cursor-pointer" htmlFor="checkoutReminder">Check-out Reminder</label>
                       <p className="text-xs text-slate-500">Receive alerts before your shift ends to clock out.</p>
                     </div>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="checkoutReminder"
-                      checked={notifications.checkoutReminder} 
-                      onChange={(e) => handleNotificationChange("checkoutReminder", e.target.checked)} 
-                      className="w-4 h-4 text-emerald-600 rounded" 
+                      checked={notifications.checkoutReminder}
+                      onChange={(e) => handleNotificationChange("checkoutReminder", e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </div>
 
@@ -637,12 +660,12 @@ export default function EmployeeProfileSettings() {
                       <label className="text-sm font-semibold text-slate-800 cursor-pointer" htmlFor="leaveUpdates">Leave Requests Updates</label>
                       <p className="text-xs text-slate-500">Get notified when your leaves are approved, rejected, or updated.</p>
                     </div>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="leaveUpdates"
-                      checked={notifications.leaveUpdates} 
-                      onChange={(e) => handleNotificationChange("leaveUpdates", e.target.checked)} 
-                      className="w-4 h-4 text-emerald-600 rounded" 
+                      checked={notifications.leaveUpdates}
+                      onChange={(e) => handleNotificationChange("leaveUpdates", e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </div>
 
@@ -651,12 +674,12 @@ export default function EmployeeProfileSettings() {
                       <label className="text-sm font-semibold text-slate-800 cursor-pointer" htmlFor="companyAnnouncements">Company Announcements</label>
                       <p className="text-xs text-slate-500">Get notified when the organization posts a general notice.</p>
                     </div>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="companyAnnouncements"
-                      checked={notifications.companyAnnouncements} 
-                      onChange={(e) => handleNotificationChange("companyAnnouncements", e.target.checked)} 
-                      className="w-4 h-4 text-emerald-600 rounded" 
+                      checked={notifications.companyAnnouncements}
+                      onChange={(e) => handleNotificationChange("companyAnnouncements", e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </div>
 
@@ -665,12 +688,12 @@ export default function EmployeeProfileSettings() {
                       <label className="text-sm font-semibold text-slate-800 cursor-pointer" htmlFor="emailNotifications">Email Notifications</label>
                       <p className="text-xs text-slate-500">Receive a copy of critical reminders and approvals in your inbox.</p>
                     </div>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="emailNotifications"
-                      checked={notifications.emailNotifications} 
-                      onChange={(e) => handleNotificationChange("emailNotifications", e.target.checked)} 
-                      className="w-4 h-4 text-emerald-600 rounded" 
+                      checked={notifications.emailNotifications}
+                      onChange={(e) => handleNotificationChange("emailNotifications", e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </div>
 
@@ -679,19 +702,19 @@ export default function EmployeeProfileSettings() {
                       <label className="text-sm font-semibold text-slate-800 cursor-pointer" htmlFor="pushNotifications">Push Notifications</label>
                       <p className="text-xs text-slate-500">Get instant web browser push notifications.</p>
                     </div>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="pushNotifications"
-                      checked={notifications.pushNotifications} 
-                      onChange={(e) => handleNotificationChange("pushNotifications", e.target.checked)} 
-                      className="w-4 h-4 text-emerald-600 rounded" 
+                      checked={notifications.pushNotifications}
+                      onChange={(e) => handleNotificationChange("pushNotifications", e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </div>
                 </div>
 
                 <div className="pt-4 flex justify-end">
-                  <Button 
-                    onClick={() => saveNotificationsMutation.mutate(notifications)} 
+                  <Button
+                    onClick={() => saveNotificationsMutation.mutate(notifications)}
                     disabled={saveNotificationsMutation.isPending}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
                   >
@@ -718,11 +741,10 @@ export default function EmployeeProfileSettings() {
                         <button
                           key={theme}
                           onClick={() => setAppearance({ ...appearance, themePreference: theme })}
-                          className={`p-3 border rounded-xl text-center text-sm font-semibold transition-all ${
-                            appearance.themePreference === theme 
-                              ? "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20" 
+                          className={`p-3 border rounded-xl text-center text-sm font-semibold transition-all ${appearance.themePreference === theme
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20"
                               : "border-slate-200 hover:bg-slate-50 text-slate-600"
-                          }`}
+                            }`}
                         >
                           {theme.charAt(0) + theme.slice(1).toLowerCase()}
                         </button>
@@ -740,11 +762,10 @@ export default function EmployeeProfileSettings() {
                         <button
                           key={tf.value}
                           onClick={() => setAppearance({ ...appearance, timeFormat: tf.value })}
-                          className={`p-3 border rounded-xl text-center text-sm font-semibold transition-all ${
-                            appearance.timeFormat === tf.value 
-                              ? "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20" 
+                          className={`p-3 border rounded-xl text-center text-sm font-semibold transition-all ${appearance.timeFormat === tf.value
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20"
                               : "border-slate-200 hover:bg-slate-50 text-slate-600"
-                          }`}
+                            }`}
                         >
                           {tf.label}
                         </button>
@@ -754,8 +775,8 @@ export default function EmployeeProfileSettings() {
                 </div>
 
                 <div className="pt-4 flex justify-end">
-                  <Button 
-                    onClick={() => saveAppearanceMutation.mutate(appearance)} 
+                  <Button
+                    onClick={() => saveAppearanceMutation.mutate(appearance)}
                     disabled={saveAppearanceMutation.isPending}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
                   >
@@ -763,6 +784,126 @@ export default function EmployeeProfileSettings() {
                     Save Appearance
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* RESIGNATION / OFFBOARDING SECTION BELOW APPEARANCE */}
+            <Card className="border-rose-200/80 bg-gradient-to-br from-white via-white to-rose-50/20 shadow-sm mt-6">
+              <CardHeader className="border-b border-rose-100 bg-rose-50/40 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-200">
+                      <LogOut className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base text-slate-800">Employment Resignation</CardTitle>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Submit formal resignation, calculate notice period, and track offboarding clearance.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => router.push("/workspace/resignation")}
+                    className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm text-xs font-semibold rounded-lg gap-2 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {resignationData?.activeResignation ? "View Resignation Status" : "Submit Resignation"}
+                  </Button>
+                </div>
+              </CardHeader>
+              {resignationData?.activeResignation && (
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        Active Request: <strong className="font-semibold">{resignationData.activeResignation.status}</strong> &bull; Requested Last Day:{" "}
+                        {new Date(resignationData.activeResignation.requestedLastWorkingDay).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-amber-900 hover:text-amber-950 font-semibold p-0 h-auto underline cursor-pointer"
+                      onClick={() => router.push("/workspace/resignation")}
+                    >
+                      View Details &rarr;
+                    </Button>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* TAB 6: RESIGNATION */}
+          <TabsContent value="resignation" className="m-0 focus-visible:outline-none focus-visible:ring-0">
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg text-slate-800 flex items-center gap-2">
+                      <LogOut className="w-5 h-5 text-rose-500" />
+                      Employee Resignation & Departure
+                    </CardTitle>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Manage your resignation application, view notice period requirements, and monitor separation clearance.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => router.push("/workspace/resignation")}
+                    className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm text-xs font-semibold rounded-lg gap-2 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {resignationData?.activeResignation ? "Open Active Tracker" : "Submit Resignation"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-2">
+                  <div className="font-semibold text-slate-800 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-primary" />
+                    Company Separation & Notice Policy
+                  </div>
+                  <p>
+                    The standard notice period for your role is <strong>{resignationData?.noticePeriodDays ?? 30} days</strong>.
+                    Submitting a resignation initiates the formal approval chain with your reporting manager and HR department.
+                  </p>
+                </div>
+
+                {resignationData?.activeResignation ? (
+                  <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-amber-900">Current Status: {resignationData.activeResignation.status}</span>
+                      <span className="text-xs text-amber-700 font-medium">
+                        Submitted: {new Date(resignationData.activeResignation.submissionDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-700">
+                      Requested Last Working Day: <strong>{new Date(resignationData.activeResignation.requestedLastWorkingDay).toLocaleDateString()}</strong>
+                    </div>
+                    <div className="pt-2">
+                      <Button
+                        size="sm"
+                        onClick={() => router.push("/workspace/resignation")}
+                        className="bg-amber-600 hover:bg-amber-700 text-white text-xs cursor-pointer"
+                      >
+                        Open Detailed Resignation Portal
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 space-y-3 border border-dashed rounded-xl border-slate-200">
+                    <p className="text-sm text-slate-500">You currently have no active resignation request.</p>
+                    <Button
+                      size="sm"
+                      onClick={() => router.push("/workspace/resignation")}
+                      className="bg-rose-600 hover:bg-rose-700 text-white text-xs cursor-pointer gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Submit Resignation Letter
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

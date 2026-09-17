@@ -47,7 +47,7 @@ export class EmailService {
   async sendEmployeeInvitationEmail(
     email: string,
     firstName: string,
-    employeeCode: string,
+    employeeCode: string | null,
     inviteToken: string,
   ) {
     const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${inviteToken}`;
@@ -62,9 +62,9 @@ export class EmailService {
           <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">Welcome to TeamHub, ${firstName}!</h2>
             <p>You have been invited to join your company's HRMS workspace.</p>
-            <p>Your official Employee ID is: <strong>${employeeCode}</strong></p>
-            <p>Please click the secure link below to set your permanent password and log in.</p>
-            <a href="${magicLink}" style="display: inline-block; padding: 12px 24px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Set My Password</a>
+            ${employeeCode ? `<p>Your official Employee ID is: <strong>${employeeCode}</strong></p>` : `<p>Your official Employee ID will be assigned upon completion and verification of your onboarding checklist.</p>`}
+            <p>Please click the secure link below to set your permanent password and complete your onboarding.</p>
+            <a href="${magicLink}" style="display: inline-block; padding: 12px 24px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Set Password & Start Onboarding</a>
             <p style="margin-top: 30px; font-size: 12px; color: #888;">If you didn't expect this invitation, you can safely ignore this email.</p>
           </div>
         `,

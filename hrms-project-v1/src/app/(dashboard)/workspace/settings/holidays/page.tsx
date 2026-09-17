@@ -7,6 +7,7 @@ import { Calendar, Plus, Trash2, Loader2, PartyPopper } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function HolidayCalendarPage() {
   const queryClient = useQueryClient();
@@ -49,7 +50,13 @@ export default function HolidayCalendarPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["holidays"] })
   });
 
-  if (isLoading) return <div className="p-8"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>;
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
+        <TableSkeleton rowCount={5} columnCount={3} title="Holiday Calendar" subtitle="Manage public and company holidays. These days will not be deducted from employee leave balances." showAvatar={false} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">

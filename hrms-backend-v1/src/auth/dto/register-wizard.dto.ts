@@ -1,4 +1,10 @@
-import { IsString, IsEmail, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class InvitedEmployeeDto {
@@ -55,5 +61,7 @@ export class RegisterWizardDto {
   @IsString() @IsOptional() shiftStartTime?: string;
   @IsString() @IsOptional() shiftEndTime?: string;
   @IsString() @IsOptional() attendanceMethod?: string;
+  @IsString() @IsOptional() employeeIdFormat?: string;
+  @IsString() @IsOptional() employeeIdPrefix?: string;
+  @IsOptional() employeeIdDigits?: number;
 }
-

@@ -8,6 +8,7 @@ import { Clock, Calendar, Users, Megaphone, FileText, CheckCircle2, UserCheck, U
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/context/PermissionContext";
 import { AttendanceWidget } from "@/components/dashboard/AttendanceWidget";
 
@@ -220,7 +221,23 @@ export function ManagerDashboardView() {
             </CardHeader>
             <CardContent className="p-0">
               {loadingApprovals ? (
-                <div className="flex justify-center items-center h-48"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                <div className="p-4 divide-y divide-border space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={`app-skel-${i}`} className="pt-3 first:pt-0 flex items-center justify-between gap-4">
+                      <div className="space-y-1.5 flex-1">
+                        <Skeleton className="h-4 w-32 rounded" />
+                        <Skeleton className="h-3 w-20 rounded" />
+                      </div>
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                      <Skeleton className="h-4 w-28 rounded" />
+                      <Skeleton className="h-4 w-12 rounded" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-7 w-16 rounded-lg" />
+                        <Skeleton className="h-7 w-16 rounded-lg" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : !approvals || approvals.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground text-sm">No pending leave requests found.</div>
               ) : (

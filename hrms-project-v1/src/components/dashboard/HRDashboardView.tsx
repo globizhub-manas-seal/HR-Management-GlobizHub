@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/context/PermissionContext";
 import { AttendanceWidget } from "@/components/dashboard/AttendanceWidget";
 
@@ -121,7 +122,7 @@ export function HRDashboardView() {
   const pendingLeaves = leaves?.filter((req: any) => req.status === "PENDING") || [];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       
       {/* TOP BANNER */}
       <div className="bg-gradient-to-r from-secondary to-primary rounded-3xl p-8 text-white flex flex-col justify-between shadow-sm relative overflow-hidden">
@@ -144,9 +145,13 @@ export function HRDashboardView() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm font-medium text-primary">Total Employee</p>
-                  <span className="text-4xl font-bold text-secondary-foreground mt-2 block">
-                    {loadingStats ? "--" : stats?.totalEmployees}
-                  </span>
+                  {loadingStats ? (
+                    <Skeleton className="h-9 w-16 bg-white/10 mt-2" />
+                  ) : (
+                    <span className="text-4xl font-bold text-secondary-foreground mt-2 block">
+                      {stats?.totalEmployees ?? 0}
+                    </span>
+                  )}
                 </div>
                 <div className="p-3 bg-primary/20 text-primary rounded-lg"><Users className="w-5 h-5" /></div>
               </div>
@@ -160,9 +165,13 @@ export function HRDashboardView() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm font-medium text-secondary/80">Present Today</p>
-                  <span className="text-4xl font-bold text-secondary mt-2 block">
-                    {loadingStats ? "--" : stats?.presentToday}
-                  </span>
+                  {loadingStats ? (
+                    <Skeleton className="h-9 w-16 bg-primary/30 mt-2" />
+                  ) : (
+                    <span className="text-4xl font-bold text-secondary mt-2 block">
+                      {stats?.presentToday ?? 0}
+                    </span>
+                  )}
                 </div>
                 <div className="p-3 bg-primary text-secondary rounded-lg"><UserCheck className="w-5 h-5" /></div>
               </div>
@@ -176,9 +185,13 @@ export function HRDashboardView() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Absent / Off</p>
-                  <span className="text-4xl font-bold text-foreground mt-2 block">
-                    {loadingStats ? "--" : stats?.absentToday}
-                  </span>
+                  {loadingStats ? (
+                    <Skeleton className="h-9 w-16 mt-2" />
+                  ) : (
+                    <span className="text-4xl font-bold text-foreground mt-2 block">
+                      {stats?.absentToday ?? 0}
+                    </span>
+                  )}
                 </div>
                 <div className="p-3 bg-rose-500/10 text-rose-600 rounded-lg"><UserX className="w-5 h-5" /></div>
               </div>
@@ -192,9 +205,13 @@ export function HRDashboardView() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Late Clock-Ins</p>
-                  <span className="text-4xl font-bold text-foreground mt-2 block">
-                    {loadingStats ? "--" : stats?.lateToday}
-                  </span>
+                  {loadingStats ? (
+                    <Skeleton className="h-9 w-16 mt-2" />
+                  ) : (
+                    <span className="text-4xl font-bold text-foreground mt-2 block">
+                      {stats?.lateToday ?? 0}
+                    </span>
+                  )}
                 </div>
                 <div className="p-3 bg-amber-500/10 text-amber-600 rounded-lg"><Clock className="w-5 h-5" /></div>
               </div>
@@ -219,7 +236,23 @@ export function HRDashboardView() {
             </CardHeader>
             <CardContent className="p-0">
               {loadingLeaves ? (
-                <div className="flex justify-center items-center h-48"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                <div className="p-4 divide-y divide-border space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={`hr-leave-skel-${i}`} className="pt-3 first:pt-0 flex items-center justify-between gap-4">
+                      <div className="space-y-1.5 flex-1">
+                        <Skeleton className="h-4 w-32 rounded" />
+                        <Skeleton className="h-3 w-20 rounded" />
+                      </div>
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                      <Skeleton className="h-4 w-28 rounded" />
+                      <Skeleton className="h-4 w-12 rounded" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-7 w-16 rounded-lg" />
+                        <Skeleton className="h-7 w-16 rounded-lg" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : pendingLeaves.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground text-sm">No leave requests pending HR decision.</div>
               ) : (

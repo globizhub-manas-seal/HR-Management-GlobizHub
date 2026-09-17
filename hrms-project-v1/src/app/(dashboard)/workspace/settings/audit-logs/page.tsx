@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function AuditLogsPage() {
   const { data: logs, isLoading } = useQuery({
@@ -37,7 +38,13 @@ export default function AuditLogsPage() {
     }
   };
 
-  if (isLoading) return <div className="p-8 text-slate-500">Loading security logs...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-8 max-w-6xl mx-auto">
+        <TableSkeleton rowCount={6} columnCount={5} title="Security & Audit Logs" subtitle="Immutable trail of system activities and data modifications." showAvatar={false} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">

@@ -19,8 +19,12 @@ import {
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/skeletons";
+import { useToast } from "@/components/ToastProvider";
 
 export default function EmployeeLeavePage() {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   
@@ -69,6 +73,7 @@ export default function EmployeeLeavePage() {
       queryClient.invalidateQueries({ queryKey: ["myLeaveBalance"] });
       setIsApplyModalOpen(false);
       setLeaveForm({ type: "CASUAL", startDate: "", endDate: "", reason: "" });
+      toast("Your leave request has been submitted.");
     },
     onError: (error: any) => {
       alert(error.response?.data?.message || "Failed to apply for leave");
@@ -100,7 +105,7 @@ export default function EmployeeLeavePage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto font-sans space-y-8 bg-slate-50/50 min-h-screen">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto font-sans space-y-8 bg-background min-h-screen">
       
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -117,86 +122,110 @@ export default function EmployeeLeavePage() {
       </div>
 
       {/* BALANCE CARDS */}
+      {/* TOP SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-2 h-full bg-blue-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-700">Casual Leave</h3>
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><CalendarDays className="w-5 h-5" /></div>
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-4xl font-bold text-slate-900">{balance?.casual || 0}</span>
-            <span className="text-sm font-medium text-slate-500">days available</span>
-          </div>
-        </div>
+        {loadingBalance ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={`bal-skel-${i}`} className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-28 rounded-md" />
+                <Skeleton className="h-9 w-9 rounded-lg" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="h-9 w-16 rounded-md" />
+                <Skeleton className="h-3.5 w-24 rounded-md" />
+              </div>
+            </div>
+          ))
+        ) : (
+          <>
+            <div className="bg-card rounded-2xl p-6 border border-border shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-2 h-full bg-blue-500"></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground">Casual Leave</h3>
+                <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><CalendarDays className="w-5 h-5" /></div>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-4xl font-bold text-foreground">{balance?.casual || 0}</span>
+                <span className="text-sm font-medium text-muted-foreground">days available</span>
+              </div>
+            </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-2 h-full bg-rose-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-700">Medical Leave</h3>
-            <div className="p-2 bg-rose-50 rounded-lg text-rose-600"><Activity className="w-5 h-5" /></div>
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-4xl font-bold text-slate-900">{balance?.medical || 0}</span>
-            <span className="text-sm font-medium text-slate-500">days available</span>
-          </div>
-        </div>
+            <div className="bg-card rounded-2xl p-6 border border-border shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-2 h-full bg-rose-500"></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground">Medical Leave</h3>
+                <div className="p-2 bg-rose-50 rounded-lg text-rose-600"><Activity className="w-5 h-5" /></div>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-4xl font-bold text-foreground">{balance?.medical || 0}</span>
+                <span className="text-sm font-medium text-muted-foreground">days available</span>
+              </div>
+            </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-700">Earned Leave</h3>
-            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><Briefcase className="w-5 h-5" /></div>
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-4xl font-bold text-slate-900">{balance?.earned || 0}</span>
-            <span className="text-sm font-medium text-slate-500">days available</span>
-          </div>
-        </div>
+            <div className="bg-card rounded-2xl p-6 border border-border shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground">Earned Leave</h3>
+                <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><Briefcase className="w-5 h-5" /></div>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-4xl font-bold text-foreground">{balance?.earned || 0}</span>
+                <span className="text-sm font-medium text-muted-foreground">days available</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* LEAVE HISTORY TABLE */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center">
-          <Calendar className="w-5 h-5 mr-2 text-indigo-500" />
-          <h2 className="text-lg font-bold text-slate-900">Leave History</h2>
-        </div>
-        
-        {leaveHistory?.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">
-            You haven't requested any time off yet.
+      {loadingHistory ? (
+        <TableSkeleton rowCount={5} columnCount={5} showSearch={false} showAvatar={false} />
+      ) : (
+        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex items-center">
+            <Calendar className="w-5 h-5 mr-2 text-indigo-500" />
+            <h2 className="text-lg font-bold text-slate-900">Leave History</h2>
           </div>
-        ) : (
-          <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Date Range</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead className="text-right">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leaveHistory?.map((leave: any) => (
-                <TableRow key={leave.id}>
-                  <TableCell className="font-medium text-slate-900">{leave.type.replace("_", " ")}</TableCell>
-                  <TableCell className="text-slate-600">
-                    {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-slate-600 font-medium">
-                    {calculateDays(leave.startDate, leave.endDate)}
-                  </TableCell>
-                  <TableCell className="text-slate-500 max-w-[200px] truncate">{leave.reason}</TableCell>
-                  <TableCell className="text-right flex justify-end">
-                    {getStatusBadge(leave.status)}
-                  </TableCell>
+          
+          {leaveHistory?.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">
+              You haven't requested any time off yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto" tabIndex={0} aria-label="Leave history table. Scroll horizontally to view all columns.">
+            <Table className="min-w-[680px]">
+              <TableHeader className="bg-slate-50/50">
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Date Range</TableHead>
+                  <TableHead>Days</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+              </TableHeader>
+              <TableBody>
+                {leaveHistory?.map((leave: any) => (
+                  <TableRow key={leave.id}>
+                    <TableCell className="font-medium text-slate-900">{leave.type.replace("_", " ")}</TableCell>
+                    <TableCell className="text-slate-600">
+                      {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-slate-600 font-medium">
+                      {calculateDays(leave.startDate, leave.endDate)}
+                    </TableCell>
+                    <TableCell className="text-slate-500 max-w-[200px] truncate">{leave.reason}</TableCell>
+                    <TableCell className="text-right flex justify-end">
+                      {getStatusBadge(leave.status)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* APPLY FOR LEAVE MODAL */}
       <Dialog open={isApplyModalOpen} onOpenChange={setIsApplyModalOpen}>
@@ -207,9 +236,9 @@ export default function EmployeeLeavePage() {
           
           <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Leave Type</label>
+              <label htmlFor="leave-type" className="text-sm font-medium text-foreground">Leave Type</label>
               <Select value={leaveForm.type} onValueChange={(val) => setLeaveForm({...leaveForm, type: val || "CASUAL"})}>
-                <SelectTrigger className="bg-slate-50 border-slate-200">
+                <SelectTrigger id="leave-type" className="bg-muted/30 border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -223,18 +252,20 @@ export default function EmployeeLeavePage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Start Date</label>
+                <label htmlFor="leave-start-date" className="text-sm font-medium text-foreground">Start Date</label>
                 <Input 
                   type="date" 
+                  id="leave-start-date"
                   value={leaveForm.startDate} 
                   onChange={(e) => setLeaveForm({...leaveForm, startDate: e.target.value})}
                   className="bg-slate-50 border-slate-200"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">End Date</label>
+                <label htmlFor="leave-end-date" className="text-sm font-medium text-foreground">End Date</label>
                 <Input 
                   type="date" 
+                  id="leave-end-date"
                   value={leaveForm.endDate} 
                   onChange={(e) => setLeaveForm({...leaveForm, endDate: e.target.value})}
                   className="bg-slate-50 border-slate-200"
@@ -250,9 +281,10 @@ export default function EmployeeLeavePage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Reason</label>
+              <label htmlFor="leave-reason" className="text-sm font-medium text-foreground">Reason</label>
               <Textarea 
                 placeholder="Brief reason for your time off..." 
+                id="leave-reason"
                 value={leaveForm.reason}
                 onChange={(e) => setLeaveForm({...leaveForm, reason: e.target.value})}
                 className="bg-slate-50 border-slate-200 resize-none h-24"

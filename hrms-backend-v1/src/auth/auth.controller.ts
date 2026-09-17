@@ -53,6 +53,12 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
+  @Get('profile')
+  getProfileAlias(@Request() req) {
+    return this.authService.getProfile(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard)
   @Get('me/permissions')
   async getPermissions(@Request() req) {
     return this.authService.getPermissions(req.user.sub);

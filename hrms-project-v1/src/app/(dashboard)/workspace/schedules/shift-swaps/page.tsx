@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/skeletons";
 import Link from "next/link";
 
 export default function ShiftSwapsPage() {
@@ -276,8 +277,8 @@ export default function ShiftSwapsPage() {
 
   if (loadingSwaps || loadingEmployees) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      <div className="p-8 max-w-6xl mx-auto">
+        <TableSkeleton rowCount={6} columnCount={6} title="Shift Swaps & Transfers" subtitle="Request a colleague to give up their shift, give consent, or approve transfers." />
       </div>
     );
   }

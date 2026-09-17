@@ -167,6 +167,11 @@
     @apply font-sans;
   }
 
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
   /* Universal Hand Pointer for all clickable and interactive elements */
   a,
   a *,
@@ -255,6 +260,14 @@
   background-color: var(--secondary) !important;
 }
 
+/* Small screens need room for content; tables provide their own horizontal scroll. */
+@media (max-width: 639px) {
+  main > div {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
 /* Premium Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -276,4 +289,11 @@
 }
 .dark ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
-}
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+

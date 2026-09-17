@@ -42,6 +42,9 @@ interface SetupWizardData {
   shiftEndTime: string;
   attendanceMethod: string;
   timeZone: string;
+  employeeIdFormat: string;
+  employeeIdPrefix: string;
+  employeeIdDigits: number;
 }
 
 interface SetupWizardState {
@@ -51,6 +54,7 @@ interface SetupWizardState {
   // Actions
   nextStep: () => void;
   prevStep: () => void;
+  setStep: (step: number) => void;
   updateFormData: (data: Partial<SetupWizardData>) => void;
   resetForm: () => void;
 }
@@ -109,6 +113,9 @@ const initialData: SetupWizardData = {
   shiftEndTime: '18:00',
   attendanceMethod: 'MANUAL',
   timeZone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'Asia/Kolkata',
+  employeeIdFormat: '{PREFIX}-{DEPT}-{NUMBER}',
+  employeeIdPrefix: '',
+  employeeIdDigits: 3,
 };
 
 
@@ -116,8 +123,9 @@ export const useSetupWizardStore = create<SetupWizardState>((set) => ({
   currentStep: 1,
   formData: initialData,
   
-  nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
+  nextStep: () => set((state) => ({ currentStep: Math.min(10, state.currentStep + 1) })),
   prevStep: () => set((state) => ({ currentStep: Math.max(1, state.currentStep - 1) })),
+  setStep: (step) => set({ currentStep: Math.min(Math.max(1, step), 10) }),
   
   updateFormData: (newData) => 
     set((state) => ({

@@ -43,6 +43,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/skeletons";
 import { Badge } from "@/components/ui/badge";
 
 export default function HRPayrollDashboard() {
@@ -694,9 +695,7 @@ export default function HRPayrollDashboard() {
 
         {/* Data Table */}
         {loadingPayrolls ? (
-          <div className="p-12 flex justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-          </div>
+          <TableSkeleton rowCount={6} columnCount={7} showSearch={false} />
         ) : payrolls?.length === 0 ? (
           <div className="p-16 text-center text-slate-500">
             <Calculator className="w-12 h-12 mx-auto text-slate-300 mb-3" />
