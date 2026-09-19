@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
 import {
@@ -70,6 +70,18 @@ export function CandidateConversionModal({
   const [joiningDate, setJoiningDate] = useState(defaultJoiningDate);
   const [notes, setNotes] = useState("");
   const [conversionResult, setConversionResult] = useState<any>(null);
+
+  const { data: previewData } = useQuery({
+    queryKey: ["conversion-preview", application?.id],
+    queryFn: async () => {
+      const res = await axios.get(
+        `${apiUrl}/recruitment/applications/${application.id}/conversion-preview`,
+        { withCredentials: true }
+      );
+      return res.data;
+    },
+    enabled: open && !!application?.id,
+  });
 
   const convertMutation = useMutation({
     mutationFn: async () => {
@@ -355,7 +367,14 @@ export function CandidateConversionModal({
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
                   <span>
                     Generates official company Employee Code:{" "}
-                    <strong className="font-mono text-foreground">EMP-2026-XXXX</strong>
+                    <strong className="font-mono text-foreground">
+                      {previewData?.targetEmployeeCode || "Calculating..."}
+                    </strong>
+                    {previewData?.format && (
+                      <span className="text-[11px] text-muted-foreground ml-1">
+                        (Preset: {previewData.format})
+                      </span>
+                    )}
                   </span>
                 </li>
                 <li className="flex items-center gap-2">

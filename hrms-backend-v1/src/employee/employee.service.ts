@@ -125,6 +125,7 @@ export class EmployeeService {
         password: tempPassword,
         companyId: companyId,
         inviteToken: inviteToken,
+        resetPasswordExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         employeeCode: null, // Defer ID generation until onboarding completion
         employmentStatus: 'INVITED',
         ...(dto.departmentId && { departmentId: dto.departmentId }),

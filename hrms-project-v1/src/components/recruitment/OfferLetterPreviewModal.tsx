@@ -48,7 +48,105 @@ export function OfferLetterPreviewModal({
   const company = offer.company || offer.application?.company;
 
   const handlePrint = () => {
-    window.print();
+    const printContent = document.getElementById("printable-offer-letter-content");
+    if (!printContent) {
+      window.print();
+      return;
+    }
+
+    // Create isolated printing iframe so no website background, dashboard, or other modals are printed
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.style.zIndex = "-9999";
+    document.body.appendChild(iframe);
+
+    const frameDoc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!frameDoc) {
+      window.print();
+      return;
+    }
+
+    // Clone stylesheets to preserve Tailwind styling in isolated iframe
+    const styles = Array.from(document.querySelectorAll("style, link[rel='stylesheet']"))
+      .map((tag) => tag.outerHTML)
+      .join("\n");
+
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <title>Official Offer Letter - ${offer.offerCode}</title>
+          ${styles}
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 14mm 16mm;
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body {
+              background: #ffffff !important;
+              color: #0f172a !important;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .print-break-inside-avoid {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+            table {
+              border-collapse: collapse !important;
+              width: 100% !important;
+            }
+            /* Force light theme on printed document */
+            .text-slate-100, .text-slate-200, .text-slate-300 {
+              color: #0f172a !important;
+            }
+            .text-indigo-200, .text-indigo-300, .text-indigo-400 {
+              color: #312e81 !important;
+            }
+            .bg-slate-900, .bg-slate-950 {
+              background-color: #f8fafc !important;
+              color: #0f172a !important;
+            }
+          </style>
+        </head>
+        <body class="bg-white text-slate-900">
+          <div style="padding: 10px 0;">
+            ${printContent.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    // Trigger printing once content is rendered in iframe
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (err) {
+        console.error("Iframe print error", err);
+        window.print();
+      } finally {
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1500);
+      }
+    }, 300);
   };
 
   const formattedJoiningDate = activeVersion.joiningDate
@@ -69,7 +167,7 @@ export function OfferLetterPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl print:m-0 print:p-0 print:border-none print:shadow-none print:max-w-full">
+      <DialogContent className="w-[96vw] max-w-5xl lg:max-w-6xl max-h-[92vh] overflow-y-auto p-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl printable-offer-dialog print:fixed print:inset-0 print:m-0 print:p-0 print:border-none print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:bg-white print:transform-none">
         {/* Header toolbar (Hidden in print) */}
         <DialogHeader className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 print:hidden">
           <div className="flex items-center justify-between">
@@ -81,6 +179,11 @@ export function OfferLetterPreviewModal({
               {activeVersion.status === "APPROVED" && (
                 <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200">
                   Approved Snapshot
+                </Badge>
+              )}
+              {(offer.status === "ACCEPTED" || activeVersion.status === "ACCEPTED") && (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 border-emerald-300 font-bold">
+                  Offer Accepted 🎉
                 </Badge>
               )}
             </div>
@@ -97,9 +200,9 @@ export function OfferLetterPreviewModal({
         </DialogHeader>
 
         {/* The Printable Letter Document */}
-        <div className="p-8 md:p-12 text-slate-800 dark:text-slate-200 font-sans leading-relaxed text-sm print:text-black print:p-6 print:text-xs space-y-6">
+        <div id="printable-offer-letter-content" className="printable-offer-document p-8 md:p-14 text-slate-800 dark:text-slate-200 font-sans leading-relaxed text-sm print:text-black print:p-0 print:m-0 print:text-xs space-y-6">
           {/* Company Branding & Letterhead */}
-          <div className="flex items-start justify-between border-b-2 border-indigo-600 pb-6">
+          <div className="flex items-start justify-between border-b-2 border-indigo-600 pb-6 print:pb-4 print-break-inside-avoid">
             <div>
               <h1 className="text-2xl font-black tracking-tight text-indigo-950 dark:text-indigo-200 uppercase print:text-black">
                 {company?.name || "Globizhub Enterprise HRMS"}
@@ -154,7 +257,7 @@ export function OfferLetterPreviewModal({
           </div>
 
           {/* Key Appointment Terms */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 print:bg-gray-50 print:border-gray-300">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 print:bg-slate-50/80 print:border-slate-300 print-break-inside-avoid">
             <div>
               <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-semibold">
                 Expected Joining
@@ -190,7 +293,7 @@ export function OfferLetterPreviewModal({
           </div>
 
           {/* ANNEXURE A: COMPENSATION & BENEFITS SCHEDULE */}
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-2 print-break-inside-avoid">
             <div className="flex items-center justify-between border-b pb-2">
               <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 uppercase tracking-wide print:text-black">
                 Annexure A: Compensation & Benefits Structure
@@ -200,8 +303,8 @@ export function OfferLetterPreviewModal({
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border border-slate-200 dark:border-slate-800 print:border-gray-400">
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full text-left text-xs border border-slate-200 dark:border-slate-800 print:border-slate-400 print:border-collapse">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-900 print:bg-gray-200 text-slate-700 dark:text-slate-300 print:text-black border-b border-slate-200 dark:border-slate-800">
                     <th className="py-2 px-3 font-semibold">Compensation Component</th>
@@ -320,43 +423,54 @@ export function OfferLetterPreviewModal({
 
           {/* Terms and Conditions */}
           {activeVersion.termsAndConditions && (
-            <div className="space-y-1.5 pt-2">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">
+            <div className="space-y-1.5 pt-2 print-break-inside-avoid">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">
                 Terms of Employment & Covenants
               </h4>
-              <p className="text-xs font-mono whitespace-pre-line text-slate-600 dark:text-slate-400 print:text-gray-700 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 print:bg-transparent print:border-none print:p-0">
+              <p className="text-xs font-mono whitespace-pre-line text-slate-600 dark:text-slate-400 print:text-slate-900 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 print:bg-transparent print:border print:border-slate-300 print:p-2.5">
                 {activeVersion.termsAndConditions}
               </p>
             </div>
           )}
 
           {/* Acceptance Deadline Notice */}
-          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 print:border-gray-400 print:text-black">
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 print:border-slate-300 print:bg-amber-50/50 print:text-black print-break-inside-avoid">
             <strong>Offer Validity:</strong> This offer is valid until{" "}
             <strong>{formattedExpiryDate}</strong>. Please sign and return the accepted copy before this deadline.
           </div>
 
           {/* Signatures Block */}
-          <div className="pt-8 grid grid-cols-2 gap-12 text-xs">
+          <div className="pt-8 grid grid-cols-2 gap-12 text-xs print-break-inside-avoid print:pt-6">
             <div className="space-y-8">
-              <p className="text-slate-500">For {company?.name || "Globizhub Enterprise"}:</p>
+              <p className="text-slate-500 print:text-slate-700">For {company?.name || "Globizhub Enterprise"}:</p>
               <div className="border-t border-slate-400 pt-2 space-y-0.5">
                 <p className="font-bold text-slate-900 dark:text-slate-100 print:text-black">
                   {offer.approvedBy
                     ? `${offer.approvedBy.firstName} ${offer.approvedBy.lastName}`
                     : "Authorized Signatory"}
                 </p>
-                <p className="text-[11px] text-slate-500">Head of People Operations & HR</p>
+                <p className="text-[11px] text-slate-500 print:text-slate-600">Head of People Operations & HR</p>
               </div>
             </div>
 
             <div className="space-y-8">
-              <p className="text-slate-500">Candidate Acceptance & Confirmation:</p>
+              <p className="text-slate-500 print:text-slate-700">Candidate Acceptance & Confirmation:</p>
               <div className="border-t border-slate-400 pt-2 space-y-0.5">
                 <p className="font-bold text-slate-900 dark:text-slate-100 print:text-black">
                   {candidate?.firstName} {candidate?.lastName}
                 </p>
-                <p className="text-[11px] text-slate-500">Signature & Date</p>
+                {offer.status === "ACCEPTED" || activeVersion.status === "ACCEPTED" ? (
+                  <div className="text-[11px] text-emerald-700 dark:text-emerald-400 print:text-emerald-800 font-semibold flex items-center gap-1 mt-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 inline" /> Digitally Accepted & Confirmed
+                    {offer.respondedAt && (
+                      <span className="text-[10px] text-slate-500 print:text-slate-600 block">
+                        • on {new Date(offer.respondedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 print:text-slate-600">Signature & Date</p>
+                )}
               </div>
             </div>
           </div>

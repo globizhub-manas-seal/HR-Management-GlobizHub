@@ -6,10 +6,14 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is not set. Server cannot start.');
+    }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), // Expects token in the "Authorization: Bearer <token>" header
-      ignoreExpiration: false, // Reject expired tokens automatically
-      secretOrKey: process.env.JWT_SECRET || 'SUPER_SECRET_HRMS_KEY_FOR_NOW', // MUST match the secret in auth.module.ts
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: jwtSecret,
     });
   }
 

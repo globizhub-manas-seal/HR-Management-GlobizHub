@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -21,6 +22,16 @@ import { AssignTemplateDto } from './dto/assign-template.dto';
 @UseGuards(AuthGuard)
 export class OnboardingController {
   constructor(private readonly onboardingService: OnboardingService) {}
+
+  private ensureHrOrAdmin(role: string) {
+    if (
+      !['SUPER_ADMIN', 'HR_HEAD', 'OWNER', 'ADMIN', 'MANAGER'].includes(role)
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to manage onboarding cases and templates.',
+      );
+    }
+  }
 
   // ==========================================
   // EMPLOYEE / CANDIDATE SELF-SERVICE
@@ -60,16 +71,19 @@ export class OnboardingController {
 
   @Get('templates')
   async getTemplates(@Request() req) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.getTemplates(req.user.companyId);
   }
 
   @Get('templates/:id')
   async getTemplateById(@Request() req, @Param('id') id: string) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.getTemplateById(req.user.companyId, id);
   }
 
   @Post('templates')
   async createTemplate(@Request() req, @Body() dto: CreateTemplateDto) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.createTemplate(
       req.user.companyId,
       dto,
@@ -83,6 +97,7 @@ export class OnboardingController {
     @Param('id') id: string,
     @Body() dto: UpdateTemplateDto,
   ) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.updateTemplate(
       req.user.companyId,
       id,
@@ -93,6 +108,7 @@ export class OnboardingController {
 
   @Delete('templates/:id')
   async deleteTemplate(@Request() req, @Param('id') id: string) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.deleteTemplate(
       req.user.companyId,
       id,
@@ -106,11 +122,13 @@ export class OnboardingController {
 
   @Get('cases')
   async getAllCases(@Request() req, @Query('status') status?: string) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.getAllCases(req.user.companyId, status);
   }
 
   @Get('cases/:id')
   async getCaseById(@Request() req, @Param('id') id: string) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.getCaseById(req.user.companyId, id);
   }
 
@@ -120,6 +138,7 @@ export class OnboardingController {
     @Param('id') id: string,
     @Body() dto: UpdateCaseStatusDto,
   ) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.updateCaseStatus(
       req.user.companyId,
       id,
@@ -134,6 +153,7 @@ export class OnboardingController {
     @Param('id') id: string,
     @Body() dto: AssignTemplateDto,
   ) {
+    this.ensureHrOrAdmin(req.user.role);
     return this.onboardingService.assignTemplateToEmployee(
       req.user.companyId,
       id,
