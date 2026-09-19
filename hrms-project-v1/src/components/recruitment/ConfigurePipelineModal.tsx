@@ -60,11 +60,16 @@ export function ConfigurePipelineModal({
   // Form state
   const [name, setName] = useState("");
   const [type, setType] = useState("TECHNICAL");
-  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [durationMinutes, setDurationMinutes] = useState<number | string>(60);
   const [isRequired, setIsRequired] = useState(true);
   const [description, setDescription] = useState("");
   const [criteria, setCriteria] = useState<
-    Array<{ name: string; description?: string; weight: number; maxRating: number }>
+    Array<{
+      name: string;
+      description?: string;
+      weight: number;
+      maxRating: number;
+    }>
   >([
     { name: "Technical Competency", weight: 1.0, maxRating: 5 },
     { name: "Problem Solving", weight: 1.0, maxRating: 5 },
@@ -80,7 +85,7 @@ export function ConfigurePipelineModal({
       if (!job?.id) return [];
       const res = await axios.get(
         `${API_URL}/recruitment/jobs/${job.id}/interview-rounds`,
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       return res.data;
     },
@@ -93,7 +98,7 @@ export function ConfigurePipelineModal({
       const res = await axios.post(
         `${API_URL}/recruitment/jobs/${job.id}/interview-rounds/default`,
         {},
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       return res.data;
     },
@@ -103,7 +108,10 @@ export function ConfigurePipelineModal({
       onSuccess?.();
     },
     onError: (err: any) => {
-      toast(err.response?.data?.message || "Failed to seed default pipeline", "error");
+      toast(
+        err.response?.data?.message || "Failed to seed default pipeline",
+        "error",
+      );
     },
   });
 
@@ -111,7 +119,8 @@ export function ConfigurePipelineModal({
   const saveRoundMutation = useMutation({
     mutationFn: async () => {
       if (!name.trim()) throw new Error("Round name is required");
-      if (criteria.length === 0) throw new Error("At least one evaluation criterion is required");
+      if (criteria.length === 0)
+        throw new Error("At least one evaluation criterion is required");
 
       const payload = {
         name: name.trim(),
@@ -126,24 +135,32 @@ export function ConfigurePipelineModal({
         return axios.patch(
           `${API_URL}/recruitment/interview-rounds/${editingRoundId}`,
           payload,
-          { headers: { Authorization: `Bearer ${getToken()}` } }
+          { headers: { Authorization: `Bearer ${getToken()}` } },
         );
       } else {
         return axios.post(
           `${API_URL}/recruitment/jobs/${job.id}/interview-rounds`,
           payload,
-          { headers: { Authorization: `Bearer ${getToken()}` } }
+          { headers: { Authorization: `Bearer ${getToken()}` } },
         );
       }
     },
     onSuccess: () => {
-      toast(editingRoundId ? "Round updated successfully" : "Round added to pipeline", "success");
+      toast(
+        editingRoundId
+          ? "Round updated successfully"
+          : "Round added to pipeline",
+        "success",
+      );
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["interviewRounds", job.id] });
       onSuccess?.();
     },
     onError: (err: any) => {
-      toast(err.response?.data?.message || err.message || "Failed to save round", "error");
+      toast(
+        err.response?.data?.message || err.message || "Failed to save round",
+        "error",
+      );
     },
   });
 
@@ -152,7 +169,7 @@ export function ConfigurePipelineModal({
     mutationFn: async (roundId: string) => {
       const res = await axios.delete(
         `${API_URL}/recruitment/interview-rounds/${roundId}`,
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       return res.data;
     },
@@ -195,16 +212,13 @@ export function ConfigurePipelineModal({
             weight: c.weight || 1.0,
             maxRating: c.maxRating || 5,
           }))
-        : [{ name: "General Evaluation", weight: 1.0, maxRating: 5 }]
+        : [{ name: "General Evaluation", weight: 1.0, maxRating: 5 }],
     );
     setIsAddingRound(true);
   };
 
   const addCriterion = () => {
-    setCriteria((prev) => [
-      ...prev,
-      { name: "", weight: 1.0, maxRating: 5 },
-    ]);
+    setCriteria((prev) => [...prev, { name: "", weight: 1.0, maxRating: 5 }]);
   };
 
   const removeCriterion = (index: number) => {
@@ -213,7 +227,7 @@ export function ConfigurePipelineModal({
 
   const updateCriterion = (index: number, field: string, val: any) => {
     setCriteria((prev) =>
-      prev.map((c, i) => (i === index ? { ...c, [field]: val } : c))
+      prev.map((c, i) => (i === index ? { ...c, [field]: val } : c)),
     );
   };
 
@@ -228,14 +242,17 @@ export function ConfigurePipelineModal({
               <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 bg-primary/10 rounded-md">
                 {job.jobCode}
               </span>
-              <span className="text-xs text-muted-foreground">Interview Pipeline</span>
+              <span className="text-xs text-muted-foreground">
+                Interview Pipeline
+              </span>
             </div>
           </div>
           <DialogTitle className="text-xl font-bold pt-1">
             Interview Rounds: {job.title}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Configure custom interview rounds and structured evaluation criteria for this job opening.
+            Configure custom interview rounds and structured evaluation criteria
+            for this job opening.
           </DialogDescription>
         </DialogHeader>
 
@@ -246,7 +263,8 @@ export function ConfigurePipelineModal({
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-primary" />
                 <span className="text-xs font-semibold text-foreground">
-                  {rounds?.length || 0} Configured Round{rounds?.length === 1 ? "" : "s"}
+                  {rounds?.length || 0} Configured Round
+                  {rounds?.length === 1 ? "" : "s"}
                 </span>
               </div>
 
@@ -287,7 +305,9 @@ export function ConfigurePipelineModal({
             <div className="p-4 border rounded-xl bg-card space-y-4 shadow-xs">
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  {editingRoundId ? "Edit Interview Round" : "New Interview Round"}
+                  {editingRoundId
+                    ? "Edit Interview Round"
+                    : "New Interview Round"}
                 </span>
                 <Button
                   size="sm"
@@ -301,7 +321,9 @@ export function ConfigurePipelineModal({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="font-semibold text-foreground">Round Name *</label>
+                  <label className="font-semibold text-foreground">
+                    Round Name *
+                  </label>
                   <Input
                     placeholder="e.g. System Architecture & Coding"
                     value={name}
@@ -311,16 +333,29 @@ export function ConfigurePipelineModal({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Round Type *</label>
-                  <Select value={type} onValueChange={(val) => { if (typeof val === "string" && val) setType(val); }}>
+                  <label className="font-semibold text-foreground">
+                    Round Type *
+                  </label>
+                  <Select
+                    value={type}
+                    onValueChange={(val) => {
+                      if (typeof val === "string" && val) setType(val);
+                    }}
+                  >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="HR">HR / Recruiter Screening</SelectItem>
-                      <SelectItem value="TECHNICAL">Technical Interview</SelectItem>
+                      <SelectItem value="HR">
+                        HR / Recruiter Screening
+                      </SelectItem>
+                      <SelectItem value="TECHNICAL">
+                        Technical Interview
+                      </SelectItem>
                       <SelectItem value="MANAGER">Hiring Manager</SelectItem>
-                      <SelectItem value="ASSESSMENT">Assessment / Assignment</SelectItem>
+                      <SelectItem value="ASSESSMENT">
+                        Assessment / Assignment
+                      </SelectItem>
                       <SelectItem value="LEADERSHIP">Leadership</SelectItem>
                       <SelectItem value="CULTURE">Culture Fit</SelectItem>
                       <SelectItem value="OTHER">Other</SelectItem>
@@ -331,19 +366,27 @@ export function ConfigurePipelineModal({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Duration (Minutes)</label>
+                  <label className="font-semibold text-foreground">
+                    Duration (Minutes)
+                  </label>
                   <Input
                     type="number"
                     min={15}
                     step={15}
                     value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                    onChange={(e) =>
+                      setDurationMinutes(
+                        e.target.value === "" ? "" : Number(e.target.value),
+                      )
+                    }
                     className="h-8 text-xs"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Requirement</label>
+                  <label className="font-semibold text-foreground">
+                    Requirement
+                  </label>
                   <div className="flex items-center gap-2 pt-1.5">
                     <input
                       type="checkbox"
@@ -352,7 +395,10 @@ export function ConfigurePipelineModal({
                       onChange={(e) => setIsRequired(e.target.checked)}
                       className="rounded border-input text-primary focus:ring-primary w-4 h-4"
                     />
-                    <label htmlFor="isRequired" className="text-xs text-muted-foreground font-medium cursor-pointer">
+                    <label
+                      htmlFor="isRequired"
+                      className="text-xs text-muted-foreground font-medium cursor-pointer"
+                    >
                       Mandatory round for candidate selection
                     </label>
                   </div>
@@ -360,7 +406,9 @@ export function ConfigurePipelineModal({
               </div>
 
               <div className="space-y-1 text-xs">
-                <label className="font-semibold text-foreground">Round Instructions / Description</label>
+                <label className="font-semibold text-foreground">
+                  Round Instructions / Description
+                </label>
                 <Textarea
                   placeholder="Notes for interviewers on what to assess in this round..."
                   value={description}
@@ -398,7 +446,9 @@ export function ConfigurePipelineModal({
                       <Input
                         placeholder="Criterion name (e.g. Problem Solving & Logic)"
                         value={crit.name}
-                        onChange={(e) => updateCriterion(idx, "name", e.target.value)}
+                        onChange={(e) =>
+                          updateCriterion(idx, "name", e.target.value)
+                        }
                         className="h-7 text-xs flex-1 bg-background"
                       />
                       <Button
@@ -416,7 +466,12 @@ export function ConfigurePipelineModal({
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t">
-                <Button size="sm" variant="outline" onClick={resetForm} className="text-xs">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={resetForm}
+                  className="text-xs"
+                >
                   Cancel
                 </Button>
                 <Button
@@ -446,9 +501,12 @@ export function ConfigurePipelineModal({
             !isAddingRound && (
               <div className="py-10 text-center border rounded-xl bg-card space-y-2 text-xs text-muted-foreground">
                 <Layers className="w-8 h-8 mx-auto text-muted-foreground/50 mb-1" />
-                <p className="font-medium text-foreground">No interview rounds configured yet</p>
+                <p className="font-medium text-foreground">
+                  No interview rounds configured yet
+                </p>
                 <p className="text-[11px] max-w-sm mx-auto">
-                  Click <strong>Load Standard Pipeline</strong> to seed a standard 3-round template or create custom rounds.
+                  Click <strong>Load Standard Pipeline</strong> to seed a
+                  standard 3-round template or create custom rounds.
                 </p>
               </div>
             )
@@ -467,12 +525,20 @@ export function ConfigurePipelineModal({
                         <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center">
                           {round.sequence || index + 1}
                         </span>
-                        <h4 className="font-bold text-sm text-foreground">{round.name}</h4>
-                        <Badge variant="outline" className="text-[10px] uppercase font-bold">
+                        <h4 className="font-bold text-sm text-foreground">
+                          {round.name}
+                        </h4>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase font-bold"
+                        >
                           {round.type}
                         </Badge>
                         {!round.isActive && (
-                          <Badge variant="secondary" className="text-[10px] text-amber-600 bg-amber-500/10">
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] text-amber-600 bg-amber-500/10"
+                          >
                             Archived
                           </Badge>
                         )}
@@ -485,15 +551,19 @@ export function ConfigurePipelineModal({
 
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-0.5">
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {round.durationMinutes} min
+                          <Clock className="w-3 h-3" /> {round.durationMinutes}{" "}
+                          min
                         </span>
                         <span>•</span>
-                        <span>{round.criteria?.length || 0} Evaluation Criteria</span>
+                        <span>
+                          {round.criteria?.length || 0} Evaluation Criteria
+                        </span>
                         {round._count?.interviews > 0 && (
                           <>
                             <span>•</span>
                             <span className="text-foreground font-semibold">
-                              {round._count.interviews} Conducted Interview{round._count.interviews === 1 ? "" : "s"}
+                              {round._count.interviews} Conducted Interview
+                              {round._count.interviews === 1 ? "" : "s"}
                             </span>
                           </>
                         )}

@@ -170,11 +170,15 @@ export class CandidateConversionService {
 
     // 2. ATOMIC DB TRANSACTION
     const conversionResult = await this.prisma.$transaction(async (tx) => {
-      // 2.1 Generate sequential employee code (EMP-2026-XXXX)
-      const employeeCode = await this.sequenceService.getNextSequence(
+      // 2.1 Generate sequential employee code following Company Settings format
+      const targetDeptId =
+        acceptedVersion.departmentId ||
+        application.jobRequisition.departmentId;
+
+      const employeeCode = await this.sequenceService.generateEmployeeCode(
         companyId,
-        'EMPLOYEE',
-        'EMP',
+        targetDeptId,
+        tx,
       );
 
       // 2.2 Generate secure one-time invite token and locked password hash
@@ -286,6 +290,12 @@ export class CandidateConversionService {
       }
 
       for (const t of tasksToSeed) {
+        const isOfferAcceptedTask =
+          t.title.toLowerCase().includes('offer') &&
+          (t.title.toLowerCase().includes('letter') ||
+            t.title.toLowerCase().includes('accept') ||
+            t.title.toLowerCase().includes('sign'));
+
         await tx.task.create({
           data: {
             companyId,
@@ -295,7 +305,7 @@ export class CandidateConversionService {
             description: t.description || null,
             source: templateId ? 'TEMPLATE' : 'MANUAL',
             requiredForActivation: t.requiredForActivation ?? false,
-            status: 'PENDING',
+            status: isOfferAcceptedTask ? 'COMPLETED' : 'PENDING',
           },
         });
       }
@@ -451,6 +461,60 @@ export class CandidateConversionService {
         newFilledCount: conversionResult.newFilledCount,
         isClosed: conversionResult.shouldCloseRequisition,
       },
+    };
+  }
+
+  /**
+   * Preview employee code and configuration that will be applied upon conversion
+   */
+  async getConversionPreview(applicationId: string, companyId: string) {
+    const application = await this.prisma.application.findFirst({
+      where: { id: applicationId, companyId },
+      include: {
+        candidate: true,
+        jobRequisition: {
+          include: { department: true },
+        },
+        jobOffer: {
+          include: {
+            versions: {
+              orderBy: { version: 'desc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!application) {
+      throw new NotFoundException('Candidate application not found');
+    }
+
+    const acceptedVersion =
+      application.jobOffer?.versions.find(
+        (v) => v.status === OfferStatus.ACCEPTED,
+      ) || application.jobOffer?.versions[0];
+
+    const targetDeptId =
+      acceptedVersion?.departmentId || application.jobRequisition.departmentId;
+
+    const previewCode = await this.sequenceService.generateEmployeeCode(
+      companyId,
+      targetDeptId,
+    );
+
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      include: { settings: true },
+    });
+
+    return {
+      targetEmployeeCode: previewCode,
+      format: company?.settings?.employeeIdFormat || '{PREFIX}-{DEPT}-{NUMBER}',
+      prefix:
+        company?.settings?.employeeIdPrefix ||
+        company?.name?.substring(0, 3).toUpperCase() ||
+        'EMP',
+      departmentName: application.jobRequisition.department?.name || 'General',
     };
   }
 }

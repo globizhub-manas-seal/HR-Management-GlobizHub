@@ -19,10 +19,15 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('No token found');
     }
 
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      // Joi schema prevents reaching here in production, but guard as a safeguard
+      throw new UnauthorizedException('Server misconfiguration: JWT_SECRET not set');
+    }
+
     try {
-      // Verify the token using the same secret you used to sign it
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'SUPER_SECRET_HRMS_KEY_FOR_NOW',
+        secret: jwtSecret,
       });
       // Attach the payload to the request object
       request['user'] = payload;

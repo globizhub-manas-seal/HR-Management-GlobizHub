@@ -583,7 +583,7 @@ export class JobOfferService {
 
   /**
    * Record candidate response (ACCEPTED or DECLINED).
-   * ACCEPTED updates application status to OFFER_ACCEPTED and increments filledCount.
+   * ACCEPTED updates application status to OFFER_ACCEPTED. (Requisition filledCount is updated upon candidate conversion/hire).
    */
   async recordCandidateResponse(
     offerId: string,
@@ -615,6 +615,17 @@ export class JobOfferService {
 
     const currentVersionRecord = offer.versions[0];
     const isAccepted = dto.response === CandidateOfferResponse.ACCEPTED;
+
+    if (
+      isAccepted &&
+      currentVersionRecord.expiryDate &&
+      new Date() > new Date(currentVersionRecord.expiryDate)
+    ) {
+      throw new BadRequestException(
+        'This job offer has expired and can no longer be accepted. A revised offer must be formulated.',
+      );
+    }
+
     const newStatus = isAccepted ? OfferStatus.ACCEPTED : OfferStatus.DECLINED;
     const respondedAt = new Date();
 
@@ -638,10 +649,6 @@ export class JobOfferService {
         this.prisma.application.update({
           where: { id: offer.applicationId },
           data: { status: ApplicationStatus.OFFER_ACCEPTED },
-        }),
-        this.prisma.jobRequisition.update({
-          where: { id: offer.jobRequisitionId },
-          data: { filledCount: { increment: 1 } },
         }),
       );
     }

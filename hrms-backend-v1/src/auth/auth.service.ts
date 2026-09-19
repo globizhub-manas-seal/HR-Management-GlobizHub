@@ -339,6 +339,7 @@ export class AuthService {
               employmentStatus: 'INVITED',
               departmentId: deptId,
               inviteToken: inviteToken,
+              resetPasswordExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             },
           });
 
@@ -552,6 +553,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired invitation token');
     }
 
+    if (
+      employee.resetPasswordExpires &&
+      new Date() > new Date(employee.resetPasswordExpires)
+    ) {
+      throw new UnauthorizedException(
+        'Invitation token has expired. Please request a new invitation link.',
+      );
+    }
+
     // 2. Hash the new password
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -561,6 +571,7 @@ export class AuthService {
       data: {
         password: hashedPassword,
         inviteToken: null,
+        resetPasswordExpires: null,
       },
     });
 

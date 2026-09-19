@@ -21,12 +21,25 @@ import { WithdrawOfferDto } from '../dto/withdraw-offer.dto';
 export class JobOfferController {
   constructor(private readonly jobOfferService: JobOfferService) {}
 
+  private ensureCanManageOffers(role: string) {
+    if (
+      !['SUPER_ADMIN', 'HR_HEAD', 'OWNER', 'ADMIN', 'RECRUITER', 'MANAGER'].includes(
+        role,
+      )
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to manage recruitment offers.',
+      );
+    }
+  }
+
   @Post('applications/:applicationId/offer')
   async createOffer(
     @Request() req,
     @Param('applicationId') applicationId: string,
     @Body() dto: CreateJobOfferDto,
   ) {
+    this.ensureCanManageOffers(req.user.role);
     return this.jobOfferService.createOffer(
       applicationId,
       req.user.companyId,
@@ -40,6 +53,7 @@ export class JobOfferController {
     @Request() req,
     @Param('applicationId') applicationId: string,
   ) {
+    this.ensureCanManageOffers(req.user.role);
     return this.jobOfferService.getOfferByApplication(
       applicationId,
       req.user.companyId,
@@ -52,6 +66,7 @@ export class JobOfferController {
     @Param('id') offerId: string,
     @Body() dto: ReviseJobOfferDto,
   ) {
+    this.ensureCanManageOffers(req.user.role);
     return this.jobOfferService.reviseOffer(
       offerId,
       req.user.companyId,
@@ -62,6 +77,7 @@ export class JobOfferController {
 
   @Post('offers/:id/submit')
   async submitForApproval(@Request() req, @Param('id') offerId: string) {
+    this.ensureCanManageOffers(req.user.role);
     return this.jobOfferService.submitForApproval(
       offerId,
       req.user.companyId,
@@ -95,6 +111,7 @@ export class JobOfferController {
 
   @Post('offers/:id/send')
   async sendOffer(@Request() req, @Param('id') offerId: string) {
+    this.ensureCanManageOffers(req.user.role);
     return this.jobOfferService.sendOffer(
       offerId,
       req.user.companyId,
@@ -108,6 +125,7 @@ export class JobOfferController {
     @Param('id') offerId: string,
     @Body() dto: RecordOfferResponseDto,
   ) {
+    this.ensureCanManageOffers(req.user.role);
     return this.jobOfferService.recordCandidateResponse(
       offerId,
       req.user.companyId,
@@ -122,6 +140,7 @@ export class JobOfferController {
     @Param('id') offerId: string,
     @Body() dto: WithdrawOfferDto,
   ) {
+    this.ensureCanManageOffers(req.user.role);
     return this.jobOfferService.withdrawOffer(
       offerId,
       req.user.companyId,

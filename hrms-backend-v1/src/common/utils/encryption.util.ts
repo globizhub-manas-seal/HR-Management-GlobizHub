@@ -2,19 +2,30 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 const ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16;
+const REQUIRED_KEY_BYTES = 32; // 32 bytes = 64 hex chars for AES-256
 
-// We check for a 32-byte key from the environment.
-// For security compliance, we fall back to a fixed 32-character string in development.
+/**
+ * Returns the AES-256 encryption key as a Buffer.
+ * Throws at startup if ENCRYPTION_KEY is missing or the wrong length.
+ * Joi schema in app.module.ts validates this at boot, so this is a defense-in-depth check.
+ */
 const getEncryptionKey = (): Buffer => {
   const envKey = process.env.ENCRYPTION_KEY;
-  if (envKey) {
-    return Buffer.from(envKey, 'hex');
+  if (!envKey) {
+    throw new Error(
+      'ENCRYPTION_KEY environment variable is not set. ' +
+        'Generate one with: node -e "require(\'crypto\').randomBytes(32).toString(\'hex\')". ' +
+        'Server cannot start without it — PII fields cannot be encrypted.',
+    );
   }
-  // Fallback dev key (exactly 32 bytes)
-  return Buffer.from(
-    'f3c7d6e8a1b2c3d4e5f60718293a4b5c6d7e8f900112233445566778899aabbc',
-    'hex',
-  );
+  const keyBuffer = Buffer.from(envKey, 'hex');
+  if (keyBuffer.length !== REQUIRED_KEY_BYTES) {
+    throw new Error(
+      `ENCRYPTION_KEY must be exactly ${REQUIRED_KEY_BYTES * 2} hex characters (${REQUIRED_KEY_BYTES} bytes). ` +
+        `Received ${envKey.length} characters (${keyBuffer.length} bytes).`,
+    );
+  }
+  return keyBuffer;
 };
 
 export function encrypt(text: string | null | undefined): string | null {

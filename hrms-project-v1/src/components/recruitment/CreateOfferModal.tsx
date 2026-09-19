@@ -304,7 +304,7 @@ export function CreateOfferModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto p-0 gap-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl">
+      <DialogContent className="w-[95vw] max-w-5xl max-h-[92vh] overflow-y-auto p-0 gap-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl">
         <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -358,15 +358,18 @@ export function CreateOfferModal({
                   <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
                   Target Annual CTC (₹)
                 </label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="10000"
-                  value={targetAnnualCtc}
-                  onChange={(e) => setTargetAnnualCtc(Number(e.target.value))}
-                  placeholder="e.g. 1200000"
-                  className="font-mono text-sm bg-white dark:bg-slate-900 font-semibold"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-sm select-none">₹</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="10000"
+                    value={targetAnnualCtc}
+                    onChange={(e) => setTargetAnnualCtc(Number(e.target.value))}
+                    placeholder="e.g. 1200000"
+                    className="font-mono text-sm bg-white dark:bg-slate-900 font-semibold pl-7"
+                  />
+                </div>
               </div>
               <Button
                 type="button"
@@ -423,7 +426,7 @@ export function CreateOfferModal({
           )}
 
           {/* Section: Monthly Earnings & Deductions Breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Earnings (Parity with SalaryStructure) */}
             <div className="space-y-3 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -436,123 +439,182 @@ export function CreateOfferModal({
                 </span>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">Basic Salary</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={basicSalary}
-                    onChange={(e) => setBasicSalary(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100/80 dark:border-slate-800/40">
+                  <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                    Basic Salary
+                  </label>
+                  <div className="relative shrink-0 w-32 sm:w-36">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={basicSalary}
+                      onChange={(e) => setBasicSalary(Number(e.target.value))}
+                      className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">HRA</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={hra}
-                    onChange={(e) => setHra(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
+
+                <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100/80 dark:border-slate-800/40">
+                  <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                    House Rent Allowance (HRA)
+                  </label>
+                  <div className="relative shrink-0 w-32 sm:w-36">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={hra}
+                      onChange={(e) => setHra(Number(e.target.value))}
+                      className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">Conveyance Allowance</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={conveyanceAllowance}
-                    onChange={(e) => setConveyanceAllowance(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
+
+                <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100/80 dark:border-slate-800/40">
+                  <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                    Conveyance Allowance
+                  </label>
+                  <div className="relative shrink-0 w-32 sm:w-36">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={conveyanceAllowance}
+                      onChange={(e) => setConveyanceAllowance(Number(e.target.value))}
+                      className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">Medical Allowance</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={medicalAllowance}
-                    onChange={(e) => setMedicalAllowance(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
+
+                <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100/80 dark:border-slate-800/40">
+                  <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                    Medical Allowance
+                  </label>
+                  <div className="relative shrink-0 w-32 sm:w-36">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={medicalAllowance}
+                      onChange={(e) => setMedicalAllowance(Number(e.target.value))}
+                      className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">Special Allowance</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={specialAllowance}
-                    onChange={(e) => setSpecialAllowance(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
+
+                <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100/80 dark:border-slate-800/40">
+                  <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                    Special Allowance
+                  </label>
+                  <div className="relative shrink-0 w-32 sm:w-36">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={specialAllowance}
+                      onChange={(e) => setSpecialAllowance(Number(e.target.value))}
+                      className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">Other Allowances</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={otherAllowances}
-                    onChange={(e) => setOtherAllowances(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
+
+                <div className="flex items-center justify-between gap-4 py-1">
+                  <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                    Other Allowances
+                  </label>
+                  <div className="relative shrink-0 w-32 sm:w-36">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={otherAllowances}
+                      onChange={(e) => setOtherAllowances(Number(e.target.value))}
+                      className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Monthly Deductions & Net Salary */}
-            <div className="space-y-3 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-rose-500" />
-                  Monthly Deductions
-                </h4>
-                <span className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
-                  Total: ₹{computedTotalDeductions.toLocaleString()}
-                </span>
+            <div className="space-y-3 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-rose-500" />
+                    Monthly Deductions
+                  </h4>
+                  <span className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
+                    Total: ₹{computedTotalDeductions.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs pt-1">
+                  <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100/80 dark:border-slate-800/40">
+                    <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                      PF Employee Contribution
+                    </label>
+                    <div className="relative shrink-0 w-32 sm:w-36">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={pfContribution}
+                        onChange={(e) => setPfContribution(Number(e.target.value))}
+                        className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900 text-rose-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 py-1 border-b border-slate-100/80 dark:border-slate-800/40">
+                    <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                      Professional Tax (PT)
+                    </label>
+                    <div className="relative shrink-0 w-32 sm:w-36">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={professionalTax}
+                        onChange={(e) => setProfessionalTax(Number(e.target.value))}
+                        className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900 text-rose-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 py-1">
+                    <label className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                      Tax / TDS Deduction
+                    </label>
+                    <div className="relative shrink-0 w-32 sm:w-36">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={taxDeduction}
+                        onChange={(e) => setTaxDeduction(Number(e.target.value))}
+                        className="h-8 pl-6 pr-2 text-xs font-mono text-right font-semibold bg-white dark:bg-slate-900 text-rose-600"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">PF Employee Contribution</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={pfContribution}
-                    onChange={(e) => setPfContribution(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
-                </div>
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">Professional Tax</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={professionalTax}
-                    onChange={(e) => setProfessionalTax(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
-                </div>
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <label className="text-slate-600 dark:text-slate-400">Tax / TDS Deduction</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={taxDeduction}
-                    onChange={(e) => setTaxDeduction(Number(e.target.value))}
-                    className="h-8 text-xs font-mono text-right"
-                  />
-                </div>
-
-                {/* Net Take-Home Highlight Card */}
-                <div className="mt-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                    Net Monthly In-Hand:
+              {/* Net Take-Home Highlight Card */}
+              <div className="mt-4 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 block">
+                    Net Monthly In-Hand
                   </span>
-                  <span className="text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                    ₹{computedNetMonthly.toLocaleString()}
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                    Gross Earnings - Deductions
                   </span>
                 </div>
+                <span className="text-base font-mono font-black text-emerald-700 dark:text-emerald-300">
+                  ₹{computedNetMonthly.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
@@ -566,48 +628,57 @@ export function CreateOfferModal({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="text-xs text-slate-600 dark:text-slate-400">Annual Gross (12 × Gross)</label>
-                <Input
-                  type="text"
-                  disabled
-                  value={`₹${computedAnnualGross.toLocaleString()}`}
-                  className="h-8 text-xs font-mono font-semibold bg-slate-100 dark:bg-slate-800"
-                />
+                <label className="text-xs text-slate-600 dark:text-slate-400 font-medium">Annual Gross (12 × Gross)</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                  <Input
+                    type="text"
+                    disabled
+                    value={computedAnnualGross.toLocaleString()}
+                    className="h-8 pl-6 text-xs font-mono font-semibold bg-slate-100 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-600 dark:text-slate-400">Annual Performance Bonus (₹)</label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={annualPerformanceBonus}
-                  onChange={(e) => setAnnualPerformanceBonus(Number(e.target.value))}
-                  className="h-8 text-xs font-mono"
-                />
+                <label className="text-xs text-slate-600 dark:text-slate-400 font-medium">Annual Performance Bonus</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={annualPerformanceBonus}
+                    onChange={(e) => setAnnualPerformanceBonus(Number(e.target.value))}
+                    className="h-8 pl-6 text-xs font-mono font-semibold bg-white dark:bg-slate-900"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-600 dark:text-slate-400">Joining / Sign-on Bonus (₹)</label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={joiningBonus}
-                  onChange={(e) => setJoiningBonus(Number(e.target.value))}
-                  className="h-8 text-xs font-mono"
-                />
+                <label className="text-xs text-slate-600 dark:text-slate-400 font-medium">Joining / Sign-on Bonus</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs select-none">₹</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={joiningBonus}
+                    onChange={(e) => setJoiningBonus(Number(e.target.value))}
+                    className="h-8 pl-6 text-xs font-mono font-semibold bg-white dark:bg-slate-900"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Total Annual CTC Banner */}
-            <div className="mt-2 p-3 rounded-xl bg-slate-900 text-white dark:bg-slate-900 flex items-center justify-between">
+            <div className="mt-3 p-4 rounded-xl bg-slate-900 text-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3 shadow-md">
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-slate-400 block">
-                  Total Annual CTC
+                <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-medium">
+                  Total Annual Cost to Company (CTC)
                 </span>
-                <span className="text-lg font-bold font-mono text-emerald-400">
+                <span className="text-xl font-bold font-mono text-emerald-400 tracking-tight">
                   ₹{computedTotalCtc.toLocaleString()}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[11px] text-slate-400 block">Annual Base Salary</span>
+                <span className="text-[11px] text-slate-400 block font-medium">Annual Base Salary</span>
                 <span className="text-sm font-semibold font-mono text-slate-200">
                   ₹{computedAnnualBaseSalary.toLocaleString()}
                 </span>

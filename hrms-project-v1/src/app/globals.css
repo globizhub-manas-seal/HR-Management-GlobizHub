@@ -297,3 +297,67 @@
   }
 }
 
+/* ==========================================================================
+   Print Styles for Official Documents & Offer Letters
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 15mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app navigation, background layout, and dialog overlay/close buttons */
+  nav,
+  aside,
+  header,
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-close"] {
+    display: none !important;
+  }
+
+  /* When printing, hide all main application content when an offer preview is open */
+  body:has(#printable-offer-letter-content) main,
+  body:has(#printable-offer-letter-content) > div:not([data-slot="dialog-portal"]):not([data-slot="dialog"]) {
+    display: none !important;
+  }
+
+  /* Reset dialog content positioning and allow natural multi-page flow without clipping */
+  [data-slot="dialog-content"]:has(.printable-offer-document),
+  .printable-offer-dialog {
+    position: static !important;
+    inset: auto !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+    border-radius: 0 !important;
+    outline: none !important;
+  }
+
+  /* Prevent awkward page breaks inside sensitive blocks */
+  .print-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}

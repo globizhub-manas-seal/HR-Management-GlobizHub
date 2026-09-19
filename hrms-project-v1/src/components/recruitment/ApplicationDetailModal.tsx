@@ -1254,40 +1254,47 @@ export function ApplicationDetailModal({
                     </div>
 
                     {/* KPI Summary Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-3 rounded-xl bg-slate-900 text-white dark:bg-slate-900 border border-slate-800">
-                        <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                      <div className="p-3.5 rounded-xl bg-slate-900 text-white dark:bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+                        <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-semibold truncate">
                           Total Annual CTC
                         </span>
-                        <span className="text-base font-bold font-mono text-emerald-400">
+                        <span className="text-lg font-bold font-mono text-emerald-400 mt-1">
                           ₹{activeVersion.totalCtc?.toLocaleString()}
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-muted/40 border">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block font-semibold">
+                      <div className="p-3.5 rounded-xl bg-muted/40 border shadow-sm flex flex-col justify-between">
+                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground block font-semibold truncate">
                           Monthly Gross
                         </span>
-                        <span className="text-sm font-bold font-mono text-foreground">
+                        <span className="text-base font-bold font-mono text-foreground mt-1">
                           ₹{activeVersion.grossMonthly?.toLocaleString()}
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                        <span className="text-[10px] uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block font-semibold">
+                      <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shadow-sm flex flex-col justify-between">
+                        <span className="text-[11px] uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block font-semibold truncate">
                           Net Take-Home
                         </span>
-                        <span className="text-sm font-bold font-mono text-emerald-700 dark:text-emerald-400">
-                          ₹{activeVersion.netMonthly?.toLocaleString()}/mo
-                        </span>
+                        <div className="flex items-baseline gap-1 mt-1">
+                          <span className="text-base font-bold font-mono text-emerald-700 dark:text-emerald-400">
+                            ₹{activeVersion.netMonthly?.toLocaleString()}
+                          </span>
+                          <span className="text-[10px] font-normal text-muted-foreground">/mo</span>
+                        </div>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-muted/40 border">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block font-semibold">
+                      <div className="p-3.5 rounded-xl bg-muted/40 border shadow-sm flex flex-col justify-between">
+                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground block font-semibold truncate">
                           Expected Joining
                         </span>
-                        <span className="text-xs font-bold text-foreground">
-                          {new Date(activeVersion.joiningDate).toLocaleDateString()}
+                        <span className="text-sm font-bold text-foreground mt-1">
+                          {new Date(activeVersion.joiningDate).toLocaleDateString(undefined, {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
                         </span>
                       </div>
                     </div>
