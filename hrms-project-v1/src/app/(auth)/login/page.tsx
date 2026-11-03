@@ -43,17 +43,13 @@ export default function LoginPage() {
     setErrorMessage("");
 
     try {
-      // Send login request to NestJS backend
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const response = await axios.post(`${apiUrl}/auth/login`, {
         email: values.email,
         password: values.password,
       });
 
-      // Save the JWT token to local storage
       localStorage.setItem("hrms_token", response.data.access_token);
-
-      // Redirect to the dashboard with full state refresh
       window.location.href = "/workspace/dashboard";
     } catch (error: any) {
       setErrorMessage(
@@ -65,37 +61,39 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6 safe-area-top safe-area-bottom">
+      <div className="max-w-[420px] w-full bg-card rounded-[24px] apple-shadow-card border-0 dark:border dark:border-hairline dark:border-separator p-6 sm:p-8">
         
         <div className="flex flex-col items-center mb-8">
-          <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
-            <Building2 className="h-6 w-6" />
+          <div className="size-14 bg-primary/12 text-primary rounded-[14px] flex items-center justify-center mb-4 transition-transform active:scale-95">
+            <Building2 className="size-7 stroke-[1.5]" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Sign in to your Workspace</h1>
-          <p className="text-slate-500 mt-2 text-sm text-center">
-            Enter your email and password to access your HRMS dashboard.
+          <h1 className="type-title-2 font-bold text-foreground text-center tracking-tight">
+            Sign in to TeamHub
+          </h1>
+          <p className="type-subhead text-label-secondary text-center mt-1">
+            Access your workforce workspace and dashboard.
           </p>
         </div>
 
         {errorMessage && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 text-center border border-red-100">
+          <div className="bg-destructive/10 text-destructive text-[13px] font-medium p-3 rounded-[10px] mb-6 text-center border border-hairline border-destructive/20 animate-in fade-in-0">
             {errorMessage}
           </div>
         )}
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Work Email</FormLabel>
+                  <FormLabel className="type-subhead text-label-secondary font-medium">Work Email</FormLabel>
                   <FormControl>
                     <Input placeholder="admin@company.com" type="email" {...field} />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[12px] text-destructive" />
                 </FormItem>
               )}
             />
@@ -106,11 +104,11 @@ export default function LoginPage() {
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="type-subhead text-label-secondary font-medium">Password</FormLabel>
                     <button
                       type="button"
                       onClick={() => router.push("/forgot-password")}
-                      className="text-sm text-emerald-600 hover:underline font-medium cursor-pointer"
+                      className="text-[13px] text-primary hover:underline font-medium cursor-pointer"
                     >
                       Forgot?
                     </button>
@@ -118,34 +116,38 @@ export default function LoginPage() {
                   <FormControl>
                     <Input placeholder="••••••••" type="password" {...field} />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[12px] text-destructive" />
                 </FormItem>
               )}
             />
 
-            <Button 
-              type="submit" 
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
+            <div className="pt-2">
+              <Button 
+                type="submit" 
+                variant="default"
+                size="touch"
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+            </div>
           </form>
         </Form>
         
         <div className="mt-6 text-center">
-          <p className="text-sm text-slate-500">
+          <p className="type-footnote text-label-secondary">
             Don't have a workspace yet?{" "}
             <button 
               onClick={() => router.push("/register/wizard")} 
-              className="text-emerald-600 hover:underline font-medium cursor-pointer"
+              className="text-primary hover:underline font-medium cursor-pointer"
             >
               Register your company
             </button>
