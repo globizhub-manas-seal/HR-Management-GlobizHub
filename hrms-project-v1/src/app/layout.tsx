@@ -1,12 +1,12 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Poppins } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/providers";
 
-const poppins = Poppins({ 
+const inter = Inter({ 
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-inter",
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FDCD56", // Matches your new warm golden brand color
+  themeColor: "#007AFF", // Apple system accent blue
   width: "device-width",
   initialScale: 1,
 };
@@ -49,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${poppins.variable} h-full antialiased`}
+      className={`${inter.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

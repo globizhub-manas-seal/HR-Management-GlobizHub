@@ -5,49 +5,68 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-inter), system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-heading: var(--font-sans);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
 
-  /* Slate overrides for dynamic light/dark theme adaptation */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-separator: var(--separator);
+  --color-fill: var(--fill);
+  --color-fill-secondary: var(--fill-secondary);
+
+  --color-label: var(--label);
+  --color-label-secondary: var(--label-secondary);
+  --color-label-tertiary: var(--label-tertiary);
+
+  --color-status-green: var(--status-green);
+  --color-status-orange: var(--status-orange);
+  --color-status-red: var(--status-red);
+  --color-status-yellow: var(--status-yellow);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
+  --radius-full: 9999px;
+  --radius: 10px;
+
+  /* Slate fallback tokens to gracefully map legacy classes into Apple HIG */
   --color-slate-50: var(--slate-50);
   --color-slate-100: var(--slate-100);
   --color-slate-200: var(--slate-200);
@@ -62,109 +81,167 @@
 }
 
 :root {
-  --background: #FFFFFF;
-  --foreground: #1E2022;
-  --card: #FFFFFF;
-  --card-foreground: #1E2022;
-  --popover: #FFFFFF;
-  --popover-foreground: #1E2022;
-  --primary: #FDCD56;
-  --primary-foreground: #1E2022;
-  --secondary: #262729;
-  --secondary-foreground: #FFFFFF;
-  --muted: #F8FAFC;
-  --muted-foreground: #65686C;
-  --accent: #FDCD56;
-  --accent-foreground: #1E2022;
-  --destructive: #E11D48;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #FDCD56;
-  --chart-1: #FDCD56;
-  --chart-2: #262729;
-  --chart-3: #E2E8F0;
-  --chart-4: #65686C;
-  --chart-5: #FFFFFF;
-  --radius: 0.625rem;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #1E2022;
-  --sidebar-primary: #FDCD56;
-  --sidebar-primary-foreground: #1E2022;
-  --sidebar-accent: #F8FAFC;
-  --sidebar-accent-foreground: #1E2022;
-  --sidebar-border: #E2E8F0;
-  --sidebar-ring: #FDCD56;
+  /* Apple HIG Light Palette */
+  --background: #F2F2F7;
+  --surface: #FFFFFF;
+  --elevated: #FFFFFF;
+  --foreground: #000000;
+  --label: #000000;
+  --label-secondary: rgba(60, 60, 67, 0.60);
+  --label-tertiary: rgba(60, 60, 67, 0.30);
+  --separator: rgba(60, 60, 67, 0.29);
+  --fill: rgba(120, 120, 128, 0.12);
+  --fill-secondary: rgba(120, 120, 128, 0.08);
 
-  /* Standard Slate palette */
-  --slate-50: #f8fafc;
-  --slate-100: #f1f5f9;
-  --slate-200: #e2e8f0;
-  --slate-300: #cbd5e1;
-  --slate-400: #94a3b8;
-  --slate-500: #64748b;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1e293b;
-  --slate-900: #0f172a;
-  --slate-950: #020617;
+  --card: #FFFFFF;
+  --card-foreground: #000000;
+  --popover: rgba(255, 255, 255, 0.88);
+  --popover-foreground: #000000;
+
+  /* Accent (Apple System Blue) */
+  --primary: #007AFF;
+  --primary-foreground: #FFFFFF;
+  --primary-halo: rgba(0, 122, 255, 0.20);
+  --accent: #007AFF;
+  --accent-foreground: #FFFFFF;
+
+  --secondary: rgba(120, 120, 128, 0.12);
+  --secondary-foreground: #000000;
+
+  --muted: rgba(120, 120, 128, 0.08);
+  --muted-foreground: rgba(60, 60, 67, 0.60);
+
+  /* Status Colors */
+  --status-green: #34C759;
+  --status-orange: #FF9500;
+  --status-red: #FF3B30;
+  --status-yellow: #FFCC00;
+  --destructive: #FF3B30;
+  --destructive-foreground: #FFFFFF;
+
+  --border: rgba(60, 60, 67, 0.29);
+  --input: rgba(120, 120, 128, 0.12);
+  --ring: #007AFF;
+
+  --sidebar: rgba(255, 255, 255, 0.72);
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #007AFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(0, 122, 255, 0.12);
+  --sidebar-accent-foreground: #007AFF;
+  --sidebar-border: rgba(60, 60, 67, 0.29);
+  --sidebar-ring: #007AFF;
+
+  /* Slate fallback mapping for light mode */
+  --slate-50: #F2F2F7;
+  --slate-100: rgba(120, 120, 128, 0.08);
+  --slate-200: rgba(60, 60, 67, 0.20);
+  --slate-300: rgba(60, 60, 67, 0.29);
+  --slate-400: rgba(60, 60, 67, 0.40);
+  --slate-500: rgba(60, 60, 67, 0.60);
+  --slate-600: rgba(60, 60, 67, 0.75);
+  --slate-700: #1C1C1E;
+  --slate-800: #000000;
+  --slate-900: #000000;
+  --slate-950: #000000;
 }
 
 .dark {
-  --background: #18191B;
-  --foreground: #F3F4F6;
-  --card: #222326;
-  --card-foreground: #F3F4F6;
-  --popover: #222326;
-  --popover-foreground: #F3F4F6;
-  --primary: #FDCD56;
-  --primary-foreground: #18191B;
-  --secondary: #2E3033;
-  --secondary-foreground: #F3F4F6;
-  --muted: #2E3033;
-  --muted-foreground: #9CA3AF;
-  --accent: #FDCD56;
-  --accent-foreground: #18191B;
-  --destructive: #F43F5E;
-  --border: #2E3033;
-  --input: #2E3033;
-  --ring: #FDCD56;
-  --chart-1: #FDCD56;
-  --chart-2: #2E3033;
-  --chart-3: #9CA3AF;
-  --chart-4: #F3F4F6;
-  --chart-5: #18191B;
-  --sidebar: #222326;
-  --sidebar-foreground: #F3F4F6;
-  --sidebar-primary: #FDCD56;
-  --sidebar-primary-foreground: #18191B;
-  --sidebar-accent: #2E3033;
-  --sidebar-accent-foreground: #F3F4F6;
-  --sidebar-border: #2E3033;
-  --sidebar-ring: #FDCD56;
+  /* Apple HIG Dark Palette */
+  --background: #000000;
+  --surface: #1C1C1E;
+  --elevated: #2C2C2E;
+  --foreground: #FFFFFF;
+  --label: #FFFFFF;
+  --label-secondary: rgba(235, 235, 245, 0.60);
+  --label-tertiary: rgba(235, 235, 245, 0.30);
+  --separator: rgba(84, 84, 88, 0.60);
+  --fill: rgba(120, 120, 128, 0.24);
+  --fill-secondary: rgba(120, 120, 128, 0.16);
 
-  /* Inverted Slate palette for optimized dark mode contrast */
-  --slate-50: #1e2022;      /* deep charcoal background */
-  --slate-100: #262729;     /* charcoal */
-  --slate-200: #2e3033;     /* border/input color */
-  --slate-300: #3f4246;     /* muted border */
-  --slate-400: #65686c;     /* gray label */
-  --slate-500: #9ca3af;     /* medium light gray text */
-  --slate-600: #d1d5db;     /* lighter text */
-  --slate-700: #e5e7eb;     /* very light text */
-  --slate-800: #f3f4f6;     /* card titles */
-  --slate-900: #f9fafb;     /* bold text */
-  --slate-950: #ffffff;     /* pure white text */
+  --card: #1C1C1E;
+  --card-foreground: #FFFFFF;
+  --popover: rgba(28, 28, 30, 0.88);
+  --popover-foreground: #FFFFFF;
+
+  /* Accent (Apple System Blue Dark) */
+  --primary: #0A84FF;
+  --primary-foreground: #FFFFFF;
+  --primary-halo: rgba(10, 132, 255, 0.25);
+  --accent: #0A84FF;
+  --accent-foreground: #FFFFFF;
+
+  --secondary: rgba(120, 120, 128, 0.24);
+  --secondary-foreground: #FFFFFF;
+
+  --muted: rgba(120, 120, 128, 0.16);
+  --muted-foreground: rgba(235, 235, 245, 0.60);
+
+  /* Status Colors Dark */
+  --status-green: #30D158;
+  --status-orange: #FF9F0A;
+  --status-red: #FF453A;
+  --status-yellow: #FFD60A;
+  --destructive: #FF453A;
+  --destructive-foreground: #FFFFFF;
+
+  --border: rgba(84, 84, 88, 0.60);
+  --input: rgba(120, 120, 128, 0.24);
+  --ring: #0A84FF;
+
+  --sidebar: rgba(28, 28, 30, 0.72);
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #0A84FF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(10, 132, 255, 0.15);
+  --sidebar-accent-foreground: #0A84FF;
+  --sidebar-border: rgba(84, 84, 88, 0.60);
+  --sidebar-ring: #0A84FF;
+
+  /* Slate fallback mapping for dark mode */
+  --slate-50: #000000;
+  --slate-100: #1C1C1E;
+  --slate-200: rgba(84, 84, 88, 0.60);
+  --slate-300: #3A3A3C;
+  --slate-400: rgba(235, 235, 245, 0.30);
+  --slate-500: rgba(235, 235, 245, 0.60);
+  --slate-600: rgba(235, 235, 245, 0.80);
+  --slate-700: #FFFFFF;
+  --slate-800: #FFFFFF;
+  --slate-900: #FFFFFF;
+  --slate-950: #FFFFFF;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--separator);
+    outline-color: var(--ring);
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
-    @apply font-sans;
+    font-family: var(--font-sans);
+    letter-spacing: normal;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 400;
+  }
+
+  @media (max-width: 767px) {
+    body {
+      font-size: 17px;
+      line-height: 24px;
+    }
   }
 
   :focus-visible {
@@ -172,192 +249,238 @@
     outline-offset: 2px;
   }
 
-  /* Universal Hand Pointer for all clickable and interactive elements */
-  a,
-  a *,
-  button,
-  button *,
-  [role="button"],
-  [role="button"] *,
-  [role="tab"],
-  [role="tab"] *,
-  [role="menuitem"],
-  [role="menuitem"] *,
-  [role="option"],
-  [role="option"] *,
-  [role="link"],
-  [role="link"] *,
-  input[type="button"],
-  input[type="submit"],
-  input[type="reset"],
-  input[type="checkbox"],
-  input[type="radio"],
-  select,
-  summary,
-  label[for],
-  label[for] *,
-  .cursor-pointer,
-  .cursor-pointer *,
-  [data-slot="button"],
-  [data-slot="button"] *,
-  [data-slot="tabs-trigger"],
-  [data-slot="tabs-trigger"] *,
-  [data-slot="select-trigger"],
-  [data-slot="select-trigger"] *,
-  [data-slot="select-item"],
-  [data-slot="select-item"] *,
-  [data-slot="dropdown-menu-item"],
-  [data-slot="dropdown-menu-item"] *,
-  [data-slot="dropdown-menu-sub-trigger"],
-  [data-slot="dropdown-menu-sub-trigger"] *,
-  [data-slot="dropdown-menu-checkbox-item"],
-  [data-slot="dropdown-menu-checkbox-item"] *,
-  [data-slot="dropdown-menu-radio-item"],
-  [data-slot="dropdown-menu-radio-item"] *,
-  [data-slot="dialog-close"],
-  [data-slot="dialog-close"] * {
-    cursor: pointer !important;
+  /* Universal Hand Pointer for interactive items */
+  a, button, [role="button"], [role="tab"], [role="menuitem"], select, summary, label[for] {
+    cursor: pointer;
   }
 
-  button:disabled,
-  button:disabled *,
-  input:disabled,
-  select:disabled,
-  [aria-disabled="true"],
-  [aria-disabled="true"] *,
-  .disabled {
-    cursor: not-allowed !important;
+  button:disabled, input:disabled, select:disabled, [aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.4 !important;
   }
 }
 
-/* Global Dark Mode overrides for elements using white classes */
-.dark .bg-white {
-  background-color: var(--card) !important;
+/* ==========================================================================
+   Apple HIG Typography Scale Utilities
+   ========================================================================== */
+.type-large-title {
+  font-size: 34px;
+  line-height: 41px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.dark .border-slate-200, 
-.dark .border-slate-100 {
-  border-color: var(--border) !important;
+.type-title-1 {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.dark .bg-slate-50 {
-  background-color: var(--background) !important;
+.type-title-2 {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-.dark .bg-slate-50\/50 {
-  background-color: rgba(24, 25, 27, 0.5) !important;
+.type-headline {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-.dark .text-slate-900 {
-  color: var(--foreground) !important;
+.type-body {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
-.dark .text-slate-800 {
-  color: var(--foreground) !important;
-}
-
-.dark .bg-slate-100 {
-  background-color: var(--secondary) !important;
-}
-
-/* Small screens need room for content; tables provide their own horizontal scroll. */
-@media (max-width: 639px) {
-  main > div {
-    padding-left: 1rem;
-    padding-right: 1rem;
+@media (max-width: 767px) {
+  .type-body {
+    font-size: 17px;
+    line-height: 24px;
   }
 }
 
-/* Premium Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+.type-callout {
+  font-size: 16px;
+  line-height: 21px;
+  font-weight: 400;
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: var(--border);
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+.type-subhead {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
 }
 
-@keyframes shimmer {
+.type-footnote {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+}
+
+.type-caption {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+}
+
+/* Tabular Numerals for Finance, Payroll & Data Tables */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Apple Elevation, Hairline Borders & Translucent Materials
+   ========================================================================== */
+.border-hairline {
+  border-width: 0.5px !important;
+}
+
+.border-hairline-t {
+  border-top-width: 0.5px !important;
+}
+
+.border-hairline-b {
+  border-bottom-width: 0.5px !important;
+}
+
+.border-hairline-l {
+  border-left-width: 0.5px !important;
+}
+
+.border-hairline-r {
+  border-right-width: 0.5px !important;
+}
+
+/* Translucent Glass Material (iOS 17 & macOS Sonoma) */
+.material-translucent {
+  background-color: var(--sidebar);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+@supports not (backdrop-filter: blur(20px)) {
+  .material-translucent {
+    background-color: var(--surface);
+  }
+}
+
+/* Soft layered Apple shadows */
+.apple-shadow-sm {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.apple-shadow-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.dark .apple-shadow-card,
+.dark .apple-shadow-sm {
+  box-shadow: none;
+}
+
+/* Apple Motion & Springs */
+.apple-ease {
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.apple-press {
+  transition: transform 150ms cubic-bezier(0.32, 0.72, 0, 1), opacity 150ms ease;
+}
+
+.apple-press:active {
+  transform: scale(0.98);
+}
+
+/* Prefers-reduced-motion compliance */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
+}
+
+/* Safe-area utility classes for mobile/Capacitor */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Momentum scrolling */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Shimmer 1.4s Apple HIG Skeleton Animation */
+@keyframes apple-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
   100% {
     transform: translateX(100%);
   }
 }
 
-/* ==========================================================================
-   Print Styles for Official Documents & Offer Letters
-   ========================================================================== */
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 10mm 15mm;
-  }
+.animate-shimmer {
+  animation: apple-shimmer 1.4s infinite cubic-bezier(0.32, 0.72, 0, 1);
+}
 
-  html,
-  body {
-    background: white !important;
-    color: black !important;
-    height: auto !important;
-    min-height: auto !important;
-    overflow: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--fill);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--separator);
+}
 
-  /* Hide app navigation, background layout, and dialog overlay/close buttons */
-  nav,
-  aside,
-  header,
-  [data-slot="dialog-overlay"],
-  [data-slot="dialog-close"] {
-    display: none !important;
-  }
+/* Dark mode compatibility bridges */
+.dark .bg-white {
+  background-color: var(--card) !important;
+}
 
-  /* When printing, hide all main application content when an offer preview is open */
-  body:has(#printable-offer-letter-content) main,
-  body:has(#printable-offer-letter-content) > div:not([data-slot="dialog-portal"]):not([data-slot="dialog"]) {
-    display: none !important;
-  }
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: var(--foreground) !important;
+}
 
-  /* Reset dialog content positioning and allow natural multi-page flow without clipping */
-  [data-slot="dialog-content"]:has(.printable-offer-document),
-  .printable-offer-dialog {
-    position: static !important;
-    inset: auto !important;
-    top: auto !important;
-    left: auto !important;
-    transform: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    background: white !important;
-    color: black !important;
-    border-radius: 0 !important;
-    outline: none !important;
-  }
+.dark .text-slate-500,
+.dark .text-slate-600 {
+  color: var(--label-secondary) !important;
+}
 
-  /* Prevent awkward page breaks inside sensitive blocks */
-  .print-break-inside-avoid {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
+.dark .border-slate-100,
+.dark .border-slate-200 {
+  border-color: var(--separator) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-50\/50 {
+  background-color: var(--background) !important;
 }
