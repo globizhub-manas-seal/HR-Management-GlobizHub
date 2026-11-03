@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { Loader2 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
 
@@ -34,19 +35,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Pass the role dynamically to the Sidebar */}
-      {/* Keep the full sidebar for large desktops only. Smaller screens use
-          the hamburger-triggered drawer in the header. */}
+    <div className="flex h-screen bg-background overflow-hidden safe-area-top safe-area-left safe-area-right">
+      {/* Desktop 260px translucent sidebar */}
       <Sidebar role={activeRole} className="hidden lg:flex" />
 
-      <div className="flex flex-col flex-1 h-full overflow-hidden">
+      <div className="flex flex-col flex-1 h-full min-w-0 overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 overflow-y-auto bg-background pb-20 lg:pb-6 momentum-scroll">
           {children}
         </main>
+        {/* Mobile / Capacitor bottom tab bar */}
+        <MobileTabBar />
       </div>
     </div>
   );
 }
-

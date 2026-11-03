@@ -21,11 +21,13 @@ import {
   UserCheck,
   LogOut,
   GraduationCap,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
 import { SIDEBAR_MODULES } from "@/lib/permissions";
 import { usePermissions } from "@/context/PermissionContext";
+import { cn } from "@/lib/utils";
 
 // Map string icon names to actual icon components
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -46,6 +48,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   UserCheck,
   LogOut,
   GraduationCap,
+  Sparkles,
 };
 
 export default function Sidebar({
@@ -59,14 +62,9 @@ export default function Sidebar({
   const { user, isViewAsUser } = useViewMode();
   const { sidebarModuleKeys, designation } = usePermissions();
 
-  // If base user role is MANAGER and viewAsUser toggle is off, we are in Manager Mode
   const isManagerMode = user?.role === "MANAGER" && !isViewAsUser;
-
-  // Build links dynamically from designation permissions
-  // Falls back to role-based defaults if no designation is assigned
   const links = buildSidebarLinks(sidebarModuleKeys);
 
-  // Add Designations link for admins (always visible for SUPER_ADMIN/OWNER/HR_HEAD)
   const isAdminOrHR = user?.role === "SUPER_ADMIN" || user?.role === "OWNER" || user?.role === "HR_HEAD";
   const finalLinks = isAdminOrHR && !links.some((l) => l.href === "/workspace/settings/designations")
     ? [
@@ -91,31 +89,33 @@ export default function Sidebar({
 
   const navigation = (
     <>
-      <div className="flex flex-col flex-1 min-h-0 bg-card">
-        {/* Logo / Brand Area */}
-        <div className="h-20 flex flex-col justify-center px-8 border-b border-border shrink-0">
-          <span className="text-xl font-bold bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">
-            TeamHub HRMS
-          </span>
-          {isManagerMode && (
-            <span className="mt-1 self-start text-[9px] font-bold bg-secondary text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Manager Portal
+      <div className="flex flex-col flex-1 min-h-0 material-translucent">
+        {/* Apple Brand / Header Area */}
+        <div className="h-16 flex flex-col justify-center px-5 border-b border-hairline border-separator shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="text-[17px] font-semibold tracking-tight text-foreground">
+              TeamHub HRMS
             </span>
-          )}
-          {isSimulatedUser && (
-            <span className="mt-1 self-start text-[9px] font-bold bg-primary/20 text-secondary px-2 py-0.5 rounded-full uppercase tracking-wider">
-              User View
-            </span>
-          )}
-          {isAdminOrHR && (
-            <span className="mt-1 self-start text-[9px] font-bold bg-secondary text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Admin View
-            </span>
-          )}
-          {/* Show designation name if assigned */}
+            {isManagerMode && (
+              <span className="text-[11px] font-semibold bg-primary/12 text-primary px-2 py-0.5 rounded-full">
+                Manager
+              </span>
+            )}
+            {isSimulatedUser && (
+              <span className="text-[11px] font-semibold bg-fill text-label-secondary px-2 py-0.5 rounded-full">
+                User
+              </span>
+            )}
+            {isAdminOrHR && !isManagerMode && !isSimulatedUser && (
+              <span className="text-[11px] font-semibold bg-primary/12 text-primary px-2 py-0.5 rounded-full">
+                Admin
+              </span>
+            )}
+          </div>
+
           {designation && !isSimulatedUser && (
             <span
-              className="mt-0.5 self-start text-[8px] font-semibold px-2 py-0.5 rounded-full border"
+              className="mt-1 self-start text-[11px] font-medium px-2 py-0.5 rounded-full border border-hairline"
               style={{
                 backgroundColor: `${designation.color}15`,
                 borderColor: `${designation.color}40`,
@@ -127,8 +127,13 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+        {/* Section Header */}
+        <div className="px-5 pt-4 pb-1 text-[12px] font-medium text-label-secondary uppercase tracking-wider">
+          Workspace
+        </div>
+
+        {/* Navigation Links with 8px item padding & 10px radius selected pill */}
+        <nav className="flex-1 px-3 py-1 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
           {finalLinks.map((link) => {
             const Icon = link.icon;
             const isActive = link.href === activeHref;
@@ -136,14 +141,15 @@ export default function Sidebar({
               <Link
                 key={link.name}
                 href={link.href}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                className={cn(
+                  "flex items-center min-h-[36px] px-3 py-2 rounded-[10px] text-[14px] font-medium tracking-tight transition-all duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]",
                   isActive
-                    ? "bg-primary/20 text-secondary dark:text-foreground border-l-4 border-primary"
-                    : "text-muted-foreground hover:bg-primary/10 hover:text-foreground"
-                }`}
+                    ? "bg-primary/12 text-primary font-semibold"
+                    : "text-label-secondary hover:bg-fill/60 hover:text-foreground"
+                )}
               >
-                <Icon className="w-5 h-5 mr-3" />
-                {link.name}
+                <Icon className={cn("size-5 mr-3 shrink-0 stroke-[1.5]", isActive && "text-primary")} />
+                <span className="truncate">{link.name}</span>
               </Link>
             );
           })}
@@ -151,10 +157,13 @@ export default function Sidebar({
       </div>
 
       {/* Footer / Support Link */}
-      <div className="p-4 border-t border-border shrink-0 bg-card">
-        <Link href="/workspace/support" className="flex items-center w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <HelpCircle className="w-5 h-5 mr-3 text-muted-foreground/60" />
-          Help & Support
+      <div className="p-3 border-t border-hairline border-separator shrink-0 material-translucent">
+        <Link
+          href="/workspace/support"
+          className="flex items-center w-full min-h-[36px] px-3 py-2 text-[14px] font-medium text-label-secondary hover:bg-fill/60 hover:text-foreground rounded-[10px] transition-all duration-150 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <HelpCircle className="size-5 mr-3 text-label-tertiary stroke-[1.5]" />
+          <span>Help & Support</span>
         </Link>
       </div>
     </>
@@ -162,16 +171,15 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`w-64 shrink-0 flex-col justify-between border-r border-border bg-card ${className}`}
+      className={cn(
+        "w-[260px] shrink-0 flex-col justify-between border-r border-hairline border-separator material-translucent select-none",
+        className
+      )}
     >
       {navigation}
     </aside>
   );
 }
-
-// ============================================================
-// Helper: Build sidebar links from permission module keys
-// ============================================================
 
 function buildSidebarLinks(moduleKeys: string[]): { name: string; href: string; icon: LucideIcon }[] {
   return moduleKeys

@@ -119,47 +119,52 @@ export default function Header() {
 
   return (
     <header
-      className={`flex items-center justify-between h-16 px-6 bg-card border-b border-border transition-all ${
+      className={`flex items-center justify-between h-14 sm:h-16 px-4 sm:px-6 material-translucent border-b border-hairline border-separator sticky top-0 z-30 transition-all ${
         isManagerMode ? "border-t-2 border-t-primary" : ""
       }`}
     >
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3">
         {/* Small and medium screens: open the sidebar as a drawer */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger
-            className="inline-flex rounded-md p-2 transition-colors hover:bg-primary/10 lg:hidden"
+            className="inline-flex items-center justify-center size-9 rounded-[8px] transition-colors hover:bg-fill/60 lg:hidden text-foreground"
             aria-label="Open navigation menu"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="size-5 stroke-[1.5]" />
           </SheetTrigger>
           <SheetContent
             side="left"
-            className="p-0 w-64 data-[side=left]:w-64 data-[side=left]:sm:max-w-64"
+            className="p-0 w-[260px] data-[side=left]:w-[260px] data-[side=left]:sm:max-w-[260px]"
           >
-            <Sidebar role={activeRole} className="flex h-full" />
+            <Sidebar role={activeRole} className="flex h-full w-[260px]" />
           </SheetContent>
         </Sheet>
 
-        {/* Breadcrumb */}
-        <div className="hidden md:flex text-sm font-medium text-muted-foreground">
-          <span className="text-muted-foreground/60">Workspace</span>
-          <span className="mx-2">/</span>
-          <span className="text-foreground">{formatBreadcrumb()}</span>
+        {/* Mobile Centered Title */}
+        <div className="lg:hidden text-[16px] font-semibold text-foreground tracking-tight">
+          {formatBreadcrumb()}
+        </div>
+
+        {/* Desktop Breadcrumb */}
+        <div className="hidden lg:flex items-center text-[13px] font-medium text-label-secondary">
+          <span className="text-label-tertiary">Workspace</span>
+          <span className="mx-2 text-label-tertiary">/</span>
+          <span className="text-foreground font-semibold">{formatBreadcrumb()}</span>
         </div>
       </div>
 
       {/* Right Side */}
-      <div className="flex items-center space-x-4 lg:space-x-6">
+      <div className="flex items-center space-x-2 sm:space-x-3">
         {/* Search */}
-        <form onSubmit={submitSearch} className="hidden md:block relative w-72" role="search">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/60" />
+        <form onSubmit={submitSearch} className="hidden md:block relative w-64 lg:w-72" role="search">
+          <Search className="absolute left-3 top-2.5 size-4 text-label-tertiary stroke-[1.5]" />
           <Input
             ref={searchInputRef}
             placeholder="Search employees... (Ctrl + K)"
             aria-label="Search employees"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="pl-10 rounded-full bg-muted/40 border-border focus-visible:ring-primary"
+            className="h-9 pl-9 rounded-[10px] bg-fill text-[13px] border-0 focus:bg-surface focus:ring-1 focus:ring-primary"
           />
         </form>
 
@@ -197,26 +202,26 @@ export default function Header() {
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}
-          className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 border border-transparent hover:border-border cursor-pointer focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-center justify-center size-9 rounded-[10px] hover:bg-fill/60 text-label-secondary hover:text-foreground transition-all duration-150 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
           aria-label="Toggle dark/light theme"
         >
           {theme === "dark" ? (
-            <Sun className="h-5 w-5 text-amber-400 hover:text-amber-300 transition-transform duration-300 hover:rotate-45" />
+            <Sun className="size-4.5 text-status-yellow transition-transform duration-200 hover:rotate-45 stroke-[1.5]" />
           ) : (
-            <Moon className="h-5 w-5 text-slate-700 hover:text-slate-900 transition-transform duration-300 hover:-rotate-12" />
+            <Moon className="size-4.5 text-label-secondary hover:text-foreground transition-transform duration-200 hover:-rotate-12 stroke-[1.5]" />
           )}
         </button>
 
         {/* Notifications Dropdown */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="relative flex items-center justify-center w-10 h-10 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none cursor-pointer">
-            <Bell className="h-5 w-5" />
+          <DropdownMenuTrigger className="relative flex items-center justify-center size-9 rounded-[10px] hover:bg-fill/60 text-label-secondary hover:text-foreground transition-all duration-150 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer">
+            <Bell className="size-4.5 stroke-[1.5]" />
             <NotificationDot />
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-[380px] p-0 shadow-2xl border-border">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-              <span className="font-semibold text-sm text-foreground">Notifications</span>
+          <DropdownMenuContent align="end" className="w-[360px] p-0 material-translucent border border-hairline border-separator rounded-[16px] apple-shadow-card overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-hairline border-separator">
+              <span className="font-semibold text-[14px] text-foreground">Notifications</span>
               <MarkAllReadButton />
             </div>
 
