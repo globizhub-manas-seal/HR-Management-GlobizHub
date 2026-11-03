@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 type ToastKind = "success" | "error";
@@ -16,13 +16,14 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+
   const toast = useCallback((message: string, kind: ToastKind = "success") => {
     const id = Date.now();
     setToasts((current) => [...current, { id, message, kind }]);
-    window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 5000);
+    window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 4000);
   }, []);
 
-  // Keeps existing feedback useful while screens progressively migrate from alert().
+  // Keeps existing feedback useful while screens progressively migrate from alert()
   useEffect(() => {
     const nativeAlert = window.alert;
     window.alert = (message?: string) => {
@@ -32,13 +33,32 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return () => { window.alert = nativeAlert; };
   }, [toast]);
 
-  return <ToastContext.Provider value={{ toast }}>
-    {children}
-    <div className="fixed right-4 top-4 z-[100] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2" aria-live="polite" aria-atomic="true">
-      {toasts.map((item) => <div key={item.id} role="status" className={`flex items-start gap-3 rounded-xl border p-4 shadow-lg ${item.kind === "error" ? "border-destructive/30 bg-card text-foreground" : "border-primary/40 bg-card text-foreground"}`}>
-        {item.kind === "error" ? <XCircle className="mt-0.5 size-5 shrink-0 text-destructive" /> : <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />}
-        <p className="text-sm font-medium">{item.message}</p>
-      </div>)}
-    </div>
-  </ToastContext.Provider>;
+  return (
+    <ToastContext.Provider value={{ toast }}>
+      {children}
+      {/* Top-center translucent pill (Apple HIG Dynamic Toast Pill) */}
+      <div
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {toasts.map((item) => (
+          <div
+            key={item.id}
+            role="status"
+            className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-full material-translucent border border-hairline border-separator shadow-[0_4px_16px_rgba(0,0,0,0.12)] text-foreground animate-in fade-in-0 slide-in-from-top-3 duration-200"
+          >
+            {item.kind === "error" ? (
+              <AlertCircle className="size-4 shrink-0 text-destructive" />
+            ) : (
+              <CheckCircle2 className="size-4 shrink-0 text-status-green" />
+            )}
+            <p className="text-[13px] font-medium tracking-tight truncate max-w-[320px]">
+              {item.message}
+            </p>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
 }
