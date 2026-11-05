@@ -17,6 +17,8 @@ import { EmployeeService } from './employee.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+// S-01: typed DTO that whitelists only self-editable profile fields
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 
@@ -40,16 +42,15 @@ export class EmployeeController {
     );
   }
 
-  // --- UPDATED: Update own profile (Handles S3 Image Uploads) ---
+  // S-01 fix: typed DTO replaces raw `body: any` so role escalation fields are stripped by ValidationPipe
   @Patch('me')
   @UseInterceptors(FileInterceptor('profileImage'))
   async updateMyProfile(
     @Request() req,
-    @Body() body: any,
-    @UploadedFile() file?: Express.Multer.File, // Catches the uploaded file in memory
+    @Body() dto: UpdateMyProfileDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    // Pass both the text data (body) and the image (file) to the service
-    return this.employeeService.updateMyProfile(req.user.sub, body, file);
+    return this.employeeService.updateMyProfile(req.user.sub, dto, file);
   }
 
   @Get('me/devices')

@@ -14,10 +14,9 @@ async function bootstrap() {
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       integrations: [nodeProfilingIntegration()],
-      // Tracing
-      tracesSampleRate: 1.0, //  Capture 100% of the transactions
-      // Set sampling rate for profiling - this is relative to tracesSampleRate
-      profilesSampleRate: 1.0,
+      // S-16: lower sampling in production — 100% is fine for dev/staging only
+      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+      profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     });
   }
 
@@ -27,15 +26,17 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      const allowedOrigins = process.env.FRONTEND_ORIGIN?.split(',') ?? [];
+
+      // S-13: Use exact string comparison only — no wildcard regex conversion.
+      // Listing "https://*.vercel.app" would previously allow every Vercel tenant.
+      // Allowed origins must be explicit, comma-separated in FRONTEND_ORIGIN.
+      const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? '')
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+
       const isAllowed =
-        allowedOrigins.some((allowed) => {
-          const pattern = allowed
-            .trim()
-            .replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&') // escape regex chars
-            .replace(/\*/g, '.*'); // turn wildcard * into .*
-          return new RegExp(`^${pattern}$`).test(origin);
-        }) || allowedOrigins.length === 0;
+        allowedOrigins.length === 0 || allowedOrigins.includes(origin);
 
       if (isAllowed) {
         callback(null, true);

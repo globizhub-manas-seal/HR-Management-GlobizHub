@@ -183,12 +183,12 @@ export default function EmployeeDirectoryPage() {
   ) as string[];
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Employee Directory</h1>
-          <p className="text-muted-foreground mt-1">Add and manage your organization's employees.</p>
+          <h1 className="type-large-title font-bold text-foreground tracking-tight">Employee Directory</h1>
+          <p className="type-subhead text-label-secondary mt-1">Add and manage your organization's employees.</p>
         </div>
         <div className="flex justify-between items-center shrink-0">
           {canCreate && <AddEmployeeModal />}
@@ -198,59 +198,59 @@ export default function EmployeeDirectoryPage() {
       {/* Dynamic Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Employees */}
-        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-          <div className="h-12 w-12 rounded-xl bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
+        <div className="bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 sm:p-6 flex items-center gap-4 apple-shadow-card">
+          <div className="size-12 rounded-[12px] bg-primary/12 flex items-center justify-center text-primary shrink-0">
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Employee</p>
-            <h3 className="text-2xl font-bold text-foreground mt-0.5">{totalCount}</h3>
+            <p className="type-caption font-semibold text-label-secondary uppercase tracking-wider">Total Employee</p>
+            <h3 className="type-title-1 font-bold text-foreground tabular-nums mt-0.5">{totalCount}</h3>
           </div>
         </div>
 
         {/* New Employees */}
-        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-          <div className="h-12 w-12 rounded-xl bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+        <div className="bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 sm:p-6 flex items-center gap-4 apple-shadow-card">
+          <div className="size-12 rounded-[12px] bg-[rgba(255,149,0,0.15)] flex items-center justify-center text-status-orange shrink-0">
             <UserPlus className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">New Employee</p>
-            <h3 className="text-2xl font-bold text-foreground mt-0.5">{newCount}</h3>
+            <p className="type-caption font-semibold text-label-secondary uppercase tracking-wider">New Employee</p>
+            <h3 className="type-title-1 font-bold text-foreground tabular-nums mt-0.5">{newCount}</h3>
           </div>
         </div>
 
         {/* Male Employees */}
-        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-          <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+        <div className="bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 sm:p-6 flex items-center gap-4 apple-shadow-card">
+          <div className="size-12 rounded-[12px] bg-primary/12 flex items-center justify-center text-primary shrink-0">
             <User className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Male</p>
-            <h3 className="text-2xl font-bold text-foreground mt-0.5">{maleCount}</h3>
+            <p className="type-caption font-semibold text-label-secondary uppercase tracking-wider">Male</p>
+            <h3 className="type-title-1 font-bold text-foreground tabular-nums mt-0.5">{maleCount}</h3>
           </div>
         </div>
 
         {/* Female Employees */}
-        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-          <div className="h-12 w-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+        <div className="bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 sm:p-6 flex items-center gap-4 apple-shadow-card">
+          <div className="size-12 rounded-[12px] bg-[rgba(52,199,89,0.15)] flex items-center justify-center text-status-green shrink-0">
             <User className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Female</p>
-            <h3 className="text-2xl font-bold text-foreground mt-0.5">{femaleCount}</h3>
+            <p className="type-caption font-semibold text-label-secondary uppercase tracking-wider">Female</p>
+            <h3 className="type-title-1 font-bold text-foreground tabular-nums mt-0.5">{femaleCount}</h3>
           </div>
         </div>
       </div>
 
       {/* Filters & View Toggle Bar */}
-      <div className="bg-card border border-border rounded-2xl p-4 shadow-sm flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+      <div className="bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[16px] p-3 sm:p-4 apple-shadow-card flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
           {/* Search by Name/ID */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
             <Input 
               placeholder="Search by name or ID..." 
-              className="pl-9 bg-card border-border h-10 rounded-lg text-sm"
+              className="pl-9 bg-fill border-0 h-10 rounded-[10px] text-[14px]"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -260,7 +260,7 @@ export default function EmployeeDirectoryPage() {
           <select 
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value)}
-            className="h-10 px-3 py-1.5 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-44 capitalize cursor-pointer"
+            className="h-10 px-3 py-1.5 rounded-[10px] border-0 bg-fill text-foreground text-[14px] focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-44 capitalize cursor-pointer"
           >
             <option value="">Select Role</option>
             <option value="SUPER_ADMIN">Super Admin</option>
@@ -274,7 +274,7 @@ export default function EmployeeDirectoryPage() {
           <select
             value={selectedDepartment}
             onChange={(e) => setSelectedDepartment(e.target.value)}
-            className="h-10 px-3 py-1.5 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-48 cursor-pointer"
+            className="h-10 px-3 py-1.5 rounded-[10px] border-0 bg-fill text-foreground text-[14px] focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-48 cursor-pointer"
           >
             <option value="">Select Department</option>
             {departmentsList.map((deptName) => (
@@ -288,7 +288,7 @@ export default function EmployeeDirectoryPage() {
         {/* Layout Switch Toggle */}
         <div className="flex items-center gap-2 self-end md:self-auto">
           <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider hidden sm:inline mr-1">View Mode</span>
-          <div className="flex items-center border border-border rounded-lg p-1 bg-muted/20">
+          <div className="flex items-center rounded-[10px] p-1 bg-fill gap-1">
             <Button
               variant={viewMode === "card" ? "secondary" : "ghost"}
               size="sm"
@@ -335,7 +335,7 @@ export default function EmployeeDirectoryPage() {
                     return (
                       <div 
                         key={emp.id} 
-                        className="bg-card border border-border rounded-2xl shadow-sm relative p-5 flex flex-col items-center text-center transition-all hover:shadow-md hover:border-muted-foreground/30 group"
+                        className="bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] apple-shadow-card relative p-5 flex flex-col items-center text-center transition-all hover:scale-[1.01] group"
                       >
                         {/* Settings Ellipsis Dropdown (Edit / Delete) */}
                         {(canEdit || canDelete) && (
@@ -469,7 +469,7 @@ export default function EmployeeDirectoryPage() {
 
           {/* List View */}
           {viewMode === "list" && (
-            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="bg-card rounded-[20px] border-0 dark:border dark:border-hairline dark:border-separator apple-shadow-card overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border">

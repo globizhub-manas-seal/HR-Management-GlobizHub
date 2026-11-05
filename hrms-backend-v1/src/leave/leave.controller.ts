@@ -8,15 +8,19 @@ import {
   UseGuards,
   Request,
   Delete,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { LeaveService } from './leave.service';
 import { AuthGuard } from '../auth/auth.guard';
+// S-04: PermissionsGuard was missing from this controller
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateLeaveDto } from './dto/create-leave.dto';
 import { LeaveStatus } from '../../generated/prisma/client';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 
 @Controller('leaves')
-@UseGuards(AuthGuard)
+// S-04: Apply both guards consistently; PermissionsGuard respects @RequirePermissions
+@UseGuards(AuthGuard, PermissionsGuard)
 export class LeaveController {
   constructor(private readonly leaveService: LeaveService) {}
 
@@ -49,13 +53,11 @@ export class LeaveController {
     return this.leaveService.getLeaveBalance(req.user.sub, req.user.companyId);
   }
 
-  // ✅ FIX 5: Use getMyAllocations instead of getMyBalance
   @Get('my-balance')
   async getMyBalance(@Request() req) {
     return this.leaveService.getMyAllocations(req.user.sub);
   }
 
-  // ✅ FIX 6: Add req.user.sub as the 5th argument (managerId)
   @Patch(':id/status')
   async updateStatus(
     @Request() req,
@@ -67,7 +69,23 @@ export class LeaveController {
       id,
       status,
       req.user.role,
-      req.user.sub, // <--- Added managerId here!
+      req.user.sub,
+    );
+  }
+
+  // HR/Admin: Run year-end carry-forward and balance expiration
+  @Post('process-carry-forward')
+  @RequirePermissions('leave.manage')
+  async processCarryForward(
+    @Request() req,
+    @Body('fromYear', ParseIntPipe) fromYear: number,
+    @Body('toYear', ParseIntPipe) toYear: number,
+  ) {
+    return this.leaveService.processYearEndCarryForward(
+      req.user.companyId,
+      fromYear,
+      toYear,
+      req.user.sub,
     );
   }
 
@@ -77,13 +95,14 @@ export class LeaveController {
   }
 
   @Post('holidays')
-  @RequirePermissions('leave.manage') // Only HR/Admins can add holidays
+  @RequirePermissions('leave.manage')
   async addHoliday(@Request() req, @Body() body: any) {
     return this.leaveService.addHoliday(req.user.companyId, body, req.user.sub);
   }
 
+  // S-04: @RequirePermissions was commented out — restored
   @Post('policy')
-  // @RequirePermissions('leave.manage') // Uncomment if using your custom decorator
+  @RequirePermissions('leave.manage')
   async createPolicy(@Request() req, @Body() body: any) {
     return this.leaveService.createLeavePolicy(req.user.companyId, body);
   }

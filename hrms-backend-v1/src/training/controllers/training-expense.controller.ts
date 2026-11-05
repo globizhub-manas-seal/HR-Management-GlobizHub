@@ -8,12 +8,13 @@ import {
   Request,
 } from '@nestjs/common';
 import { AuthGuard } from '../../auth/auth.guard';
+import { TrainingAdminGuard } from '../guards/training-admin.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { CreateTrainingExpenseDto } from '../dto/expense.dto';
 
 @Controller('training/expenses')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, TrainingAdminGuard)
 export class TrainingExpenseController {
   constructor(
     private readonly prisma: PrismaService,

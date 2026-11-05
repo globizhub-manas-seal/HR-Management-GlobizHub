@@ -296,16 +296,16 @@ export default function HRPayrollDashboard() {
   ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 font-sans min-h-screen bg-slate-50/50">
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
       {/* HEADER & CONTROLS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Payroll</h1>
-          <p className="mt-1 text-slate-500">Review, approve, and print employee payslips.</p>
+          <h1 className="type-large-title font-bold text-foreground tracking-tight">Payroll Administration</h1>
+          <p className="type-subhead text-label-secondary mt-1">Review, approve, and print employee payslips.</p>
         </div>
 
-        <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-2 bg-card p-1.5 rounded-[12px] apple-shadow-card border-0 dark:border dark:border-hairline dark:border-separator">
           <CalendarIcon className="w-5 h-5 text-slate-400 ml-2" />
           <Select
             value={selectedMonth}
@@ -350,43 +350,43 @@ export default function HRPayrollDashboard() {
 
       {/* STATS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <div className="bg-card rounded-[20px] p-5 sm:p-6 apple-shadow-card border-0 dark:border dark:border-hairline dark:border-separator flex items-center space-x-4">
+          <div className="size-12 rounded-[12px] bg-primary/12 text-primary flex items-center justify-center">
             <TrendingUp className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+            <p className="type-caption font-semibold text-label-secondary uppercase tracking-wider">
               Total Net Payout
             </p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">
+            <h3 className="type-title-1 font-bold text-foreground tabular-nums mt-1">
               {formatCurrency(totalPayout)}
             </h3>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+        <div className="bg-card rounded-[20px] p-5 sm:p-6 apple-shadow-card border-0 dark:border dark:border-hairline dark:border-separator flex items-center space-x-4">
+          <div className="size-12 rounded-[12px] bg-[rgba(255,59,48,0.15)] text-destructive flex items-center justify-center">
             <TrendingDown className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+            <p className="type-caption font-semibold text-label-secondary uppercase tracking-wider">
               Total Deductions
             </p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">
+            <h3 className="type-title-1 font-bold text-foreground tabular-nums mt-1">
               {formatCurrency(totalDeductions)}
             </h3>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <div className="bg-card rounded-[20px] p-5 sm:p-6 apple-shadow-card border-0 dark:border dark:border-hairline dark:border-separator flex items-center space-x-4">
+          <div className="size-12 rounded-[12px] bg-[rgba(52,199,89,0.15)] text-status-green flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+            <p className="type-caption font-semibold text-label-secondary uppercase tracking-wider">
               Processed Employees
             </p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">
+            <h3 className="type-title-1 font-bold text-foreground tabular-nums mt-1">
               {payrolls?.length || 0}
             </h3>
           </div>
@@ -394,14 +394,14 @@ export default function HRPayrollDashboard() {
       </div>
 
       {/* TABLE AND ACTIONS */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-[20px] border-0 dark:border dark:border-hairline dark:border-separator apple-shadow-card overflow-hidden">
         {/* Table Toolbar */}
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div className="p-4 border-b border-hairline border-separator/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
           <div className="relative w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="Search employee..."
-              className="pl-9 h-9 bg-white border-slate-200"
+              className="pl-9 h-9 bg-fill border-0 rounded-[10px] text-[13px]"
             />
           </div>
 

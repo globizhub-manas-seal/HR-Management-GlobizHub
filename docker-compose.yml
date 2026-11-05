@@ -7,23 +7,37 @@ services:
       dockerfile: Dockerfile
     ports:
       - '5000:5000'
+    env_file:
+      - ./hrms-backend-v1/.env
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://hrms_user:hrms_pass@db:5432/hrms_db?schema=public
-      - JWT_SECRET=your_super_secret_jwt_key
       - PORT=5000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-hrms_user}:${POSTGRES_PASSWORD:-change_me_db_pass_123}@db:5432/${POSTGRES_DB:-hrms_db}?schema=public
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - AWS_S3_MOCK=${AWS_S3_MOCK:-false}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=hrms_user
-      - POSTGRES_PASSWORD=hrms_pass
-      - POSTGRES_DB=hrms_db
-    ports:
-      - '5432:5432'
+      - POSTGRES_USER=${POSTGRES_USER:-hrms_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change_me_db_pass_123}
+      - POSTGRES_DB=${POSTGRES_DB:-hrms_db}
+    # S-07: Do not publish port 5432 to the host network
+    expose:
+      - '5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-hrms_user} -d ${POSTGRES_DB:-hrms_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped

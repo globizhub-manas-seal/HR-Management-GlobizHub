@@ -253,17 +253,14 @@ export default function RecruitmentPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12 px-6 py-2">
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Recruitment & Hiring
-            </h1>
-           
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
+          <h1 className="type-large-title font-bold text-foreground tracking-tight">
+            Recruitment & Hiring
+          </h1>
+          <p className="type-subhead text-label-secondary mt-1">
             Enterprise requisition governance: Manpower justification &rarr; Budget review &rarr; Job vacancies.
           </p>
         </div>
@@ -296,9 +293,9 @@ export default function RecruitmentPage() {
 
       {/* KPI Cards (4 Metric Cards matching requirement #10) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border shadow-xs">
+        <Card className="border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 apple-shadow-card">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-medium uppercase tracking-wider">
+            <CardDescription className="type-caption font-semibold text-label-secondary uppercase tracking-wider">
               Open Requisitions
             </CardDescription>
             <CardTitle className="text-2xl font-black text-foreground">
@@ -310,9 +307,9 @@ export default function RecruitmentPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border shadow-xs">
+        <Card className="border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 apple-shadow-card">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-medium uppercase tracking-wider">
+            <CardDescription className="type-caption font-semibold text-label-secondary uppercase tracking-wider">
               Pending Approval
             </CardDescription>
             <CardTitle className="text-2xl font-black text-amber-600 dark:text-amber-400">
@@ -324,9 +321,9 @@ export default function RecruitmentPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border shadow-xs">
+        <Card className="border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 apple-shadow-card">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-medium uppercase tracking-wider">
+            <CardDescription className="type-caption font-semibold text-label-secondary uppercase tracking-wider">
               Open Positions
             </CardDescription>
             <CardTitle className="text-2xl font-black text-primary">
@@ -338,9 +335,9 @@ export default function RecruitmentPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border shadow-xs">
+        <Card className="border-0 dark:border dark:border-hairline dark:border-separator rounded-[20px] p-5 apple-shadow-card">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-medium uppercase tracking-wider">
+            <CardDescription className="type-caption font-semibold text-label-secondary uppercase tracking-wider">
               Positions Filled
             </CardDescription>
             <CardTitle className="text-2xl font-black text-emerald-600 dark:text-emerald-400">

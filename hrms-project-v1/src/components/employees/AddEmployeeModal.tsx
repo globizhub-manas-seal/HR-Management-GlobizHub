@@ -110,7 +110,7 @@ export function AddEmployeeModal() {
   }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-emerald-600">
+      <DialogTrigger className="inline-flex h-9 items-center justify-center rounded-[10px] bg-primary px-3.5 text-[14px] font-medium whitespace-nowrap text-primary-foreground transition-all hover:bg-primary/90 apple-shadow-sm active:scale-[0.98]">
           <UserPlus className="mr-2 h-4 w-4" /> Add Employee
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -264,7 +264,7 @@ export function AddEmployeeModal() {
             />
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={isSubmitting} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+              <Button type="submit" variant="default" size="default" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

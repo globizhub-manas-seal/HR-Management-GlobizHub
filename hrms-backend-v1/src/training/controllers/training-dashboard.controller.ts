@@ -1,9 +1,10 @@
 import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '../../auth/auth.guard';
+import { TrainingAdminGuard } from '../guards/training-admin.guard';
 import { TrainingDashboardService } from '../services/training-dashboard.service';
 
 @Controller('training')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, TrainingAdminGuard)
 export class TrainingDashboardController {
   constructor(private readonly service: TrainingDashboardService) {}
 

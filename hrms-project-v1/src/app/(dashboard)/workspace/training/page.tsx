@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useViewMode } from "@/context/ViewModeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import {
   Target,
   FileCheck2,
   Star,
+  ShieldAlert,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/components/ToastProvider";
@@ -57,8 +59,12 @@ import NewCertificateModal from "@/components/training/NewCertificateModal";
 import NewCategoryModal from "@/components/training/NewCategoryModal";
 
 export default function TrainingModulePage() {
-  const { user } = useViewMode();
+  const router = useRouter();
+  const { user, activeRole, isLoading: isUserLoading } = useViewMode();
   const { toast } = useToast();
+
+  const currentRole = activeRole || user?.role;
+  const isHrOrAdmin = ["SUPER_ADMIN", "OWNER", "HR_HEAD", "ADMIN"].includes(currentRole);
 
   // 4-Pillar Pipeline Navigation
   const [activeTab, setActiveTab] = useState("initiatives");
@@ -121,9 +127,21 @@ export default function TrainingModulePage() {
   const [isNewCertificateOpen, setIsNewCertificateOpen] = useState(false);
   const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
 
+  // Restrict access to Admin and HR roles only
   useEffect(() => {
-    loadAllData();
-  }, [user]);
+    if (!isUserLoading && user && !isHrOrAdmin) {
+      toast("Access restricted: The Training & Development module is accessible by Admin and HR roles only.", "error");
+      router.replace("/workspace/dashboard");
+    }
+  }, [user, currentRole, isUserLoading, isHrOrAdmin, router, toast]);
+
+  useEffect(() => {
+    if (isHrOrAdmin) {
+      loadAllData();
+    } else {
+      setLoading(false);
+    }
+  }, [user, isHrOrAdmin]);
 
   const loadAllData = async () => {
     try {
@@ -326,6 +344,33 @@ export default function TrainingModulePage() {
         return "bg-muted text-muted-foreground border-border";
     }
   };
+
+  if (isUserLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isHrOrAdmin) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="p-3.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 shadow-sm">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground max-w-md">
+            The Training, Competency & Career Governance module is restricted to Administrators and HR Managers only.
+          </p>
+        </div>
+        <Button onClick={() => router.push("/workspace/dashboard")} className="text-xs gap-2">
+          Return to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">

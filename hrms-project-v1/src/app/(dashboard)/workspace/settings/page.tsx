@@ -397,12 +397,12 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-            Company Settings
-          </h1>
+          <h1 className="type-large-title font-bold text-foreground tracking-tight">Company Settings</h1>
+
+
           <p className="text-slate-500 mt-1">
             Manage your organization's core configuration and rules.
           </p>
@@ -410,7 +410,9 @@ export default function SettingsPage() {
         <Button
           onClick={handleSave}
           disabled={saveMutation.isPending || isUploading}
-          className="w-full shrink-0 bg-emerald-500 text-white hover:bg-emerald-600 sm:w-auto"
+          variant="default"
+          size="default"
+          className="w-full shrink-0 sm:w-auto"
         >
           {saveMutation.isPending ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -422,7 +424,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="flex flex-row overflow-x-auto max-w-full w-full justify-start gap-1 p-1 bg-slate-100 rounded-lg lg:grid lg:grid-cols-7 lg:h-auto whitespace-nowrap scrollbar-none flex-nowrap h-auto py-1.5 shrink-0">
+        <TabsList className="flex flex-row overflow-x-auto max-w-full w-full justify-start gap-1 p-1.5 bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[14px] apple-shadow-card lg:grid lg:grid-cols-7 lg:h-auto whitespace-nowrap scrollbar-none flex-nowrap h-auto shrink-0">
           <TabsTrigger value="general" className="flex-none flex-shrink-0 min-w-0 px-4 py-2.5 text-xs sm:text-sm">
             <Building className="mr-1.5 h-4 w-4 shrink-0" /> General
           </TabsTrigger>

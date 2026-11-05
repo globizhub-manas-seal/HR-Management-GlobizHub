@@ -81,8 +81,24 @@ export class DocumentController {
   // ==========================================
   // ✅ NEW: PAYSLIP LETTERHEAD ENDPOINTS
   // ==========================================
+  // S-10: 5MB limit and image/pdf MIME allowlist for company letterheads
   @Post('payslip-letterhead')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_, file, cb) => {
+        if (!file.mimetype.match(/^image\/(jpeg|png|webp)|application\/pdf$/i)) {
+          return cb(
+            new BadRequestException(
+              'Only image (JPEG, PNG, WEBP) or PDF files are allowed for company letterheads.',
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async uploadLetterhead(
     @Request() req,
     @UploadedFile() file: Express.Multer.File,
@@ -125,8 +141,32 @@ export class DocumentController {
   }
   // ==========================================
 
+  // S-10: 15MB limit and document/image MIME allowlist
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 15 * 1024 * 1024 },
+      fileFilter: (_, file, cb) => {
+        const allowed = [
+          'application/pdf',
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+        if (!allowed.includes(file.mimetype)) {
+          return cb(
+            new BadRequestException(
+              'Only PDF, JPEG, PNG, WEBP, DOC, and DOCX files are allowed for documents.',
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async uploadDocument(
     @Request() req,
     @UploadedFile() file: Express.Multer.File,

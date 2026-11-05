@@ -9,12 +9,15 @@ import {
   UseGuards,
   Request,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ScheduleService } from './schedule.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 
 @Controller('schedules')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
 export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
@@ -23,12 +26,21 @@ export class ScheduleController {
     return this.scheduleService.getMySchedule(req.user.sub, req.user.companyId);
   }
 
+  // S-05: Ensure employees can only query their own schedule unless they hold manager/admin role
   @Get('employee/:employeeId')
   async getEmployeeSchedule(
     @Request() req,
     @Param('employeeId') employeeId: string,
     @Query('date') date: string,
   ) {
+    if (
+      req.user.sub !== employeeId &&
+      !['SUPER_ADMIN', 'OWNER', 'HR_HEAD', 'MANAGER'].includes(req.user.role)
+    ) {
+      throw new ForbiddenException(
+        "You do not have permission to view other employees' schedules.",
+      );
+    }
     return this.scheduleService.getEmployeeScheduleOnDate(
       employeeId,
       date,
@@ -37,6 +49,7 @@ export class ScheduleController {
   }
 
   @Post('shifts')
+  @RequirePermissions('schedule.create')
   async createShift(@Request() req, @Body() dto: any) {
     return this.scheduleService.createShift(
       req.user.companyId,
@@ -51,8 +64,8 @@ export class ScheduleController {
     return this.scheduleService.getShifts(req.user.companyId);
   }
 
-  // NEW: Update Endpoint
   @Patch('shifts/:id')
+  @RequirePermissions('schedule.edit')
   async updateShift(@Request() req, @Param('id') id: string, @Body() dto: any) {
     return this.scheduleService.updateShift(
       id,
@@ -63,8 +76,8 @@ export class ScheduleController {
     );
   }
 
-  // NEW: Delete Endpoint
   @Delete('shifts/:id')
+  @RequirePermissions('schedule.delete')
   async deleteShift(@Request() req, @Param('id') id: string) {
     return this.scheduleService.deleteShift(
       id,
@@ -75,6 +88,7 @@ export class ScheduleController {
   }
 
   @Post('assign')
+  @RequirePermissions('schedule.create')
   async assignSchedule(@Request() req, @Body() dto: any) {
     return this.scheduleService.assignSchedule(
       req.user.companyId,

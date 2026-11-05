@@ -304,32 +304,32 @@ export default function EmployeeProfileSettings() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Account Settings</h1>
-        <p className="text-slate-500 mt-1">Manage your profile, security, and personal preferences.</p>
+        <h1 className="type-large-title font-bold text-foreground tracking-tight">Account Settings</h1>
+        <p className="type-subhead text-label-secondary mt-1">Manage your profile, security, and personal preferences.</p>
       </div>
 
       <Tabs defaultValue="profile" orientation="vertical" className="flex flex-col md:flex-row gap-8 w-full">
         {/* Navigation Sidebar */}
-        <TabsList className="flex md:flex-col flex-row flex-wrap gap-1 bg-slate-100/60 p-1 rounded-xl md:w-64 w-full h-auto self-start border border-slate-200/50">
-          <TabsTrigger value="profile" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
-            <User className="w-4 h-4" /> Personal Info
+        <TabsList className="flex md:flex-col flex-row flex-wrap gap-1 bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[16px] p-2 apple-shadow-card md:w-64 w-full h-auto self-start">
+          <TabsTrigger value="profile" className="flex items-center justify-start gap-3 px-3.5 py-2.5 rounded-[10px] text-label-secondary data-[state=active]:bg-primary/12 data-[state=active]:text-primary transition-all text-[14px] font-medium w-full text-left">
+            <User className="size-4 stroke-[1.5]" /> Personal Info
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
-            <Lock className="w-4 h-4" /> Security & Password
+          <TabsTrigger value="security" className="flex items-center justify-start gap-3 px-3.5 py-2.5 rounded-[10px] text-label-secondary data-[state=active]:bg-primary/12 data-[state=active]:text-primary transition-all text-[14px] font-medium w-full text-left">
+            <Lock className="size-4 stroke-[1.5]" /> Security & Password
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
-            <MapPin className="w-4 h-4" /> Shift & Attendance
+          <TabsTrigger value="attendance" className="flex items-center justify-start gap-3 px-3.5 py-2.5 rounded-[10px] text-label-secondary data-[state=active]:bg-primary/12 data-[state=active]:text-primary transition-all text-[14px] font-medium w-full text-left">
+            <MapPin className="size-4 stroke-[1.5]" /> Shift & Attendance
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
-            <Bell className="w-4 h-4" /> Notifications
+          <TabsTrigger value="notifications" className="flex items-center justify-start gap-3 px-3.5 py-2.5 rounded-[10px] text-label-secondary data-[state=active]:bg-primary/12 data-[state=active]:text-primary transition-all text-[14px] font-medium w-full text-left">
+            <Bell className="size-4 stroke-[1.5]" /> Notifications
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
-            <Palette className="w-4 h-4" /> Appearance
+          <TabsTrigger value="appearance" className="flex items-center justify-start gap-3 px-3.5 py-2.5 rounded-[10px] text-label-secondary data-[state=active]:bg-primary/12 data-[state=active]:text-primary transition-all text-[14px] font-medium w-full text-left">
+            <Palette className="size-4 stroke-[1.5]" /> Appearance
           </TabsTrigger>
-          <TabsTrigger value="resignation" className="flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-slate-600 data-[state=active]:bg-white data-[state=active]:text-rose-700 data-[state=active]:shadow-sm transition-all text-sm font-medium w-full text-left">
-            <LogOut className="w-4 h-4 text-rose-500" /> Resignation
+          <TabsTrigger value="resignation" className="flex items-center justify-start gap-3 px-3.5 py-2.5 rounded-[10px] text-label-secondary data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive transition-all text-[14px] font-medium w-full text-left">
+            <LogOut className="size-4 text-destructive stroke-[1.5]" /> Resignation
           </TabsTrigger>
         </TabsList>
 
@@ -426,7 +426,9 @@ export default function EmployeeProfileSettings() {
                   <Button
                     onClick={() => saveMutation.mutate()}
                     disabled={saveMutation.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
+                    variant="default"
+                    size="default"
+                    className="px-6"
                   >
                     {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                     Save Changes
@@ -479,7 +481,9 @@ export default function EmployeeProfileSettings() {
                   <Button
                     onClick={() => changePasswordMutation.mutate()}
                     disabled={changePasswordMutation.isPending || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
+                    variant="default"
+                    size="default"
+                    className="px-6"
                   >
                     {changePasswordMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                     Update Password
@@ -716,7 +720,9 @@ export default function EmployeeProfileSettings() {
                   <Button
                     onClick={() => saveNotificationsMutation.mutate(notifications)}
                     disabled={saveNotificationsMutation.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
+                    variant="default"
+                    size="default"
+                    className="px-6"
                   >
                     {saveNotificationsMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                     Save Preferences
@@ -778,7 +784,9 @@ export default function EmployeeProfileSettings() {
                   <Button
                     onClick={() => saveAppearanceMutation.mutate(appearance)}
                     disabled={saveAppearanceMutation.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-8"
+                    variant="default"
+                    size="default"
+                    className="px-6"
                   >
                     {saveAppearanceMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                     Save Appearance

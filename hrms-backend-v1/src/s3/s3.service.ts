@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import {
   S3Client,
   PutObjectCommand,
@@ -27,6 +27,24 @@ export class S3Service {
     this.bucketName = process.env.AWS_S3_BUCKET || 'hrms-uploads-bucket';
   }
 
+  /**
+   * S-11: Detect mock mode and forbid mock mode when NODE_ENV=production
+   */
+  private isMockMode(): boolean {
+    const isMock =
+      process.env.AWS_S3_MOCK === 'true' ||
+      process.env.AWS_ACCESS_KEY_ID === 'demo-access-key-id' ||
+      !process.env.AWS_ACCESS_KEY_ID;
+
+    if (isMock && process.env.NODE_ENV === 'production') {
+      throw new InternalServerErrorException(
+        'AWS S3 Mock mode or demo credentials are not permitted in production. Configure real AWS credentials.',
+      );
+    }
+
+    return isMock;
+  }
+
   async uploadFile(
     file: Express.Multer.File,
     folder: string = 'uploads',
@@ -35,11 +53,7 @@ export class S3Service {
     const filename = `${folder}/${uniqueSuffix}${extname(file.originalname)}`;
 
     // Fallback: If mock mode is explicitly turned on or demo keys are detected, simulate the upload
-    if (
-      process.env.AWS_S3_MOCK === 'true' ||
-      process.env.AWS_ACCESS_KEY_ID === 'demo-access-key-id' ||
-      !process.env.AWS_ACCESS_KEY_ID
-    ) {
+    if (this.isMockMode()) {
       console.log(
         `[S3 Mock] Successfully simulated file upload for ${file.originalname} to bucket ${this.bucketName} as ${filename}`,
       );
@@ -67,16 +81,11 @@ export class S3Service {
     }
   }
 
-  // 2. NEW: Generate a secure, temporary viewing link (Valid for 15 mins)
+  // Generate a secure, temporary viewing link (Valid for 15 mins)
   async getPresignedUrl(fileKey: string): Promise<string> {
     if (!fileKey) return '';
 
-    // If mock mode is explicitly turned on or demo keys are detected, return the mock URL directly
-    if (
-      process.env.AWS_S3_MOCK === 'true' ||
-      process.env.AWS_ACCESS_KEY_ID === 'demo-access-key-id' ||
-      !process.env.AWS_ACCESS_KEY_ID
-    ) {
+    if (this.isMockMode()) {
       return fileKey;
     }
 
@@ -113,16 +122,11 @@ export class S3Service {
     }
   }
 
-  // 3. Delete file from S3 / MinIO
+  // Delete file from S3 / MinIO
   async deleteFile(fileKey: string): Promise<void> {
     if (!fileKey) return;
 
-    // If it's mock or external testing key, bypass actual deletion
-    if (
-      process.env.AWS_S3_MOCK === 'true' ||
-      process.env.AWS_ACCESS_KEY_ID === 'demo-access-key-id' ||
-      !process.env.AWS_ACCESS_KEY_ID
-    ) {
+    if (this.isMockMode()) {
       console.log(`[S3 Mock] Simulated file deletion for key ${fileKey}`);
       return;
     }

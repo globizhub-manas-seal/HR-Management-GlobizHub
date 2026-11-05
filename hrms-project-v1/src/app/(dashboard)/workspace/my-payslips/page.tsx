@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CardGridSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function EmployeePayslipPage() {
   const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
@@ -47,15 +48,15 @@ export default function EmployeePayslipPage() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8 font-sans min-h-screen bg-slate-50/50">
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
       {/* HEADER */}
-      <div className="flex justify-between items-end gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center">
-            <Banknote className="w-8 h-8 mr-3 text-indigo-600" />
+          <h1 className="type-large-title font-bold text-foreground tracking-tight flex items-center">
+            <Banknote className="size-8 mr-3 text-primary stroke-[1.5]" />
             My Salary Slips
           </h1>
-          <p className="text-slate-500 mt-1">
+          <p className="type-subhead text-label-secondary mt-1">
             View and download your official monthly payslips.
           </p>
         </div>
@@ -65,53 +66,49 @@ export default function EmployeePayslipPage() {
       {isLoading ? (
         <CardGridSkeleton count={6} columns={3} showAvatar={false} />
       ) : payslips?.length === 0 ? (
-        <div className="text-center p-16 border-2 border-dashed border-slate-200 rounded-2xl bg-white text-slate-500">
-          <FileText className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-          <h3 className="text-lg font-bold text-slate-900 mb-1">
-            No Payslips Available
-          </h3>
-          <p className="text-sm">
-            Your payslips will appear here once HR approves and processes them.
-          </p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No Payslips Available"
+          description="Your payslips will appear here once processed and approved by HR."
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {payslips?.map((payslip: any) => (
             <Card
               key={payslip.id}
-              className="border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group"
+              className="hover:scale-[1.01] transition-transform cursor-pointer group"
               onClick={() => setSelectedPayslip(payslip)}
             >
-              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0 bg-slate-50/50 rounded-t-xl border-b border-slate-100">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0 border-b border-hairline border-separator/50">
                 <div>
-                  <CardTitle className="text-xl font-bold text-slate-900">
+                  <CardTitle className="type-headline font-semibold text-foreground">
                     {getMonthName(payslip.month)} {payslip.year}
                   </CardTitle>
-                  <p className="text-xs font-semibold text-slate-500 mt-1">
-                    PROCESSED SALARY
+                  <p className="type-caption font-semibold text-label-secondary tracking-wider mt-1 uppercase">
+                    Processed Salary
                   </p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                  <FileText className="w-5 h-5" />
+                <div className="size-10 rounded-[12px] bg-primary/12 text-primary flex items-center justify-center transition-colors">
+                  <FileText className="size-5 stroke-[1.5]" />
                 </div>
               </CardHeader>
-              <CardContent className="pt-5">
+              <CardContent className="pt-4">
                 <div className="flex justify-between items-end mb-4">
-                  <p className="text-sm text-slate-500 font-medium">
+                  <p className="type-subhead text-label-secondary font-medium">
                     Net Transfer
                   </p>
-                  <p className="text-2xl font-black text-slate-900">
+                  <p className="type-title-1 font-bold text-foreground tabular-nums">
                     {formatCurrency(payslip.netSalary)}
                   </p>
                 </div>
 
-                <div className="flex justify-between items-center text-xs text-slate-500 mt-4 pt-4 border-t border-slate-100">
+                <div className="flex justify-between items-center type-caption text-label-secondary pt-3 border-t border-hairline border-separator/40">
                   <span className="flex items-center">
-                    <Calendar className="w-3.5 h-3.5 mr-1" />{" "}
+                    <Calendar className="size-3.5 mr-1 stroke-[1.5]" />
                     {payslip.totalWorkingDays} Working Days
                   </span>
                   {payslip.unpaidLeaves > 0 && (
-                    <span className="text-rose-500 font-medium">
+                    <span className="text-destructive font-medium tabular-nums">
                       {payslip.unpaidLeaves} LOP Days
                     </span>
                   )}
@@ -127,18 +124,18 @@ export default function EmployeePayslipPage() {
         open={!!selectedPayslip}
         onOpenChange={(open) => !open && setSelectedPayslip(null)}
       >
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl bg-white p-4 sm:p-6 custom-scrollbar">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl bg-card p-4 sm:p-6 custom-scrollbar">
           <DialogHeader className="print:hidden">
-            <DialogTitle>Official Payslip</DialogTitle>
+            <DialogTitle className="type-title-2 font-semibold">Official Payslip</DialogTitle>
           </DialogHeader>
 
           {selectedPayslip && (
             <div
-              className="p-4 sm:p-6 border border-slate-200 rounded-2xl mt-2 bg-white shadow-sm"
+              className="p-4 sm:p-6 border border-hairline border-separator rounded-[16px] mt-2 bg-card apple-shadow-card"
               id="printable-payslip"
             >
               {/* Header */}
-              <div className="text-center mb-8 border-b border-slate-200 pb-6">
+              <div className="text-center mb-6 border-b border-hairline border-separator pb-4">
                 {selectedPayslip.breakdown?.meta?.letterheadUrl ||
                 selectedPayslip.company?.settings?.payslipHeaderUrl ? (
                   <img
@@ -150,37 +147,37 @@ export default function EmployeePayslipPage() {
                     className="w-full h-auto max-h-24 object-contain mx-auto mb-4"
                   />
                 ) : (
-                  <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-widest">
+                  <h2 className="type-title-2 font-bold text-foreground uppercase tracking-widest">
                     {selectedPayslip.breakdown?.meta?.companyName ||
                       selectedPayslip.company?.name ||
                       "Company Name"}
                   </h2>
                 )}
-                <p className="text-slate-500 mt-1">
+                <p className="type-subhead text-label-secondary mt-1">
                   Payslip for the month of {getMonthName(selectedPayslip.month)}{" "}
                   {selectedPayslip.year}
                 </p>
               </div>
 
               {/* Consolidated Employee Summary */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-4 sm:gap-8 mb-8 text-sm border-b pb-6 border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-4 sm:gap-6 mb-6 text-sm border-b border-hairline border-separator/40 pb-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Employee Name:</span>{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="text-label-secondary">Employee Name:</span>{" "}
+                    <span className="font-semibold text-foreground">
                       {selectedPayslip.employee?.firstName}{" "}
                       {selectedPayslip.employee?.lastName}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Employee ID:</span>{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="text-label-secondary">Employee ID:</span>{" "}
+                    <span className="font-semibold text-foreground tabular-nums">
                       {selectedPayslip.employee?.employeeCode || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Designation:</span>{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="text-label-secondary">Designation:</span>{" "}
+                    <span className="font-semibold text-foreground">
                       {selectedPayslip.employee?.designation ||
                         "Software Engineer"}
                     </span>
@@ -188,22 +185,22 @@ export default function EmployeePayslipPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">PF A/C Number:</span>{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="text-label-secondary">PF A/C Number:</span>{" "}
+                    <span className="font-semibold text-foreground tabular-nums">
                       {selectedPayslip.employee?.pfAccountNumber || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">UAN Number:</span>{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="text-label-secondary">UAN Number:</span>{" "}
+                    <span className="font-semibold text-foreground tabular-nums">
                       {selectedPayslip.employee?.uanNumber || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Paid Days / LOP:</span>{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="text-label-secondary">Paid Days / LOP:</span>{" "}
+                    <span className="font-semibold text-foreground tabular-nums">
                       {selectedPayslip.presentDays} /{" "}
-                      <span className="text-rose-600 font-bold">
+                      <span className="text-destructive font-bold tabular-nums">
                         {selectedPayslip.unpaidLeaves}
                       </span>
                     </span>
@@ -212,161 +209,98 @@ export default function EmployeePayslipPage() {
               </div>
 
               {/* Salary Breakdown Tables */}
-              <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-4 mb-6">
                 {/* EARNINGS */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner bg-slate-50/20">
-                  <div className="bg-slate-50 p-3 border-b border-slate-200 font-bold text-slate-700 uppercase text-xs tracking-wider flex justify-between">
+                <div className="border border-hairline border-separator rounded-[12px] overflow-hidden bg-fill/20">
+                  <div className="bg-fill/40 p-3 border-b border-hairline border-separator font-bold text-label-secondary uppercase text-[11px] tracking-wider flex justify-between">
                     <span>Earnings</span>
                     <span>Amount</span>
                   </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">Basic</span>
-                    <span className="font-medium text-slate-900">
+                  <div className="p-2.5 border-b border-hairline border-separator/40 flex justify-between text-[13px]">
+                    <span className="text-label-secondary">Basic</span>
+                    <span className="font-medium text-foreground tabular-nums">
                       {formatCurrency(
                         selectedPayslip.breakdown?.earnings?.basic || 0,
                       )}
                     </span>
                   </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">House Rent Allowance</span>
-                    <span className="font-medium text-slate-900">
+                  <div className="p-2.5 border-b border-hairline border-separator/40 flex justify-between text-[13px]">
+                    <span className="text-label-secondary">House Rent Allowance</span>
+                    <span className="font-medium text-foreground tabular-nums">
                       {formatCurrency(
                         selectedPayslip.breakdown?.earnings?.hra || 0,
                       )}
                     </span>
                   </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">Conveyance Allowance</span>
-                    <span className="font-medium text-slate-900">
+                  <div className="p-2.5 border-b border-hairline border-separator/40 flex justify-between text-[13px]">
+                    <span className="text-label-secondary">Conveyance Allowance</span>
+                    <span className="font-medium text-foreground tabular-nums">
                       {formatCurrency(
                         selectedPayslip.breakdown?.earnings?.conveyance || 0,
                       )}
                     </span>
                   </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">Medical Allowance</span>
-                    <span className="font-medium text-slate-900">
+                  <div className="p-2.5 flex justify-between text-[13px]">
+                    <span className="text-label-secondary">Medical Allowance</span>
+                    <span className="font-medium text-foreground tabular-nums">
                       {formatCurrency(
                         selectedPayslip.breakdown?.earnings?.medical || 0,
-                      )}
-                    </span>
-                  </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">Special Allowance</span>
-                    <span className="font-medium text-slate-900">
-                      {formatCurrency(
-                        selectedPayslip.breakdown?.earnings?.special || 0,
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="p-3 flex justify-between font-bold bg-slate-100/50">
-                    <span className="text-slate-900">Total Earnings</span>
-                    <span className="text-emerald-600">
-                      {formatCurrency(
-                        selectedPayslip.breakdown?.earnings?.total || 0,
                       )}
                     </span>
                   </div>
                 </div>
 
                 {/* DEDUCTIONS */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner bg-slate-50/20">
-                  <div className="bg-slate-50 p-3 border-b border-slate-200 font-bold text-slate-700 uppercase text-xs tracking-wider flex justify-between">
+                <div className="border border-hairline border-separator rounded-[12px] overflow-hidden bg-fill/20">
+                  <div className="bg-fill/40 p-3 border-b border-hairline border-separator font-bold text-label-secondary uppercase text-[11px] tracking-wider flex justify-between">
                     <span>Deductions</span>
                     <span>Amount</span>
                   </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">EPF contribution</span>
-                    <span className="font-medium text-slate-900">
+                  <div className="p-2.5 border-b border-hairline border-separator/40 flex justify-between text-[13px]">
+                    <span className="text-label-secondary">Provident Fund (PF)</span>
+                    <span className="font-medium text-destructive tabular-nums">
                       {formatCurrency(
                         selectedPayslip.breakdown?.deductions?.pf || 0,
                       )}
                     </span>
                   </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">Income Tax</span>
-                    <span className="font-medium text-slate-900">
+                  <div className="p-2.5 border-b border-hairline border-separator/40 flex justify-between text-[13px]">
+                    <span className="text-label-secondary">Professional Tax</span>
+                    <span className="font-medium text-destructive tabular-nums">
                       {formatCurrency(
-                        selectedPayslip.breakdown?.deductions?.tax || 0,
+                        selectedPayslip.breakdown?.deductions?.pt || 0,
                       )}
                     </span>
                   </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600">Professional Tax</span>
-                    <span className="font-medium text-slate-900">
+                  <div className="p-2.5 flex justify-between text-[13px]">
+                    <span className="text-label-secondary">Income Tax (TDS)</span>
+                    <span className="font-medium text-destructive tabular-nums">
                       {formatCurrency(
-                        selectedPayslip.breakdown?.deductions?.profTax || 0,
-                      )}
-                    </span>
-                  </div>
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm">
-                    <span className="text-slate-600 flex items-center">
-                      Loss of Pay{" "}
-                      <Badge
-                        variant="outline"
-                        className="ml-2 text-[10px] py-0"
-                      >
-                        {selectedPayslip.unpaidLeaves} days
-                      </Badge>
-                    </span>
-                    <span className="font-medium text-rose-600">
-                      {formatCurrency(
-                        selectedPayslip.breakdown?.deductions?.lop || 0,
-                      )}
-                    </span>
-                  </div>
-                  {/* Empty Spacer to align with Earnings (hidden on mobile, shown on md+) */}
-                  <div className="p-3 border-b border-slate-200 flex justify-between text-sm text-transparent select-none hidden md:flex print:flex">
-                    Spacer
-                  </div>
-
-                  <div className="p-3 flex justify-between font-bold bg-slate-100/50">
-                    <span className="text-slate-900">Total Deductions</span>
-                    <span className="text-rose-600">
-                      {formatCurrency(
-                        selectedPayslip.breakdown?.deductions?.total || 0,
+                        selectedPayslip.breakdown?.deductions?.tds || 0,
                       )}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Net Salary */}
-              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
-                <div>
-                  <p className="text-sm font-semibold text-indigo-950 uppercase tracking-wider">
-                    Net Salary Payable
-                  </p>
-                  <p className="text-xs text-indigo-700 mt-1">
-                    Total Earnings minus Total Deductions
-                  </p>
-                </div>
-                <div className="text-3xl font-black text-indigo-800">
+              {/* Net Pay Highlight Banner */}
+              <div className="p-4 rounded-[12px] bg-primary/10 border border-hairline border-primary/20 flex justify-between items-center">
+                <span className="type-headline font-semibold text-foreground">Net Payable Salary:</span>
+                <span className="type-title-1 font-bold text-primary tabular-nums">
                   {formatCurrency(selectedPayslip.netSalary)}
-                </div>
-              </div>
-
-              <div className="mt-8 text-center text-xs text-slate-400">
-                This is a computer-generated document. No signature is required.
+                </span>
               </div>
             </div>
           )}
 
-          <DialogFooter className="print:hidden mt-4 gap-2 flex-col sm:flex-row">
-            <Button variant="outline" className="rounded-xl border-slate-200" onClick={() => setSelectedPayslip(null)}>
-              Close
-            </Button>
+          <DialogFooter className="mt-4 print:hidden">
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm"
-              onClick={() => {
-                axios.post(`${API_URL}/payroll/${selectedPayslip.id}/log-download`, {}, {
-                  headers: { Authorization: `Bearer ${getToken()}` }
-                }).catch(err => console.error("Failed to log download:", err));
-                window.print();
-              }}
+              variant="default"
+              size="default"
+              onClick={() => window.print()}
+              className="gap-2"
             >
-              <Download className="w-4 h-4 mr-2" /> Download / Print PDF
+              <Download className="size-4 stroke-[1.5]" /> Print / Download PDF
             </Button>
           </DialogFooter>
         </DialogContent>
