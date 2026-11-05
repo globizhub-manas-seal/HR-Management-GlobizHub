@@ -11,6 +11,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { AuthGuard } from '../../auth/auth.guard';
+import { TrainingAdminGuard } from '../guards/training-admin.guard';
 import { CompetencyService } from '../services/competency.service';
 import {
   CreateCompetencyDto,
@@ -20,7 +21,7 @@ import {
 } from '../dto/competency.dto';
 
 @Controller('training/competencies')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, TrainingAdminGuard)
 export class CompetencyController {
   constructor(private readonly service: CompetencyService) {}
 

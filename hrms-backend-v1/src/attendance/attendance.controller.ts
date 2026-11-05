@@ -9,17 +9,17 @@ import {
 } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { ClockInDto } from './dto/clock-in.dto';
 
 @Controller('attendance')
-@UseGuards(AuthGuard) // Require JWT to access
+@UseGuards(AuthGuard, PermissionsGuard)
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
   @Post('clock-in')
   async clockIn(@Request() req, @Ip() ip: string, @Body() dto: ClockInDto) {
-    // req.user contains the decoded JWT (employeeId and companyId)
-    // @Ip() automatically extracts the user's IP address
     return this.attendanceService.clockIn(
       req.user.sub,
       req.user.companyId,
@@ -35,24 +35,22 @@ export class AttendanceController {
 
   @Get('my-history')
   async getMyHistory(@Request() req) {
-    // req.user.sub is the employeeId securely extracted from their JWT token
     return this.attendanceService.getMyHistory(
       req.user.sub,
       req.user.companyId,
     );
   }
 
-  // NEW: Admin Dashboard Stats
+  // S-05: Attendance admin-stats guarded — only Admins / HR / Managers with attendance.manage
   @Get('admin-stats')
+  @RequirePermissions('attendance.manage')
   async getAdminTodayStats(@Request() req) {
-    // Only fetch stats for the specific company this Admin belongs to!
     return this.attendanceService.getAdminTodayStats(req.user.companyId);
   }
 
-  // NEW: Personal Employee Dashboard Stats
+  // Personal Employee Dashboard Stats (own stats)
   @Get('my-stats')
   async getMyStats(@Request() req) {
-    // req.user.sub is the logged-in employee's ID from their JWT token
     return this.attendanceService.getMyDashboardStats(
       req.user.sub,
       req.user.companyId,

@@ -10,6 +10,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { AuthGuard } from '../../auth/auth.guard';
+import { TrainingAdminGuard } from '../guards/training-admin.guard';
 import { TrainingEvaluationService } from '../services/training-evaluation.service';
 import {
   CreateTrainingEvaluationDto,
@@ -17,7 +18,7 @@ import {
 } from '../dto/evaluation.dto';
 
 @Controller('training/evaluations')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, TrainingAdminGuard)
 export class TrainingEvaluationController {
   constructor(private readonly service: TrainingEvaluationService) {}
 

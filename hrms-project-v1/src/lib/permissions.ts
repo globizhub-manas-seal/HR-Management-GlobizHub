@@ -44,7 +44,7 @@ export const SIDEBAR_MODULES: SidebarModuleDefinition[] = [
     icon: LayoutDashboard,
     href: "/workspace/dashboard",
     description: "Main dashboard with widgets and overview",
-    defaultRoles: ["EMPLOYEE", "MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+    defaultRoles: ["HR_HEAD", "SUPER_ADMIN", "OWNER"],
   },
   {
     key: "onboarding",
@@ -68,7 +68,7 @@ export const SIDEBAR_MODULES: SidebarModuleDefinition[] = [
     icon: GraduationCap,
     href: "/workspace/training",
     description: "Universal training plans, competencies & career progression",
-    defaultRoles: ["EMPLOYEE", "MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+    defaultRoles: ["HR_HEAD", "SUPER_ADMIN", "OWNER"],
   },
   {
     key: "employees",
@@ -228,14 +228,14 @@ export const DASHBOARD_WIDGETS: DashboardWidgetDefinition[] = [
     key: "welcome_banner",
     label: "Welcome Banner",
     description: "Personalized greeting with attendance summary",
-    defaultRoles: ["EMPLOYEE", "MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+    defaultRoles: ["HR_HEAD", "SUPER_ADMIN", "OWNER"],
     category: "personal",
   },
   {
     key: "clock_in_widget",
     label: "Clock In/Out Widget",
     description: "Quick clock-in/clock-out action widget",
-    defaultRoles: ["EMPLOYEE", "MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+    defaultRoles: ["HR_HEAD", "SUPER_ADMIN", "OWNER"],
     category: "personal",
   },
   {
@@ -277,7 +277,7 @@ export const DASHBOARD_WIDGETS: DashboardWidgetDefinition[] = [
     key: "announcements",
     label: "Announcements",
     description: "Company announcements and notices",
-    defaultRoles: ["EMPLOYEE", "MANAGER", "HR_HEAD", "SUPER_ADMIN", "OWNER"],
+    defaultRoles: ["HR_HEAD", "SUPER_ADMIN", "OWNER"],
     category: "company",
   },
   {

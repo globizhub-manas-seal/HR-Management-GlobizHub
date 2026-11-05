@@ -10,6 +10,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { AuthGuard } from '../../auth/auth.guard';
+import { TrainingAdminGuard } from '../guards/training-admin.guard';
 import { EmployeePositionChangeService } from '../services/employee-position-change.service';
 import {
   InitiatePositionChangeDto,
@@ -18,7 +19,7 @@ import {
 } from '../dto/position-change.dto';
 
 @Controller('training/position-changes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, TrainingAdminGuard)
 export class EmployeePositionChangeController {
   constructor(private readonly service: EmployeePositionChangeService) {}
 

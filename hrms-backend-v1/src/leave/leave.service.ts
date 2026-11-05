@@ -552,4 +552,136 @@ export class LeaveService {
     }
     return results;
   }
+
+  // ==========================================
+  // YEAR-END CARRY-FORWARD & LAPSE ENGINE
+  // ==========================================
+  async processYearEndCarryForward(
+    companyId: string,
+    fromYear: number,
+    toYear: number,
+    actorId?: string,
+  ) {
+    const allocations = await this.prisma.leaveAllocation.findMany({
+      where: { companyId, year: fromYear, isExpired: false },
+      include: { leavePolicy: true },
+    });
+
+    let carriedForwardCount = 0;
+    let lapsedCount = 0;
+
+    for (const alloc of allocations) {
+      const remaining = Math.max(0, alloc.allocatedDays - alloc.usedDays);
+      if (remaining <= 0) {
+        await this.prisma.leaveAllocation.update({
+          where: { id: alloc.id },
+          data: { isExpired: true },
+        });
+        continue;
+      }
+
+      if (alloc.leavePolicy.carryForward) {
+        const maxCarry = alloc.leavePolicy.daysPerYear;
+        const carryDays = Math.min(remaining, maxCarry);
+        const expiredDays = Math.max(0, remaining - carryDays);
+
+        let nextAlloc = await this.prisma.leaveAllocation.findFirst({
+          where: {
+            employeeId: alloc.employeeId,
+            companyId,
+            leavePolicyId: alloc.leavePolicyId,
+            year: toYear,
+          },
+        });
+
+        if (!nextAlloc) {
+          nextAlloc = await this.prisma.leaveAllocation.create({
+            data: {
+              employeeId: alloc.employeeId,
+              companyId,
+              leavePolicyId: alloc.leavePolicyId,
+              year: toYear,
+              periodNumber: 1,
+              allocatedDays: alloc.leavePolicy.daysPerYear + carryDays,
+              startDate: new Date(toYear, 0, 1),
+              endDate: new Date(toYear, 11, 31),
+            },
+          });
+        } else {
+          await this.prisma.leaveAllocation.update({
+            where: { id: nextAlloc.id },
+            data: { allocatedDays: { increment: carryDays } },
+          });
+        }
+
+        await this.prisma.leaveTransaction.create({
+          data: {
+            employeeId: alloc.employeeId,
+            companyId,
+            allocationId: nextAlloc.id,
+            type: TransactionType.ADJUSTMENT,
+            amount: carryDays,
+            description: "Carried forward from " + fromYear + " (" + carryDays + " days)",
+          },
+        });
+
+        if (expiredDays > 0) {
+          await this.prisma.leaveTransaction.create({
+            data: {
+              employeeId: alloc.employeeId,
+              companyId,
+              allocationId: alloc.id,
+              type: TransactionType.EXPIRY,
+              amount: -expiredDays,
+              description: "Expired beyond carry-forward limit from " + fromYear,
+            },
+          });
+        }
+
+        await this.prisma.leaveAllocation.update({
+          where: { id: alloc.id },
+          data: { isExpired: true, expiredDays },
+        });
+
+        carriedForwardCount++;
+      } else {
+        await this.prisma.leaveTransaction.create({
+          data: {
+            employeeId: alloc.employeeId,
+            companyId,
+            allocationId: alloc.id,
+            type: TransactionType.EXPIRY,
+            amount: -remaining,
+            description: "Year-end lapse for " + fromYear,
+          },
+        });
+
+        await this.prisma.leaveAllocation.update({
+          where: { id: alloc.id },
+          data: { isExpired: true, expiredDays: remaining },
+        });
+
+        lapsedCount++;
+      }
+    }
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'UPDATE',
+      'LeaveAllocation',
+      fromYear + "->" + toYear,
+      null,
+      { carriedForwardCount, lapsedCount },
+    );
+
+    return {
+      success: true,
+      fromYear,
+      toYear,
+      processedAllocations: allocations.length,
+      carriedForwardCount,
+      lapsedCount,
+    };
+  }
 }

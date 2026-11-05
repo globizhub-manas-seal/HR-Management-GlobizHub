@@ -289,7 +289,8 @@ export class AuthService {
         deptMap.set(d.name.trim().toLowerCase(), d);
       });
 
-      const tempPasswordHash = await bcrypt.hash('Welcome123!', 10);
+      // S-03: Unusable temporary password for wizard-invited employees
+      const tempPasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
 
       for (let i = 0; i < uniqueInvites.length; i++) {
         const inv = uniqueInvites[i];
@@ -309,15 +310,16 @@ export class AuthService {
             }
           }
 
-          const inviteToken = crypto.randomBytes(32).toString('hex');
+          // S-14: store SHA-256 hash; raw token goes in the email link
+          const rawInviteToken = crypto.randomBytes(32).toString('hex');
+          const inviteToken = crypto.createHash('sha256').update(rawInviteToken).digest('hex');
 
           let assignedRole: any = 'EMPLOYEE';
           if (inv.role) {
             const upperRole = inv.role.toUpperCase().replace(/\s+/g, '_');
+            // S-03: SUPER_ADMIN cannot be assigned via bulk invite
             if (
-              ['HR_HEAD', 'MANAGER', 'EMPLOYEE', 'SUPER_ADMIN'].includes(
-                upperRole,
-              )
+              ['HR_HEAD', 'MANAGER', 'EMPLOYEE'].includes(upperRole)
             ) {
               assignedRole = upperRole;
             }
@@ -414,7 +416,7 @@ export class AuthService {
             inv.email,
             fName,
             null,
-            inviteToken,
+            rawInviteToken, // S-14: send raw token in email; DB stores hash
           );
 
           await this.auditService.logAction(
@@ -462,6 +464,28 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+
+    // S-03: Block logins if the invitation has not been accepted yet
+    if (user.inviteToken !== null) {
+      throw new UnauthorizedException(
+        'Your account is pending activation. Please set your password using the invitation link sent to your email.',
+      );
+    }
+    // Block deactivated or terminated accounts
+    if (user.employmentStatus === 'TERMINATED' || user.employmentStatus === 'RESIGNED') {
+      throw new UnauthorizedException(
+        'This account has been deactivated. Please contact your company administrator.',
+      );
+    }
+
+    // If the employee already accepted their invite, ensure status is ACTIVE
+    if (user.employmentStatus === 'INVITED') {
+      await this.prisma.employee.update({
+        where: { id: user.id },
+        data: { employmentStatus: 'ACTIVE' },
+      });
+      user.employmentStatus = 'ACTIVE';
+    }
 
     // Log user login activity
     await this.auditService.logAction(
@@ -544,9 +568,11 @@ export class AuthService {
   }
 
   async setPassword(dto: SetPasswordDto) {
-    // 1. Find the employee by their unique invite token
+    // S-14: Hash the incoming raw token before comparing with the stored hash
+    const hashedToken = crypto.createHash('sha256').update(dto.token).digest('hex');
+    // 1. Find the employee by their hashed invite token
     const employee = await this.prisma.employee.findUnique({
-      where: { inviteToken: dto.token },
+      where: { inviteToken: hashedToken },
     });
 
     if (!employee) {
@@ -572,6 +598,7 @@ export class AuthService {
         password: hashedPassword,
         inviteToken: null,
         resetPasswordExpires: null,
+        employmentStatus: employee.employmentStatus === 'INVITED' ? 'ACTIVE' : employee.employmentStatus,
       },
     });
 
@@ -690,6 +717,7 @@ export class AuthService {
         password: hashedPassword,
         resetPasswordToken: null,
         resetPasswordExpires: null,
+        employmentStatus: employee.employmentStatus === 'INVITED' ? 'ACTIVE' : employee.employmentStatus,
       },
     });
 

@@ -3,6 +3,9 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
 import { NotificationModule } from '../notification/notification.module';
 
+// Guards
+import { TrainingAdminGuard } from './guards/training-admin.guard';
+
 // Services
 import { TrainingSequenceService } from './services/training-sequence.service';
 import { TrainingCategoryService } from './services/training-category.service';
@@ -47,6 +50,7 @@ import { MyLearningController } from './controllers/my-learning.controller';
     MyLearningController,
   ],
   providers: [
+    TrainingAdminGuard,
     TrainingSequenceService,
     TrainingCategoryService,
     CompetencyService,
@@ -60,6 +64,7 @@ import { MyLearningController } from './controllers/my-learning.controller';
     TrainingDashboardService,
   ],
   exports: [
+    TrainingAdminGuard,
     TrainingSequenceService,
     TrainingCategoryService,
     CompetencyService,
