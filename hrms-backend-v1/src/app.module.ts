@@ -24,6 +24,7 @@ import { NotificationModule } from './notification/notification.module';
 import { ResignationModule } from './resignation/resignation.module';
 import { RecruitmentModule } from './recruitment/recruitment.module';
 import { TrainingModule } from './training/training.module';
+import { PlatformModule } from './platform/platform.module';
 
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -90,6 +91,7 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
     ResignationModule,
     RecruitmentModule,
     TrainingModule,
+    PlatformModule,
   ],
   controllers: [AppController],
   providers: [

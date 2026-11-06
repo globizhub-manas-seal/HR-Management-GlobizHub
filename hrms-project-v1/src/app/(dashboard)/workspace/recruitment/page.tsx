@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -66,7 +68,7 @@ import { CreateJobModal } from "@/components/recruitment/CreateJobModal";
 import { ApplicationDetailModal } from "@/components/recruitment/ApplicationDetailModal";
 import { ConfigurePipelineModal } from "@/components/recruitment/ConfigurePipelineModal";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = API_BASE_URL;
 
 export default function RecruitmentPage() {
   const { toast } = useToast();

@@ -1,12 +1,13 @@
-// src/app/(auth)/login/page.tsx
 "use client";
+
+// src/app/(auth)/login/page.tsx
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import axios from "axios";
+import { authApi } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,14 +44,17 @@ export default function LoginPage() {
     setErrorMessage("");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const response = await axios.post(`${apiUrl}/auth/login`, {
-        email: values.email,
-        password: values.password,
-      });
+      const resData = await authApi.login({ email: values.email, password: values.password });
+      const response = { data: resData };
 
-      localStorage.setItem("hrms_token", response.data.access_token);
-      window.location.href = "/workspace/dashboard";
+      if (response.data.portal === "PLATFORM_ADMIN") {
+        localStorage.setItem("platform_token", response.data.access_token);
+        localStorage.setItem("platform_user", JSON.stringify(response.data.user));
+        window.location.href = response.data.targetUrl || "/platform-admin/dashboard";
+      } else {
+        localStorage.setItem("hrms_token", response.data.access_token);
+        window.location.href = response.data.targetUrl || "/workspace/dashboard";
+      }
     } catch (error: any) {
       setErrorMessage(
         error.response?.data?.message || "Invalid email or password. Please try again."
@@ -142,7 +146,7 @@ export default function LoginPage() {
           </form>
         </Form>
         
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-2">
           <p className="type-footnote text-label-secondary">
             Don't have a workspace yet?{" "}
             <button 
@@ -152,6 +156,14 @@ export default function LoginPage() {
               Register your company
             </button>
           </p>
+          <div className="pt-2 border-t border-border">
+            <a
+              href="/platform-admin/login"
+              className="text-[12px] text-muted-foreground hover:text-primary transition-colors font-medium inline-flex items-center gap-1"
+            >
+              Platform Super Admin? Go to SaaS Control Center &rarr;
+            </a>
+          </div>
         </div>
       </div>
     </div>

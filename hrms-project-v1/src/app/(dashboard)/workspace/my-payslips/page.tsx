@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -20,7 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 export default function EmployeePayslipPage() {
   const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_URL = API_BASE_URL;
   const getToken = () => localStorage.getItem("hrms_token");
 
   // Fetch Employee's Own Payslips

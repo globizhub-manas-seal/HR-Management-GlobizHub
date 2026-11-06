@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import { leavesApi } from "@/lib/api";
 import { 
   Calendar, Clock, CheckCircle2, XCircle, 
   Plus, Loader2, CalendarDays, Activity, Briefcase
@@ -38,38 +38,21 @@ export default function EmployeeLeavePage() {
     reason: ""
   });
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  const getToken = () => localStorage.getItem("hrms_token");
-
   // Fetch Leave Balance
   const { data: balance, isLoading: loadingBalance } = useQuery({
     queryKey: ["myLeaveBalance"],
-    queryFn: async () => {
-      const res = await axios.get(`${API_URL}/leaves/balance`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      return res.data;
-    }
+    queryFn: leavesApi.getMyBalance,
   });
 
   // Fetch Leave History
   const { data: leaveHistory, isLoading: loadingHistory } = useQuery({
     queryKey: ["myLeaves"],
-    queryFn: async () => {
-      const res = await axios.get(`${API_URL}/leaves/my`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      return res.data;
-    }
+    queryFn: leavesApi.getMyLeaves,
   });
 
   // Apply for Leave Mutation
   const applyMutation = useMutation({
-    mutationFn: async (formData: typeof leaveForm) => {
-      await axios.post(`${API_URL}/leaves`, formData, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-    },
+    mutationFn: (formData: typeof leaveForm) => leavesApi.applyLeave(formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
       queryClient.invalidateQueries({ queryKey: ["myLeaveBalance"] });

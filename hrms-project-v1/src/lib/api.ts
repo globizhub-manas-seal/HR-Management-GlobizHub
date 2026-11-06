@@ -1,13 +1,21 @@
 import axios from "axios";
 
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 const api = axios.create({
-    baseURL:process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000",
+  baseURL: API_BASE_URL,
+  timeout: 30000,
 });
 
 // Automatically attach the JWT token to every request
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("hrms_token");
+    const isPlatform = window.location.pathname.startsWith("/platform-admin");
+    const token = isPlatform
+      ? localStorage.getItem("platform_token") || localStorage.getItem("hrms_token") || localStorage.getItem("token")
+      : localStorage.getItem("hrms_token") || localStorage.getItem("token");
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -20,13 +28,31 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("hrms_token");
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
+      const isPlatform = window.location.pathname.startsWith("/platform-admin");
+      if (isPlatform) {
+        localStorage.removeItem("platform_token");
+        if (!window.location.pathname.startsWith("/platform-admin/login")) {
+          window.location.href = "/platform-admin/login";
+        }
+      } else {
+        localStorage.removeItem("hrms_token");
+        localStorage.removeItem("token");
+        if (!window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
+        }
       }
     }
     return Promise.reject(error);
   }
 );
+
+// Re-export domain modules
+export { documentsApi } from "./api/documents";
+export { employeesApi } from "./api/employees";
+export { attendanceApi } from "./api/attendance";
+export { leavesApi } from "./api/leaves";
+export { payrollApi } from "./api/payroll";
+export { recruitmentApi } from "./api/recruitment";
+export { authApi } from "./api/auth";
 
 export default api;

@@ -1,5 +1,6 @@
-// src/components/wizard/Step1CompanyInfo.tsx
 "use client";
+
+// src/components/wizard/Step1CompanyInfo.tsx
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";

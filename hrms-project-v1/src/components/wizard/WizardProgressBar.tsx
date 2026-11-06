@@ -1,5 +1,6 @@
-// src/components/wizard/WizardProgressBar.tsx
 "use client";
+
+// src/components/wizard/WizardProgressBar.tsx
 
 import React, { useRef, useEffect, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";

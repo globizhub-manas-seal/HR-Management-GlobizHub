@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { authApi } from "@/lib/api";
 
 interface ViewModeContextType {
   isViewAsUser: boolean;
@@ -26,24 +26,9 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
     queryKey: ["userProfileBase"],
     queryFn: async () => {
       if (typeof window === "undefined") return null;
-      const token = localStorage.getItem("hrms_token");
-      if (!token) return null;
       try {
-        const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        return res.data;
-      } catch (err: any) {
-        if (err.response?.status === 401) {
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("hrms_token");
-          }
-        }
+        return await authApi.getMe();
+      } catch {
         return null;
       }
     },

@@ -15,7 +15,9 @@ export class EmailService {
   async sendPasswordResetEmail(email: string, resetUrl: string) {
     try {
       const fromEmail =
-        process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+        process.env.RESEND_FROM_EMAIL ||
+        process.env.SENDER_EMAIL ||
+        'Patholab.Cloud <noreply@patholab.cloud>';
       const { data, error } = await this.resend.emails.send({
         from: fromEmail,
         to: email,
@@ -65,7 +67,9 @@ export class EmailService {
   ) {
     const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${inviteToken}`;
     const fromEmail =
-      process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+      process.env.RESEND_FROM_EMAIL ||
+      process.env.SENDER_EMAIL ||
+      'Patholab.Cloud <noreply@patholab.cloud>';
     try {
       const { data, error } = await this.resend.emails.send({
         from: fromEmail,

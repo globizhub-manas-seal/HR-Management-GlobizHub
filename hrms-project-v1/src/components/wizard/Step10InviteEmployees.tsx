@@ -1,5 +1,7 @@
-// src/components/wizard/Step10InviteEmployees.tsx
 "use client";
+
+import api, { API_BASE_URL } from "@/lib/api";
+// src/components/wizard/Step10InviteEmployees.tsx
 
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
@@ -224,7 +226,7 @@ export default function Step10InviteEmployees() {
     };
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const apiUrl = API_BASE_URL;
       const response = await axios.post(`${apiUrl}/auth/register`, finalPayload);
 
       // Save JWT token

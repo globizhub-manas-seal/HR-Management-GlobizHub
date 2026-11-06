@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { attendanceApi } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, MapPin, Loader2, LogIn, LogOut, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,7 @@ export function AttendanceWidget() {
   // 1. Fetch today's attendance stats for the logged-in user
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["myDashboardStats"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/attendance/my-stats`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
+    queryFn: attendanceApi.getMyStats,
   });
 
   // Calculate work duration in seconds and manage ticking clock interval
@@ -57,15 +50,8 @@ export function AttendanceWidget() {
 
   // Mutation for Clocking In
   const clockInMutation = useMutation({
-    mutationFn: async (coords: { latitude: number | null; longitude: number | null }) => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/attendance/clock-in`,
-        coords,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
+    mutationFn: (coords: { latitude: number | null; longitude: number | null }) =>
+      attendanceApi.clockIn(coords),
     onSuccess: (data) => {
       setSuccessMessage(data.message || "Successfully clocked in!");
       setLocationError("");
@@ -80,15 +66,7 @@ export function AttendanceWidget() {
 
   // Mutation for Clocking Out
   const clockOutMutation = useMutation({
-    mutationFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/attendance/clock-out`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
+    mutationFn: () => attendanceApi.clockOut(),
     onSuccess: (data) => {
       setSuccessMessage(data.message || "Successfully clocked out!");
       setLocationError("");

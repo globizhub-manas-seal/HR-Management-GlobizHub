@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -58,7 +60,7 @@ function format12hTo24h(hour: number, minute: number, period: string) {
 }
 
 export default function SettingsPage() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_URL = API_BASE_URL;
   const token =
     typeof window !== "undefined" ? localStorage.getItem("hrms_token") : "";
   const headers = { Authorization: `Bearer ${token}` };
@@ -68,7 +70,7 @@ export default function SettingsPage() {
     queryFn: async () =>
       (
         await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/organization/branches`,
+          `${API_BASE_URL}/organization/branches`,
           { headers },
         )
       ).data,
@@ -79,7 +81,7 @@ export default function SettingsPage() {
     queryFn: async () =>
       (
         await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/organization/departments`,
+          `${API_BASE_URL}/organization/departments`,
           { headers },
         )
       ).data,
@@ -90,7 +92,7 @@ export default function SettingsPage() {
     queryFn: async () =>
       (
         await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/organization/roles`,
+          `${API_BASE_URL}/organization/roles`,
           { headers },
         )
       ).data,
@@ -224,7 +226,7 @@ export default function SettingsPage() {
     queryKey: ["companySettings"],
     queryFn: async () => {
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/settings`,
+        `${API_BASE_URL}/settings`,
         {
           headers,
         },
@@ -241,7 +243,7 @@ export default function SettingsPage() {
   const saveMutation = useMutation({
     mutationFn: async (updatedData: any) => {
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/settings`,
+        `${API_BASE_URL}/settings`,
         updatedData,
         {
           headers,
@@ -326,7 +328,7 @@ export default function SettingsPage() {
     try {
       // ✅ Call backend to physically delete the file
       await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/payslip-letterhead`,
+        `${API_BASE_URL}/documents/payslip-letterhead`,
         { headers },
       );
       setFormData((prev: any) => ({ ...prev, payslipHeaderUrl: null }));

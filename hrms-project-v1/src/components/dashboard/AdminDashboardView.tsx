@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
@@ -11,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { BroadcastNotificationModal } from "@/components/notifications/BroadcastNotificationModal";
 
 export function AdminDashboardView() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_URL = API_BASE_URL;
   const getToken = () => localStorage.getItem("hrms_token");
 
   // 1. Fetch Admin Stats

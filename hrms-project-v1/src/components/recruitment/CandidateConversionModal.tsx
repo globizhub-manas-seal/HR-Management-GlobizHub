@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -56,7 +58,7 @@ export function CandidateConversionModal({
 }: CandidateConversionModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = API_BASE_URL;
 
   // Find accepted version or latest
   const acceptedVersion =

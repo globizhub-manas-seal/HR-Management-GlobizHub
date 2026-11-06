@@ -14,6 +14,10 @@ describe('AuthService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    platformUser: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+    },
     company: {
       create: jest.fn(),
     },
@@ -70,12 +74,33 @@ describe('AuthService', () => {
     jwt.signAsync.mockResolvedValue('token');
 
     await expect(service.login('  Alex@Acme.COM  ', password)).resolves.toEqual(
-      { access_token: 'token' },
+      expect.objectContaining({ access_token: 'token', portal: 'WORKSPACE' }),
     );
 
-    expect(prisma.employee.findUnique).toHaveBeenCalledWith({
-      where: { email: 'alex@acme.com' },
+    expect(prisma.employee.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: 'alex@acme.com' },
+      }),
+    );
+  });
+
+  it('unifies login for Platform Super Admin and routes to PLATFORM_ADMIN', async () => {
+    const password = 'SuperAdminPassword123!';
+    prisma.platformUser.findUnique.mockResolvedValue({
+      id: 'platform-user-1',
+      email: 'superadmin@teamhub.saas',
+      password: await bcrypt.hash(password, 10),
+      role: 'SUPER_ADMIN',
+      isActive: true,
     });
+    jwt.signAsync.mockResolvedValue('platform-token');
+
+    const result = await service.login('superadmin@teamhub.saas', password);
+
+    expect(result.portal).toBe('PLATFORM_ADMIN');
+    expect(result.targetUrl).toBe('/platform-admin/dashboard');
+    expect(result.access_token).toBe('platform-token');
+    expect(result.user.role).toBe('SUPER_ADMIN');
   });
 
   describe('forgotPassword', () => {

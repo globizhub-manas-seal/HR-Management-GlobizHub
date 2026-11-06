@@ -1,14 +1,12 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import Providers from "@/components/providers";
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -18,7 +16,8 @@ export const metadata: Metadata = {
     default: "TeamHub HRMS — Modern Workforce & Payroll Engine",
     template: "%s | TeamHub HRMS",
   },
-  description: "Enterprise human resource management system featuring automated payroll, smart attendance tracking, leave policies, and secure employee directories.",
+  description:
+    "Enterprise human resource management system featuring automated payroll, smart attendance tracking, leave policies, and secure employee directories.",
   keywords: ["HRMS", "Payroll Software", "Attendance Tracking", "HR Management", "Next.js HRMS"],
   authors: [{ name: "TeamHub Engineering" }],
   openGraph: {
@@ -37,7 +36,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#007AFF", // Apple system accent blue
+  themeColor: "#FDCD56", // TeamHub accent gold
   width: "device-width",
   initialScale: 1,
 };
@@ -54,9 +53,8 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground selection:bg-primary/30 selection:text-foreground">
-        <Script
-          id="apple-theme-init"
-          strategy="beforeInteractive"
+        <script
+          id="theme-init"
           dangerouslySetInnerHTML={{
             __html: `
               try {

@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useState, useEffect } from "react";
 import axios from "axios";
 import {
@@ -39,7 +41,7 @@ interface NewRequisitionModalProps {
   initialData?: any;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = API_BASE_URL;
 
 export function NewRequisitionModal({
   open,

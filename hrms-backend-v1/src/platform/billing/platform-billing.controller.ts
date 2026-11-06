@@ -1,0 +1,112 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  Query,
+  Headers,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { PlatformBillingService } from './platform-billing.service';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { RecordPaymentDto } from './dto/record-payment.dto';
+import { PlatformAuthGuard } from '../auth/guards/platform-auth.guard';
+import { PlatformRolesGuard } from '../auth/guards/platform-roles.guard';
+import { PlatformRoles } from '../auth/decorators/platform-roles.decorator';
+import { CurrentPlatformUser } from '../auth/decorators/current-platform-user.decorator';
+import { InvoiceStatus } from '../../../generated/prisma/enums';
+
+@Controller('platform/billing')
+export class PlatformBillingController {
+  constructor(private readonly billingService: PlatformBillingService) {}
+
+  // Invoices
+  @Get('invoices')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async getInvoices(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('companyId') companyId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.billingService.getInvoices({ search, status, companyId, page, limit });
+  }
+
+  @Get('invoices/:id')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async getInvoiceById(@Param('id') id: string) {
+    return this.billingService.getInvoiceById(id);
+  }
+
+  @Post('invoices')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async createInvoice(
+    @Body() dto: CreateInvoiceDto,
+    @CurrentPlatformUser() user: any,
+  ) {
+    return this.billingService.createInvoice(dto, user.id, user.email);
+  }
+
+  @Put('invoices/:id/status')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async updateInvoiceStatus(
+    @Param('id') id: string,
+    @Body('status') status: InvoiceStatus,
+    @CurrentPlatformUser() user: any,
+  ) {
+    return this.billingService.updateInvoiceStatus(id, status, user.id, user.email);
+  }
+
+  // Payments Ledger
+  @Get('payments')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async getPayments(
+    @Query('status') status?: string,
+    @Query('gateway') gateway?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.billingService.getPayments({ status, gateway, page, limit });
+  }
+
+  @Post('payments')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async recordPayment(
+    @Body() dto: RecordPaymentDto,
+    @CurrentPlatformUser() user: any,
+  ) {
+    return this.billingService.recordPayment(dto, user.id, user.email);
+  }
+
+  // Failed / Dunning
+  @Get('failed')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async getFailedPayments(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.billingService.getFailedPayments({ page, limit });
+  }
+
+  // Payment Webhook (Public with Idempotency)
+  @Post('webhook')
+  @HttpCode(HttpStatus.OK)
+  async handleWebhook(
+    @Body() payload: any,
+    @Headers('stripe-signature') signature?: string,
+    @Headers('x-idempotency-key') idempotencyHeader?: string,
+  ) {
+    const eventType = payload?.type || payload?.event || 'payment.succeeded';
+    const key = idempotencyHeader || payload?.id || `webhook_${Date.now()}_${Math.random()}`;
+    return this.billingService.handleWebhook(payload, eventType, key);
+  }
+}
+

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import api from "@/lib/api";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Search,
@@ -63,20 +63,10 @@ export default function Header() {
   const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
-    const token = localStorage.getItem("hrms_token");
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-    if (token) {
-      try {
-        await axios.post(
-          `${API_URL}/auth/logout`,
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-      } catch (err) {
-        console.error("Failed to log logout action on backend", err);
-      }
+    try {
+      await api.post("/auth/logout", {});
+    } catch (err) {
+      console.error("Failed to log logout action on backend", err);
     }
     localStorage.removeItem("hrms_token");
     queryClient.clear();
@@ -316,16 +306,13 @@ export default function Header() {
 // NOTIFICATION SUBCOMPONENTS
 // ==========================================
 const fetchNotifications = async (filter: "unread" | "all" = "unread") => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("hrms_token") : null;
-  if (!token) return [];
   const endpoint = filter === "all" ? "/notifications?limit=40" : "/notifications/unread";
-  const res = await axios.get(
-    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}${endpoint}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
-  return Array.isArray(res.data) ? res.data : [];
+  try {
+    const res = await api.get(endpoint);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch {
+    return [];
+  }
 };
 
 function NotificationDot() {
@@ -347,14 +334,7 @@ function NotificationDot() {
 function MarkAllReadButton() {
   const queryClient = useQueryClient();
   const markAllMutation = useMutation({
-    mutationFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/notifications/read-all`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: () => api.patch("/notifications/read-all", {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -402,27 +382,14 @@ function NotificationList() {
   });
 
   const readMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/notifications/${id}/read`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: (id: string) => api.patch(`/notifications/${id}/read`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/notifications/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: (id: string) => api.delete(`/notifications/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       if (selectedNotif) setSelectedNotif(null);

@@ -140,8 +140,10 @@ export class EmployeeService {
 
     try {
       const fromEmail =
-        process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
-      await this.resend.emails.send({
+        process.env.RESEND_FROM_EMAIL ||
+        process.env.SENDER_EMAIL ||
+        'Patholab.Cloud <noreply@patholab.cloud>';
+      const sendResult = await this.resend.emails.send({
         from: fromEmail,
         to: dto.email,
         subject: 'Welcome to the Team! Set your password',
@@ -156,7 +158,15 @@ export class EmployeeService {
           </div>
         `,
       });
-      console.log(`✅ Onboarding invitation email sent to ${dto.email}`);
+
+      if (sendResult?.error) {
+        console.error(
+          '❌ Resend API returned error for employee invitation:',
+          sendResult.error,
+        );
+      } else {
+        console.log(`✅ Onboarding invitation email sent to ${dto.email}`);
+      }
     } catch (emailError) {
       console.error(
         '❌ Failed to send onboarding invitation email via Resend:',

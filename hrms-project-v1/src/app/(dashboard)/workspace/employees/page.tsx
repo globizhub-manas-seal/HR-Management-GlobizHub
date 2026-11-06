@@ -3,7 +3,7 @@
 import { AddEmployeeModal } from "@/components/employees/AddEmployeeModal";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import axios from "axios";
+import api, { employeesApi, API_BASE_URL } from "@/lib/api";
 import { 
   Loader2, 
   Search, 
@@ -78,11 +78,8 @@ export default function EmployeeDirectoryPage() {
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const token = localStorage.getItem("hrms_token");
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/employees`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const data = await employeesApi.getAll();
+        const response = { data };
         setEmployees(response.data);
       } catch (error) {
         console.error("Failed to fetch employees", error);
@@ -98,11 +95,7 @@ export default function EmployeeDirectoryPage() {
     if (!confirmDelete) return;
 
     try {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/employees/${employeeId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await employeesApi.delete(employeeId);
       
       setEmployees(employees.filter(emp => emp.id !== employeeId));
     } catch (error: any) {
@@ -116,8 +109,7 @@ export default function EmployeeDirectoryPage() {
     if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) {
       return photoPath;
     }
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-    return `${backendUrl}${photoPath}`;
+    return `${API_BASE_URL}${photoPath}`;
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {

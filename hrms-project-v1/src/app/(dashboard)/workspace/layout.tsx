@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { MobileTabBar } from "@/components/MobileTabBar";
+import { CopilotWidget } from "@/components/copilot/CopilotWidget";
 import { Loader2 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
 
@@ -47,6 +48,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Mobile / Capacitor bottom tab bar */}
         <MobileTabBar />
       </div>
+
+      {/* Gpilot AI Assistant */}
+      <CopilotWidget />
     </div>
   );
 }

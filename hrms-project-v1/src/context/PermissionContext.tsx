@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { authApi } from "@/lib/api";
 import {
   type Designation,
   SIDEBAR_MODULES,
@@ -51,14 +51,9 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   const { data: designation, isLoading: designationLoading } = useQuery<Designation | null>({
     queryKey: ["userDesignation", user?.id],
     queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      if (!token) return null;
       try {
-        const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me/permissions`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        return res.data?.designation || null;
+        const data = await authApi.getMyPermissions();
+        return data?.designation || null;
       } catch {
         // API not available yet — fall back to defaults
         return null;
