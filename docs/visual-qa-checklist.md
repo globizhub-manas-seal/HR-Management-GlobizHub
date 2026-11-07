@@ -31,3 +31,4 @@ This checklist tracks the visual verification and regression testing for the App
   - Safe area padding on mobile header and dialog sheets.
 - [x] **Accessibility:** WCAG 2.1 AA text contrast (minimum 4.5:1), visible 2px keyboard focus rings, full keyboard traversal.
 - [x] **Zero Business Logic Regressions:** Routes, hooks, state, and API payload contracts remain untouched.
+

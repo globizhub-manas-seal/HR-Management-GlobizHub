@@ -28,7 +28,7 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user; // This was attached by AuthGuard earlier
+    const user = request.user; // Attached by AuthGuard
 
     if (!user) throw new ForbiddenException('User not authenticated');
 
@@ -65,6 +65,8 @@ export class PermissionsGuard implements CanActivate {
         if (moduleKey === 'schedule') moduleKey = 'schedules';
         if (moduleKey === 'announcement') moduleKey = 'employees';
         if (moduleKey === 'system') moduleKey = 'settings';
+        if (moduleKey === 'leaves') moduleKey = 'leave';
+        if (moduleKey === 'shift') moduleKey = 'shifts';
 
         const modulePerms =
           (designation.modulePermissions as any)?.[moduleKey] || [];
@@ -79,6 +81,26 @@ export class PermissionsGuard implements CanActivate {
         }
 
         return modulePerms.includes(action);
+      }
+
+      // Default role fallback for HR_HEAD and MANAGER if no designation was assigned
+      if (user.role === 'HR_HEAD') {
+        return true;
+      }
+
+      if (user.role === 'MANAGER') {
+        const [rawModule, action] = perm.split('.');
+        let moduleKey = rawModule?.toLowerCase();
+        if (moduleKey === 'employee') moduleKey = 'employees';
+        if (moduleKey === 'task') moduleKey = 'tasks';
+        if (moduleKey === 'document') moduleKey = 'documents';
+        if (moduleKey === 'schedule') moduleKey = 'schedules';
+        if (moduleKey === 'leaves') moduleKey = 'leave';
+
+        // Managers can view and edit attendance, leave, tasks, schedules, employees
+        if (['employees', 'attendance', 'leave', 'tasks', 'schedules'].includes(moduleKey)) {
+          return action === 'view' || action === 'edit' || action === 'manage';
+        }
       }
 
       return false;

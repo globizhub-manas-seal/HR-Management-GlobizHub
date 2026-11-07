@@ -51,20 +51,16 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, isViewAsUser } = useViewMode();
-  const { sidebarModuleKeys = [], designation, canAccessModule } = usePermissions();
+  const { sidebarModuleKeys, designation, canAccessModule } = usePermissions();
 
   const isManagerMode = user?.role === "MANAGER" && !isViewAsUser;
   const isSimulatedUser = user?.role === "MANAGER" && isViewAsUser;
-  const isEmployeeRole = user?.role === "EMPLOYEE" || isSimulatedUser;
-
-  // True for Super Admin, Owner, HR Head, or when user role is not yet determined
   const isAdminOrHR =
-    !user ||
     user?.role === "SUPER_ADMIN" ||
     user?.role === "OWNER" ||
     user?.role === "HR_HEAD";
 
-  // Section-based navigation specification
+  // Navigation structure based on requested layout
   const sections: NavSection[] = [
     {
       title: "Workspace",
@@ -97,6 +93,7 @@ export default function Sidebar({
           name: "Training & Development",
           href: "/workspace/training",
           icon: GraduationCap,
+          adminOnly: true,
         },
       ],
     },
@@ -132,8 +129,8 @@ export default function Sidebar({
           href: "/workspace/attendance",
           icon: Clock,
         },
-        // Leave Approvals for HR/Manager; Apply Leave for Employees
-        !isEmployeeRole
+        // For Admin/Manager: Leave Approvals; For Employee: Leave
+        isAdminOrHR || isManagerMode
           ? {
               key: "leave_approvals",
               name: "Leave Approvals",
@@ -142,7 +139,7 @@ export default function Sidebar({
             }
           : {
               key: "leave",
-              name: "Apply Leave",
+              name: "Leave",
               href: "/workspace/leave",
               icon: CalendarClock,
             },
@@ -153,8 +150,8 @@ export default function Sidebar({
           icon: CalendarClock,
           adminOnly: true,
         },
-        // Manage Schedules for Admin/Manager; My Schedules for Employees
-        !isEmployeeRole
+        // For Admin: Manage Schedules; For Employee: Schedules / Shifts
+        isAdminOrHR || isManagerMode
           ? {
               key: "manage_schedules",
               name: "Manage Schedules",
@@ -172,8 +169,8 @@ export default function Sidebar({
     {
       title: "Administration",
       items: [
-        // Payroll Processing for Admin; My Payslips for Employee
-        !isEmployeeRole
+        // For Admin: Payroll Processing; For Employee: My Payslips
+        isAdminOrHR
           ? {
               key: "payroll",
               name: "Payroll Processing",
@@ -186,8 +183,8 @@ export default function Sidebar({
               href: "/workspace/my-payslips",
               icon: Banknote,
             },
-        // Documents (Admin) for Admin; Documents for Employee
-        !isEmployeeRole
+        // For Admin: Documents (Admin); For Employee: Documents
+        isAdminOrHR
           ? {
               key: "documents_admin",
               name: "Documents (Admin)",
@@ -216,23 +213,21 @@ export default function Sidebar({
     },
   ];
 
-  // Resilient visibility filter: ensures items always show correctly
+  // Helper to test if a user has access to a nav item
   const isItemVisible = (item: NavItem): boolean => {
     if (item.adminOnly && !isAdminOrHR) return false;
 
-    // Always show full menu for Admins & HR Heads
-    if (isAdminOrHR) return true;
-
-    // Explicit designation / RBAC check if loaded
-    if (sidebarModuleKeys.length > 0) {
-      if (sidebarModuleKeys.includes(item.key)) return true;
-      if (item.key === "designations" && (isAdminOrHR || isManagerMode)) return true;
-      if (canAccessModule?.(item.key)) return true;
+    // Designations is accessible for Admins and HR
+    if (item.key === "designations") {
+      return isAdminOrHR || sidebarModuleKeys.includes("designations");
     }
 
-    // Manager role defaults
-    if (isManagerMode) {
-      const managerAllowed = [
+    // Direct access check via permissions
+    if (sidebarModuleKeys.includes(item.key)) return true;
+
+    // Admin has access to standard modules
+    if (isAdminOrHR) {
+      const adminKeys = [
         "dashboard",
         "onboarding",
         "recruitment",
@@ -242,32 +237,20 @@ export default function Sidebar({
         "resignation",
         "attendance",
         "leave_approvals",
+        "leave_policies",
         "manage_schedules",
+        "payroll",
+        "documents_admin",
         "tasks",
         "settings",
       ];
-      return managerAllowed.includes(item.key);
+      return adminKeys.includes(item.key);
     }
 
-    // Employee role defaults
-    if (isEmployeeRole) {
-      const employeeAllowed = [
-        "dashboard",
-        "training",
-        "resignation",
-        "attendance",
-        "leave",
-        "schedules",
-        "payslips",
-        "documents",
-        "tasks",
-      ];
-      return employeeAllowed.includes(item.key);
-    }
-
-    return true;
+    return canAccessModule?.(item.key) ?? false;
   };
 
+  // Filter sections and items based on permissions
   const filteredSections = sections
     .map((section) => ({
       ...section,
@@ -275,9 +258,10 @@ export default function Sidebar({
     }))
     .filter((section) => section.items.length > 0);
 
-  // Collect all visible items for accurate active route highlighting
+  // Collect all visible links for active URL calculation
   const allVisibleItems = filteredSections.flatMap((s) => s.items);
 
+  // Longest-prefix match for active link
   const activeHref = allVisibleItems
     .filter(
       (link) => pathname === link.href || pathname.startsWith(`${link.href}/`)
@@ -289,46 +273,41 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "w-[264px] shrink-0 flex flex-col justify-between border-r border-border bg-card select-none",
+        "w-[264px] shrink-0 flex flex-col justify-between border-r border-hairline border-separator material-translucent select-none bg-sidebar/80 backdrop-blur-xl",
         className
       )}
     >
       <div className="flex flex-col flex-1 min-h-0">
         {/* Brand Header */}
-        <div className="h-18 flex flex-col justify-center px-4 border-b border-border shrink-0 bg-card">
+        <div className="h-16 flex flex-col justify-center px-4 border-b border-hairline border-separator shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-xl bg-gradient-to-br from-amber-400 to-[#E5B232] text-slate-950 flex items-center justify-center font-bold text-sm shadow-xs border border-amber-500/30">
-                <Sparkles className="size-4 text-slate-950" />
+              <div className="size-8 rounded-[10px] bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-xs border border-primary/20">
+                <Sparkles className="size-4 text-primary" />
               </div>
-              <div>
-                <span className="text-[15px] font-bold tracking-tight text-foreground block leading-tight">
-                  TeamHub HRMS
-                </span>
-                <span className="text-[11px] text-muted-foreground font-medium block">
-                  Workforce Suite
-                </span>
-              </div>
+              <span className="text-[15px] font-semibold tracking-tight text-foreground">
+                TeamHub HRMS
+              </span>
             </div>
 
             {/* Role Badge */}
             {isManagerMode && (
-              <span className="text-[10px] font-bold bg-secondary text-primary px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
+              <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full border border-primary/20">
                 Manager
               </span>
             )}
             {isSimulatedUser && (
-              <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
+              <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border">
                 User
               </span>
             )}
             {isAdminOrHR && !isManagerMode && !isSimulatedUser && (
-              <span className="text-[10px] font-bold bg-secondary text-primary px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
+              <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full border border-primary/20">
                 Admin
               </span>
             )}
-            {isEmployeeRole && !isAdminOrHR && !isManagerMode && !isSimulatedUser && (
-              <span className="text-[10px] font-bold bg-muted text-foreground px-2 py-0.5 rounded-full border border-border uppercase tracking-wider">
+            {!isAdminOrHR && !isManagerMode && !isSimulatedUser && (
+              <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border">
                 Employee
               </span>
             )}
@@ -336,7 +315,7 @@ export default function Sidebar({
 
           {designation && !isSimulatedUser && (
             <span
-              className="mt-1.5 self-start text-[10px] font-semibold px-2 py-0.5 rounded-full border"
+              className="mt-1 self-start text-[10px] font-medium px-2 py-0.5 rounded-full border border-hairline"
               style={{
                 backgroundColor: `${designation.color}15`,
                 borderColor: `${designation.color}40`,
@@ -353,11 +332,11 @@ export default function Sidebar({
           {filteredSections.map((section) => (
             <div key={section.title} className="space-y-1">
               {/* Section Header */}
-              <div className="px-2.5 pb-1 pt-1.5 text-[11px] font-bold text-muted-foreground/75 uppercase tracking-[0.07em]">
+              <div className="px-2.5 pb-1 pt-1 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-[0.06em]">
                 {section.title}
               </div>
 
-              {/* Section Items */}
+              {/* Section Links */}
               <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const Icon = item.icon;
@@ -368,12 +347,17 @@ export default function Sidebar({
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "group relative flex items-center min-h-[38px] px-3 py-2 rounded-xl text-[13.5px] tracking-tight transition-all duration-150 active:scale-[0.98]",
+                        "group relative flex items-center min-h-[36px] px-2.5 py-1.5 rounded-[10px] text-[13.5px] tracking-tight transition-all duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]",
                         isActive
-                          ? "bg-primary/20 text-foreground font-semibold border-l-[3.5px] border-primary shadow-xs"
-                          : "text-muted-foreground hover:bg-primary/10 hover:text-foreground font-medium"
+                          ? "bg-primary/12 text-primary font-semibold shadow-xs dark:bg-primary/20"
+                          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground font-medium"
                       )}
                     >
+                      {/* Active indicator bar */}
+                      {isActive && (
+                        <span className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-primary" />
+                      )}
+
                       <Icon
                         className={cn(
                           "size-[18px] mr-2.5 shrink-0 transition-colors",
@@ -386,7 +370,7 @@ export default function Sidebar({
                       <span className="truncate">{item.name}</span>
 
                       {item.badge && (
-                        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/25 text-foreground">
+                        <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
                           {item.badge}
                         </span>
                       )}
@@ -400,12 +384,12 @@ export default function Sidebar({
       </div>
 
       {/* Footer / Support Link */}
-      <div className="p-3 border-t border-border shrink-0 bg-card">
+      <div className="p-3 border-t border-hairline border-separator shrink-0 material-translucent">
         <Link
           href="/workspace/support"
-          className="flex items-center w-full min-h-[36px] px-3 py-2 text-[13.5px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground rounded-xl transition-all duration-150 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-center w-full min-h-[36px] px-2.5 py-1.5 text-[13.5px] font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground rounded-[10px] transition-all duration-150 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <HelpCircle className="size-[18px] mr-2.5 text-muted-foreground/70 stroke-[1.6]" />
+          <HelpCircle className="size-[18px] mr-2.5 text-muted-foreground stroke-[1.6]" />
           <span>Help & Support</span>
         </Link>
       </div>

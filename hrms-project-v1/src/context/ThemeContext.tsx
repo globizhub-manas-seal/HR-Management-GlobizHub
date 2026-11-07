@@ -17,10 +17,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme") as Theme | null;
-    if (storedTheme === "dark" || storedTheme === "light") {
-      setTheme(storedTheme);
+    const initialTheme = storedTheme === "dark" ? "dark" : "light";
+    setTheme(initialTheme);
+    if (initialTheme === "dark") {
+      document.documentElement.classList.add("dark");
     } else {
-      setTheme("light");
+      document.documentElement.classList.remove("dark");
     }
     setMounted(true);
   }, []);

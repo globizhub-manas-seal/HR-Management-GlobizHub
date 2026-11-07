@@ -1,134 +1,136 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Sparkles,
-  X,
-  Send,
-  RotateCcw,
-  ExternalLink,
-  ChevronRight,
   Bot,
-  User,
+  Send,
+  X,
+  RotateCcw,
+  ArrowRight,
   HelpCircle,
-  Minimize2,
-  Maximize2,
+  Compass,
+  ChevronDown,
+  Loader2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useViewMode } from "@/context/ViewModeContext";
-import { CopilotAction, matchHRMSKnowledge } from "@/lib/copilot/knowledge";
 
-interface ChatMessage {
+interface Message {
   id: string;
-  sender: "user" | "gpilot";
+  sender: "user" | "copilot";
   text: string;
-  actions?: CopilotAction[];
+  timestamp: Date;
+  actions?: { label: string; url: string; variant?: "default" | "outline" | "secondary" }[];
   suggestedQuestions?: string[];
-  timestamp: string;
+  source?: "knowledge_base" | "llm";
 }
 
 export function CopilotWidget() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const pathname = usePathname();
   const router = useRouter();
-  const { activeRole, user } = useViewMode();
+  const { user, activeRole } = useViewMode();
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Initialize welcome greeting on mount or first open
+  // Scroll to bottom on new messages
   useEffect(() => {
-    if (messages.length === 0) {
-      const initial = matchHRMSKnowledge("", pathname || "", activeRole || "EMPLOYEE");
-      setMessages([
-        {
-          id: "welcome-1",
-          sender: "gpilot",
-          text: initial.reply,
-          actions: initial.suggestedActions,
-          suggestedQuestions: initial.suggestedQuestions,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
-    }
-  }, [pathname, activeRole]);
-
-  // Scroll to bottom on new message
-  useEffect(() => {
-    if (isOpen && !isMinimized) {
+    if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isOpen, isMinimized]);
+  }, [messages, isOpen]);
 
-  // Focus input when opened
+  // Load welcome prompt when opened or when route changes significantly
   useEffect(() => {
-    if (isOpen && !isMinimized) {
-      setTimeout(() => inputRef.current?.focus(), 150);
+    if (messages.length === 0) {
+      loadInitialGreeting();
     }
-  }, [isOpen, isMinimized]);
+  }, [pathname]);
+
+  const loadInitialGreeting = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "", // empty triggers greeting
+          currentRoute: pathname,
+          role: activeRole || "EMPLOYEE",
+        }),
+      });
+      const data = await res.json();
+      setMessages([
+        {
+          id: "welcome-" + Date.now(),
+          sender: "copilot",
+          text: data.reply,
+          timestamp: new Date(),
+          actions: data.suggestedActions,
+          suggestedQuestions: data.suggestedQuestions,
+          source: data.source,
+        },
+      ]);
+    } catch (e) {
+      console.error("Failed to load Copilot greeting:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || inputValue).trim();
+    const query = (textToSend || input).trim();
     if (!query || isLoading) return;
 
-    const userMsg: ChatMessage = {
-      id: `u-${Date.now()}`,
+    const userMessage: Message = {
+      id: "user-" + Date.now(),
       sender: "user",
       text: query,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
-    setInputValue("");
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
     setIsLoading(true);
 
     try {
-      // Call Gpilot API (with fallback to client-side knowledge matcher)
-      let responseData;
-      try {
-        const res = await fetch("/api/copilot", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query,
-            route: pathname || "",
-            role: activeRole || "EMPLOYEE",
-          }),
-        });
-        if (res.ok) {
-          responseData = await res.json();
-        }
-      } catch (err) {
-        console.warn("Falling back to local knowledge engine:", err);
-      }
+      const res = await fetch("/api/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: query,
+          currentRoute: pathname,
+          role: activeRole || "EMPLOYEE",
+        }),
+      });
 
-      if (!responseData) {
-        responseData = matchHRMSKnowledge(query, pathname || "", activeRole || "EMPLOYEE");
-      }
-
-      const botMsg: ChatMessage = {
-        id: `g-${Date.now()}`,
-        sender: "gpilot",
-        text: responseData.reply,
-        actions: responseData.suggestedActions,
-        suggestedQuestions: responseData.suggestedQuestions,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      const data = await res.json();
+      const botMessage: Message = {
+        id: "copilot-" + Date.now(),
+        sender: "copilot",
+        text: data.reply,
+        timestamp: new Date(),
+        actions: data.suggestedActions,
+        suggestedQuestions: data.suggestedQuestions,
+        source: data.source,
       };
 
-      setMessages((prev) => [...prev, botMsg]);
-    } catch (e) {
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         {
-          id: `err-${Date.now()}`,
-          sender: "gpilot",
-          text: "Sorry, I ran into a temporary error. Please try asking again!",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          id: "error-" + Date.now(),
+          sender: "copilot",
+          text: "I encountered an issue connecting to the knowledge assistant. Please try again or check our documentation.",
+          timestamp: new Date(),
         },
       ]);
     } finally {
@@ -136,254 +138,213 @@ export function CopilotWidget() {
     }
   };
 
-  const handleReset = () => {
-    const initial = matchHRMSKnowledge("", pathname || "", activeRole || "EMPLOYEE");
-    setMessages([
-      {
-        id: `reset-${Date.now()}`,
-        sender: "gpilot",
-        text: initial.reply,
-        actions: initial.suggestedActions,
-        suggestedQuestions: initial.suggestedQuestions,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      },
-    ]);
-  };
-
   const handleActionClick = (url: string) => {
     router.push(url);
-    if (window.innerWidth < 768) {
-      setIsOpen(false);
-    }
   };
 
-  // Helper to format simple markdown-like text (bold, lists, code)
-  const renderFormattedText = (rawText: string) => {
-    const lines = rawText.split("\n");
-    return lines.map((line, idx) => {
-      // Bold replacement: **text**
-      const parts = line.split(/(\*\*[^*]+\*\*)/g);
-      const formattedLine = parts.map((part, pIdx) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return (
-            <strong key={pIdx} className="font-semibold text-neutral-900 dark:text-white">
-              {part.slice(2, -2)}
-            </strong>
-          );
-        }
-        return part;
-      });
-
-      if (line.trim().startsWith("- ") || line.trim().startsWith("• ")) {
-        return (
-          <div key={idx} className="flex items-start space-x-2 my-1">
-            <span className="text-amber-500 font-bold">•</span>
-            <span className="flex-1">{formattedLine.slice(1)}</span>
-          </div>
-        );
-      }
-
-      if (/^\d+\.\s/.test(line.trim())) {
-        const num = line.trim().match(/^\d+\./)?.[0];
-        return (
-          <div key={idx} className="flex items-start space-x-2 my-1">
-            <span className="font-semibold text-amber-600 dark:text-amber-400 text-xs mt-0.5">{num}</span>
-            <span className="flex-1">{formattedLine}</span>
-          </div>
-        );
-      }
-
-      return line.trim() === "" ? (
-        <div key={idx} className="h-2" />
-      ) : (
-        <p key={idx} className="leading-relaxed">
-          {formattedLine}
-        </p>
-      );
-    });
+  // Get current page friendly name
+  const getCurrentPageName = () => {
+    if (!pathname) return "Workspace";
+    const segments = pathname.split("/").filter(Boolean);
+    const last = segments[segments.length - 1] || "dashboard";
+    return last.charAt(0).toUpperCase() + last.slice(1).replace("-", " ");
   };
 
   return (
-    <>
-      {/* Floating Launcher Button - labeled "Gpilot" with NO page name badge */}
+    <div className="fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-50">
+      {/* Floating Trigger Button */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center">
-          <button
-            onClick={() => setIsOpen(true)}
-            aria-label="Open Gpilot HRMS Assistant"
-            className="group relative flex items-center gap-2.5 px-4 py-3 bg-[#FDCD56] hover:bg-[#F3C348] text-[#262729] font-semibold text-sm rounded-full shadow-lg shadow-amber-500/25 border border-amber-300/40 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
-          >
-            <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-[#262729] text-[#FDCD56]">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-            </div>
-            <span className="tracking-tight text-sm font-bold">Gpilot</span>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#262729]/10 text-[#262729]">
-              AI
+        <button
+          onClick={() => setIsOpen(true)}
+          className="group flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 cursor-pointer"
+          aria-label="Open Gpilot"
+        >
+          <div className="relative">
+            <Sparkles className="w-5 h-5 animate-pulse text-amber-200" />
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-300"></span>
             </span>
-          </button>
-        </div>
+          </div>
+          <span className="text-sm font-semibold tracking-wide">Gpilot</span>
+        </button>
       )}
 
-      {/* Floating Chat Drawer */}
+      {/* Copilot Window */}
       {isOpen && (
-        <div
-          className={`fixed z-50 transition-all duration-300 ease-in-out ${
-            isMinimized
-              ? "bottom-6 right-6 w-72 h-14"
-              : "bottom-6 right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[420px] h-[580px] max-h-[85vh]"
-          } flex flex-col bg-white dark:bg-[#1E2022] rounded-2xl shadow-2xl border border-slate-200/80 dark:border-white/10 overflow-hidden`}
-        >
+        <div className="flex flex-col w-[380px] sm:w-[420px] max-w-[calc(100vw-2rem)] h-[580px] max-h-[82vh] bg-background/95 backdrop-blur-md rounded-2xl shadow-2xl border border-border overflow-hidden transition-all duration-200 animate-in fade-in-50 zoom-in-95">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#262729] text-white border-b border-white/10 shrink-0">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#FDCD56] text-[#262729] flex items-center justify-center font-bold shadow-sm shrink-0">
-                <Sparkles className="w-4 h-4" />
+          <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <Sparkles className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-bold text-sm tracking-tight text-white">Gpilot</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FDCD56] text-[#262729]">
-                    HRMS AI
-                  </span>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">Gpilot</h3>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground">
+                    Guide
+                  </Badge>
                 </div>
-                <p className="text-[11px] text-white/80 font-medium">Intelligent TeamHub Assistant</p>
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Compass className="w-3 h-3 text-primary/70" />
+                  Viewing: <span className="font-medium text-foreground">{getCurrentPageName()}</span>
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-1 text-white">
-              <button
-                onClick={handleReset}
-                title="Restart conversation"
-                aria-label="Restart conversation"
-                className="p-1.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={loadInitialGreeting}
+                title="Reset conversation"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
               >
                 <RotateCcw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setIsMinimized(!isMinimized)}
-                title={isMinimized ? "Expand" : "Minimize"}
-                aria-label={isMinimized ? "Expand" : "Minimize"}
-                className="p-1.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
-              >
-                {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setIsOpen(false)}
-                title="Close"
-                aria-label="Close"
-                className="p-1.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
+                title="Minimize Gpilot"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
               >
-                <X className="w-4 h-4" />
-              </button>
+                <ChevronDown className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 
-          {/* Body when not minimized */}
-          {!isMinimized && (
-            <>
-              {/* Messages container */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-neutral-50 dark:bg-[#18191B] text-neutral-800 dark:text-neutral-100 text-sm">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
-                  >
-                    <div className="flex items-start gap-2 max-w-[90%]">
-                      {msg.sender === "gpilot" && (
-                        <div className="w-6 h-6 rounded-full bg-[#FDCD56] text-[#262729] flex-shrink-0 flex items-center justify-center mt-1 font-bold">
-                          <Bot className="w-3.5 h-3.5" />
-                        </div>
-                      )}
-                      <div
-                        className={`p-3.5 rounded-2xl shadow-xs text-xs sm:text-sm ${
-                          msg.sender === "user"
-                            ? "bg-[#262729] text-white rounded-tr-none"
-                            : "bg-white dark:bg-[#222326] text-neutral-800 dark:text-neutral-100 border border-neutral-200/80 dark:border-white/10 rounded-tl-none shadow-sm"
-                        }`}
-                      >
-                        {renderFormattedText(msg.text)}
-
-                        {/* Interactive Deep-link action buttons */}
-                        {msg.actions && msg.actions.length > 0 && (
-                          <div className="mt-3 pt-2.5 border-t border-neutral-200 dark:border-white/10 flex flex-wrap gap-2">
-                            {msg.actions.map((act, i) => (
-                              <button
-                                key={i}
-                                onClick={() => handleActionClick(act.url)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FDCD56]/20 hover:bg-[#FDCD56] text-[#262729] dark:text-[#FDCD56] dark:hover:text-[#262729] text-xs font-semibold border border-[#FDCD56]/50 transition-colors"
-                              >
-                                <span>{act.label}</span>
-                                <ChevronRight className="w-3 h-3" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <span className="text-[10px] text-neutral-500 font-medium mt-1 px-1 tabular-nums">
-                      {msg.timestamp}
-                    </span>
-
-                    {/* Suggested Questions (Chips) */}
-                    {msg.suggestedQuestions && msg.suggestedQuestions.length > 0 && (
-                      <div className="mt-2.5 flex flex-wrap gap-1.5 max-w-[95%]">
-                        {msg.suggestedQuestions.map((q, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleSendMessage(q)}
-                            className="text-left text-[11px] px-2.5 py-1 rounded-full bg-white dark:bg-[#222326] hover:bg-amber-50 dark:hover:bg-amber-950/30 text-neutral-700 dark:text-neutral-200 border border-neutral-200 dark:border-white/10 hover:border-amber-400 transition-colors flex items-center gap-1 shadow-2xs font-medium"
-                          >
-                            <HelpCircle className="w-3 h-3 text-[#FDCD56] shrink-0" />
-                            <span className="line-clamp-1">{q}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {isLoading && (
-                  <div className="flex items-center gap-2 text-neutral-500 text-xs italic">
-                    <div className="w-6 h-6 rounded-full bg-[#FDCD56]/20 text-[#FDCD56] flex items-center justify-center animate-pulse">
-                      <Sparkles className="w-3.5 h-3.5" />
-                    </div>
-                    <span>Gpilot is finding the best answer...</span>
+          {/* Messages Body */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm momentum-scroll">
+            {messages.map((m) => (
+              <div
+                key={m.id}
+                className={`flex gap-2.5 ${m.sender === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {m.sender === "copilot" && (
+                  <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                    <Bot className="w-4 h-4" />
                   </div>
                 )}
 
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input Form */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendMessage();
-                }}
-                className="p-3 bg-white dark:bg-[#1E2022] border-t border-neutral-200 dark:border-white/10 flex items-center gap-2"
-              >
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Ask Gpilot anything about HRMS..."
-                  className="flex-1 bg-neutral-100 dark:bg-[#18191B] text-neutral-900 dark:text-white placeholder:text-neutral-400 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-white/10 focus:border-[#FDCD56] focus:outline-none focus:ring-1 focus:ring-[#FDCD56] transition-all"
-                />
-                <button
-                  type="submit"
-                  disabled={!inputValue.trim() || isLoading}
-                  className="p-2.5 rounded-xl bg-[#FDCD56] text-[#262729] hover:bg-[#F3C348] disabled:opacity-40 disabled:cursor-not-allowed transition-all font-semibold shadow-xs"
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-xs ${
+                    m.sender === "user"
+                      ? "bg-primary text-primary-foreground rounded-tr-xs"
+                      : "bg-muted/60 text-foreground border border-border/50 rounded-tl-xs"
+                  }`}
                 >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </>
-          )}
+                  {/* Message Text with Simple Line Break Formatting */}
+                  <div className="whitespace-pre-wrap leading-relaxed text-[13px]">
+                    {formatMessageText(m.text)}
+                  </div>
+
+                  {/* Action Shortcuts */}
+                  {m.actions && m.actions.length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-border/40 flex flex-wrap gap-1.5">
+                      {m.actions.map((act, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleActionClick(act.url)}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-background text-foreground border border-border hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer shadow-xs"
+                        >
+                          <span>{act.label}</span>
+                          <ArrowRight className="w-3 h-3 text-primary" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Suggested Follow-up Questions */}
+                  {m.suggestedQuestions && m.suggestedQuestions.length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-border/40 space-y-1.5">
+                      <p className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                        <HelpCircle className="w-3 h-3" /> Suggested next steps:
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        {m.suggestedQuestions.map((q, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSendMessage(q)}
+                            className="text-left text-xs text-primary hover:underline py-0.5 transition-colors cursor-pointer"
+                          >
+                            • {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Loading Indicator */}
+            {isLoading && (
+              <div className="flex gap-2.5 items-center text-muted-foreground">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                </div>
+                <div className="bg-muted/50 rounded-2xl px-4 py-2 border border-border/40 text-xs text-muted-foreground">
+                  Finding the best guide...
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Footer */}
+          <div className="p-3 bg-muted/30 border-t border-border">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="flex items-center gap-2"
+            >
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask how to do anything in HRMS..."
+                className="flex-1 text-xs h-9 bg-background focus-visible:ring-primary/30"
+                disabled={isLoading}
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!input.trim() || isLoading}
+                className="h-9 px-3 gap-1 rounded-lg"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span className="sr-only">Send</span>
+              </Button>
+            </form>
+            <div className="flex justify-between items-center mt-2 px-1 text-[10px] text-muted-foreground">
+              <span>Instant step-by-step assistance</span>
+              <span className="text-primary/80">Role: {activeRole || "Employee"}</span>
+            </div>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
+}
+
+/**
+ * Basic markdown parser for bold, bullet points and numbers
+ */
+function formatMessageText(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
 }
 

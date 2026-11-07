@@ -164,3 +164,4 @@ Used for settings, profile preferences, and structured read-only forms:
 3. **Screen Readers:** All icon-only buttons include `aria-label` attributes.
 4. **Dynamic Type:** All fonts scale proportionately with browser / OS accessibility zoom.
 5. **Capacitor Mobile:** Safe area insets (`env(safe-area-inset-top)`, `env(safe-area-inset-bottom)`) prevent notch and home-bar collisions.
+

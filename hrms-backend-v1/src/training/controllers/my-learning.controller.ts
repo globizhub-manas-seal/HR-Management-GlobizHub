@@ -1,9 +1,10 @@
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '../../auth/auth.guard';
+import { TrainingAdminGuard } from '../guards/training-admin.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('training/my-learning')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, TrainingAdminGuard)
 export class MyLearningController {
   constructor(private readonly prisma: PrismaService) {}
 

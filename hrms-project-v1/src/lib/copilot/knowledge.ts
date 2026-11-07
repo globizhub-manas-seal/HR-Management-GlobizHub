@@ -47,7 +47,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       {
         keywords: ["bulk", "import", "csv", "excel", "xlsx", "multiple employees", "upload list"],
         answer:
-          "To bulk import employees:\n1. Go to **Employees**.\n2. Click the **'Import Employees'** button next to Add Employee.\n3. Download the sample Excel/CSV template to ensure column headers match (First Name, Last Name, Email, Designation, Department, Date of Joining).\n4. Upload your populated file. The system validates records and reports any missing fields or duplicate emails before creating the accounts.",
+          "To bulk import employees:\n1. Go to **Employees**.\n2. Click the **'Import Employees'** button next to Add Employee.\n3. Download the sample Excel/CSV template to ensure column headers match (First Name, Last Name, Email, Designation, Department, Date of Joining).\n4. Upload your populated file. The system will validate records and report any missing fields or duplicate emails before creating the accounts.",
         action: { label: "Open Employees Page", url: "/workspace/employees" },
       },
       {
@@ -70,6 +70,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       },
     ],
   },
+
   {
     id: "documents",
     name: "Documents Center",
@@ -108,6 +109,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       },
     ],
   },
+
   {
     id: "leave",
     name: "Leave & Time Off",
@@ -135,7 +137,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       {
         keywords: ["types", "balance", "quota", "earned", "casual", "sick", "annual leave", "maternity"],
         answer:
-          "Standard leave categories allocated per calendar year:\n- **Casual Leave (CL)**: For unexpected personal errands.\n- **Sick Leave (SL)**: For medical needs (medical certificate required for > 2 consecutive days).\n- **Earned / Privilege Leave (EL)**: Planned vacations accumulated based on service tenure.\n- **Maternity / Paternity Leave**: Statutory parental time off.\nCheck your remaining balances at the top of the Leave dashboard.",
+          "Standard leave categories allocated per calendar year:\n- **Casual Leave (CL)**: For unexpected personal errands (credited monthly/yearly).\n- **Sick Leave (SL)**: For medical needs (medical certificate required for > 2 consecutive days).\n- **Earned / Privilege Leave (EL)**: Planned vacations accumulated based on service tenure.\n- **Maternity / Paternity Leave**: Statutory parental time off.\nCheck your remaining balances at the top of the Leave dashboard.",
         action: { label: "Check Leave Balances", url: "/workspace/leave" },
       },
       {
@@ -146,6 +148,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       },
     ],
   },
+
   {
     id: "attendance",
     name: "Attendance & Daily Logs",
@@ -173,11 +176,18 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       {
         keywords: ["late", "late mark", "grace period", "half day", "threshold", "penalty"],
         answer:
-          "Attendance calculation rules:\n- **Grace Period**: 15 minutes tolerance after shift start time.\n- **Late Mark**: Clocking in after the grace period registers a Late mark.\n- **Half-Day**: Completing between 4 and 8 hours of work counts as a Half-Day.",
+          "Attendance calculation rules:\n- **Grace Period**: Typically 15 minutes after shift start time (configured under Shifts).\n- **Late Mark**: Clocking in after the grace period registers a Late mark. (e.g. 3 late marks in a month may trigger a half-day deduction based on company policy).\n- **Half-Day**: Completing between 4 and 8 hours of work counts as a Half-Day.",
         action: { label: "Check Shift Policies", url: "/workspace/shifts" },
+      },
+      {
+        keywords: ["timesheet", "monthly record", "calendar view", "hours worked", "overtime"],
+        answer:
+          "To view your monthly attendance summary:\n1. Visit the **Attendance** page.\n2. Use the **Calendar View** to see green (Present), amber (Half-day/Late), blue (Leave/Holiday), and red (Absent) badges.\n3. Summary metric cards display total hours worked, overtime hours, and average daily punctuality.",
+        action: { label: "Open Attendance Calendar", url: "/workspace/attendance" },
       },
     ],
   },
+
   {
     id: "payroll",
     name: "Payroll Management",
@@ -193,29 +203,30 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       {
         keywords: ["run payroll", "process salary", "generate payslips", "batch", "payroll cycle"],
         answer:
-          "To process monthly payroll (HR Admins):\n1. Navigate to **Payroll**.\n2. Select the current pay month.\n3. The system automatically fetches attendance, unpaid leaves (LOP), and approved bonuses.\n4. Click **'Run Payroll Simulation'** to verify net pay and gross totals across all employees.\n5. Click **'Lock & Finalize'** to generate tamper-proof payslips and update employee records.",
+          "To process monthly payroll (HR Admins):\n1. Navigate to **Payroll**.\n2. Select the current pay month (e.g. October 2026).\n3. The system automatically fetches attendance, unpaid leaves (LOP), and approved bonuses.\n4. Click **'Run Payroll Simulation'** to verify net pay and gross totals across all employees.\n5. Click **'Lock & Finalize'** to generate tamper-proof payslips and update employee records.",
         action: { label: "Open Payroll Console", url: "/workspace/payroll" },
       },
       {
         keywords: ["simulation", "preview payroll", "verify salary", "pre-check"],
         answer:
-          "The **Payroll Simulation** feature calculates expected payouts without committing changes to the database. It alerts you to any anomalies (negative net pay, missing bank account details, or unregularized absences) so you can fix them before final disbursement.",
+          "The **Payroll Simulation** feature calculates expected payouts without committing changes to the database. It alerts you to any anomalies (such as negative net pay, missing bank account details, or unregularized absences) so you can fix them before final disbursement.",
         action: { label: "Run Simulation", url: "/workspace/payroll" },
       },
       {
         keywords: ["deductions", "pf", "provident fund", "tax", "tds", "professional tax", "pt"],
         answer:
-          "Statutory deductions in TeamHub HRMS:\n- **Provident Fund (PF)**: 12% of Basic Salary.\n- **Professional Tax (PT)**: State-regulated tier deduction (e.g. ₹200/month).\n- **TDS / Income Tax**: Deducted based on selected tax regime.\n- Formulas are customizable under **Settings -> Payroll**.",
+          "Statutory deductions in TeamHub HRMS:\n- **Provident Fund (PF)**: Typically 12% of Basic Salary (with employer matching).\n- **Professional Tax (PT)**: State-regulated tier deduction (e.g. ₹200/month).\n- **TDS / Income Tax**: Deducted based on selected tax regime and declared investments.\n- Formulas are customizable under **Settings -> Payroll**.",
         action: { label: "Manage Salary Templates", url: "/workspace/settings/payroll" },
       },
       {
         keywords: ["bank export", "bank transfer", "payout file", "neft", "salary disbursement"],
         answer:
-          "Once payroll is finalized:\n1. Click **'Download Bank Payout File'** on the finalized payroll page.\n2. Choose your bank format (Excel/CSV with Account Number, Beneficiary Name, IFSC, Amount).\n3. Upload this batch file directly to your corporate banking portal for NEFT/RTGS salary transfers.",
+          "Once payroll is finalized:\n1. Click **'Download Bank Payout File'** on the finalized payroll page.\n2. Choose your bank format (Excel/CSV with Account Number, Beneficiary Name, IFSC, Amount).\n3. Upload this batch file directly to your corporate banking portal for seamless NEFT/RTGS salary transfers.",
         action: { label: "Go to Payroll", url: "/workspace/payroll" },
       },
     ],
   },
+
   {
     id: "my-payslips",
     name: "My Payslips (Employee View)",
@@ -224,6 +235,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
     quickQuestions: [
       "Where can I download my payslip PDF?",
       "How do I understand my gross vs net salary?",
+      "Where can I find Form 16 and tax summaries?",
     ],
     topics: [
       {
@@ -240,6 +252,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       },
     ],
   },
+
   {
     id: "recruitment",
     name: "Recruitment & Jobs",
@@ -255,14 +268,20 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       {
         keywords: ["job", "post job", "opening", "create vacancy", "new requisition", "careers"],
         answer:
-          "To post a new job opening:\n1. Go to **Recruitment**.\n2. Click the **'Create Job Opening'** button.\n3. Enter Job Title, Department, Workplace Type (Remote / Hybrid / Onsite), and Salary Range.\n4. Define key responsibilities and qualifications.\n5. Click **Publish**. The vacancy immediately appears on your public `/careers` portal.",
+          "To post a new job opening:\n1. Go to **Recruitment**.\n2. Click the **'Create Job Opening'** button.\n3. Enter Job Title, Department, Workplace Type (Remote / Hybrid / Onsite), and Salary Range.\n4. Define key responsibilities and qualifications.\n5. Click **Publish**. The vacancy immediately appears on your public `/careers` portal for incoming applicant resumes.",
         action: { label: "Open Recruitment Board", url: "/workspace/recruitment" },
       },
       {
         keywords: ["candidate", "pipeline", "kanban", "stages", "move candidate", "screening"],
         answer:
-          "The recruitment pipeline is a drag-and-drop Kanban workflow with 5 standard stages:\n1. **Applied**: Newly submitted applications.\n2. **Screening**: Initial recruiter review.\n3. **Interview**: Panel assignments, technical tests, and scorecard rating.\n4. **Offered**: Compensation approved and offer letter dispatched.\n5. **Hired**: Candidate accepted offer and is ready for onboarding.",
+          "The recruitment pipeline is a drag-and-drop Kanban workflow with 5 standard stages:\n1. **Applied**: Newly submitted applications and resumes.\n2. **Screening**: Initial recruiter review of qualifications.\n3. **Interview**: Panel assignments, technical tests, and scorecard rating.\n4. **Offered**: Compensation approved and formal offer letter dispatched.\n5. **Hired**: Candidate accepted offer and is ready for onboarding.",
         action: { label: "View Pipeline Board", url: "/workspace/recruitment" },
+      },
+      {
+        keywords: ["interview", "schedule interview", "panel", "scorecard", "evaluator"],
+        answer:
+          "To schedule an interview:\n1. Click on any candidate card in the Recruitment board.\n2. Click **'Schedule Interview'**.\n3. Select date, time slot, and assign team members to the interview panel.\n4. Provide a meeting link (Google Meet / Zoom / Onsite).\n5. Evaluators receive an invite and a structured evaluation scorecard to rate technical and soft skills.",
+        action: { label: "Go to Recruitment", url: "/workspace/recruitment" },
       },
       {
         keywords: ["convert", "hire", "offer acceptance", "convert to employee", "onboarding transfer"],
@@ -272,6 +291,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       },
     ],
   },
+
   {
     id: "onboarding",
     name: "Employee Onboarding",
@@ -279,17 +299,25 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
     summary: "Coordinate pre-boarding tasks, document collection, IT provisioning, and orientation.",
     quickQuestions: [
       "What is the onboarding checklist?",
+      "How do new hires submit their personal and banking info?",
       "How do we track onboarding completion progress?",
     ],
     topics: [
       {
         keywords: ["onboarding", "pre-boarding", "welcome", "checklist", "new joiner", "orientation"],
         answer:
-          "The Onboarding module manages all milestones before and during a new hire's first 90 days:\n- **Step 1: Welcome & Profile**: Employee fills personal and emergency contact details.\n- **Step 2: Statutory & Bank Details**: Collection of PAN, Aadhaar/SSN, and Bank Account IFSC.\n- **Step 3: Document Verification**: Uploading educational certificates and signed appointment letters.\n- **Step 4: IT & Equipment**: Provisioning laptop, corporate email, and software licenses.\n- **Step 5: Buddy & Manager Orientation**: Scheduled intro meetings.",
+          "The Onboarding module manages all milestones before and during a new hire's first 90 days:\n- **Step 1: Welcome & Profile**: Employee fills personal and emergency contact details.\n- **Step 2: Statutory & Bank Details**: Collection of PAN, Aadhaar/SSN, and Bank Account IFSC.\n- **Step 3: Document Verification**: Uploading educational certificates and signed appointment letters.\n- **Step 4: IT & Equipment**: Provisioning laptop, corporate email, and software licenses.\n- **Step 5: Buddy & Manager Orientation**: Scheduled intro meetings with team.",
         action: { label: "Go to Onboarding", url: "/workspace/onboarding" },
+      },
+      {
+        keywords: ["track progress", "completion", "pending tasks", "onboarding status"],
+        answer:
+          "HR Admins can track onboarding readiness via the progress bar on each new joiner's card. Employees with missing mandatory KYC documents or pending IT setups are highlighted with alert badges so HR can follow up before their official start date.",
+        action: { label: "View Onboarding Dashboard", url: "/workspace/onboarding" },
       },
     ],
   },
+
   {
     id: "resignation",
     name: "Resignation & Offboarding",
@@ -297,6 +325,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
     summary: "Manage voluntary resignations, notice periods, multi-department clearances, and final settlement.",
     quickQuestions: [
       "How do employees submit a resignation request?",
+      "How is the Notice Period and Last Working Day (LWD) calculated?",
       "What are the 4 exit clearance departments?",
       "How is the Full & Final (FnF) settlement handled?",
     ],
@@ -304,13 +333,19 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       {
         keywords: ["resign", "resignation", "quit", "leave company", "notice", "submit resignation"],
         answer:
-          "To submit a resignation request (Employee):\n1. Navigate to **Resignation**.\n2. Click **'Submit Resignation'**.\n3. Choose your intended Last Working Day (LWD) based on your contract's notice period.\n4. Provide the formal reason and transition notes.\n5. Click **Submit**. Your manager and HR receive an immediate notification.",
+          "To submit a resignation request (Employee):\n1. Navigate to **Resignation**.\n2. Click **'Submit Resignation'**.\n3. Choose your intended Last Working Day (LWD) based on your contract's notice period.\n4. Provide the formal reason and transition notes.\n5. Click **Submit**. Your manager and HR receive an immediate notification to schedule an exit discussion.",
         action: { label: "Open Resignation Desk", url: "/workspace/resignation" },
+      },
+      {
+        keywords: ["lwd", "last working day", "notice period", "waiver", "buyout"],
+        answer:
+          "Notice Period rules:\n- The system calculates the contractual notice period (e.g., 30, 60, or 90 days) based on the employee's designation.\n- HR and Managers can approve an **Early Release / Notice Waiver** if project handovers are complete, which recalibrates the official Last Working Day (LWD).",
+        action: { label: "Check Resignation Requests", url: "/workspace/resignation" },
       },
       {
         keywords: ["clearance", "exit clearance", "it clearance", "finance clearance", "handover", "laptop return"],
         answer:
-          "TeamHub HRMS requires multi-department exit clearances before offboarding:\n1. **IT Clearance**: Return of company laptop, access revoke, and security sign-off.\n2. **Finance Clearance**: Travel expense claims settled, corporate credit card cleared.\n3. **HR Clearance**: Exit interview completed, non-disclosure agreement (NDA) reaffirmed.\n4. **Admin Clearance**: ID badge and physical office access cards returned.",
+          "TeamHub HRMS requires multi-department exit clearances before offboarding:\n1. **IT Clearance**: Return of company laptop, access revoke, and security sign-off.\n2. **Finance Clearance**: Travel expense claims settled, corporate credit card cleared, loan recovery.\n3. **HR Clearance**: Exit interview completed, non-disclosure agreement (NDA) reaffirmed.\n4. **Admin Clearance**: ID badge and physical office access cards returned.",
         action: { label: "Manage Clearances", url: "/workspace/resignation" },
       },
       {
@@ -321,6 +356,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
       },
     ],
   },
+
   {
     id: "training",
     name: "Training & Career Development",
@@ -328,13 +364,15 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
     summary: "Assign skill plans, manage training cohorts, assess competencies, and track certifications.",
     quickQuestions: [
       "How do I create and assign a training plan?",
+      "How are competency matrices and skill assessments scored?",
       "Does completing training automatically promote an employee?",
+      "How do we track certification renewals?",
     ],
     topics: [
       {
         keywords: ["training", "create plan", "course", "cohort", "assign training", "curriculum"],
         answer:
-          "To set up a training plan (HR / Department Managers):\n1. Navigate to **Training**.\n2. Click **'Create Training Plan'**.\n3. Specify Category and Target Competency.\n4. Define sessions, materials, trainer, and enroll individual employees or entire cohorts.\n5. Enrolled employees can access their learning roadmap and schedule directly from their dashboard.",
+          "To set up a training plan (HR / Department Managers):\n1. Navigate to **Training**.\n2. Click **'Create Training Plan'**.\n3. Specify Category (e.g. Compliance, Leadership, Technical, Safety/OSHA) and Target Competency.\n4. Define sessions, materials, trainer, and enroll individual employees or entire cohorts.\n5. Enrolled employees can access their learning roadmap and schedule directly from their dashboard.",
         action: { label: "Open Training Module", url: "/workspace/training" },
       },
       {
@@ -343,8 +381,66 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
           "**Strict Non-Automatic Promotion Rule**:\nUnder TeamHub HRMS governance, completing a training program or earning a top assessment score **never automatically changes an employee's designation, grade, or salary**.\n\nCareer outcomes require a separate, governed **Employee Position Change** workflow that must be reviewed and approved by Department Heads, HR, and Finance.",
         action: { label: "View Training Governance", url: "/workspace/training" },
       },
+      {
+        keywords: ["assessment", "score", "competency", "proficiency", "evaluation", "grades"],
+        answer:
+          "Assessments & Competencies:\n- Evaluators grade candidates on a standardized 1 to 5 proficiency scale.\n- Multi-method evaluations include practical demonstrations, written tests, and post-training manager feedback.\n- Passing scores automatically update the employee's internal skill profile.",
+        action: { label: "Go to Training", url: "/workspace/training" },
+      },
+      {
+        keywords: ["certificate", "certification", "expiry", "renewal", "compliance audit"],
+        answer:
+          "Certification Expiration Tracking:\n- Training certifications store validity start and expiry dates.\n- The system triggers automated reminder alerts (60, 30, and 15 days prior to expiration) to ensure compliance in regulated industries (Healthcare, Aviation, Finance, Safety).",
+        action: { label: "View Certifications", url: "/workspace/training" },
+      },
     ],
   },
+
+  {
+    id: "shifts",
+    name: "Shifts & Work Hours",
+    path: "/workspace/shifts",
+    summary: "Configure shift timings, grace periods, lunch breaks, and late mark thresholds.",
+    quickQuestions: [
+      "How do I create or edit shifts?",
+      "What is the grace period and late-in tolerance?",
+      "How are night shifts and overtime recorded?",
+    ],
+    topics: [
+      {
+        keywords: ["shift", "create shift", "working hours", "timing", "morning shift", "night shift"],
+        answer:
+          "To configure shifts (Admins / HR):\n1. Go to **Shifts**.\n2. Click **'Create Shift'**.\n3. Set Shift Name (e.g. General Shift, Night Shift, Weekend Roster).\n4. Specify Start Time, End Time, and Break Duration (e.g. 60 mins).\n5. Save. The shift can now be assigned to departments or employees in the **Schedules** module.",
+        action: { label: "Manage Shifts", url: "/workspace/shifts" },
+      },
+      {
+        keywords: ["grace", "grace period", "late tolerance", "late rule", "half day rule"],
+        answer:
+          "Shift Grace Rules:\n- **Grace Period**: Typically 15 minutes tolerance after official shift start.\n- **Late Mark**: Clocks after the grace period flag as Late.\n- **Half-Day Cutoff**: Clocks occurring after 2 hours into the shift are classified as Half-Day present.",
+        action: { label: "Open Shifts Page", url: "/workspace/shifts" },
+      },
+    ],
+  },
+
+  {
+    id: "schedules",
+    name: "Schedules & Rosters",
+    path: "/workspace/schedules",
+    summary: "Assign shift templates to employees and departments, manage weekly offs, and view rosters.",
+    quickQuestions: [
+      "How do I assign shifts to employees?",
+      "How do I configure weekly offs and rotational rosters?",
+    ],
+    topics: [
+      {
+        keywords: ["roster", "schedule", "assign shift", "weekly schedule", "calendar"],
+        answer:
+          "To assign schedules:\n1. Navigate to **Schedules**.\n2. Choose weekly or monthly grid view.\n3. Select an employee or an entire department.\n4. Assign their active shift (e.g. Morning 09:00 - 18:00) or mark days as **Weekly Off (WO)**.\n5. Click **Publish Schedule** so employees can see their upcoming roster in advance.",
+        action: { label: "Open Schedules", url: "/workspace/schedules" },
+      },
+    ],
+  },
+
   {
     id: "settings-payroll",
     name: "Salary Templates & Payroll Settings",
@@ -352,16 +448,19 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
     summary: "Configure CTC calculation percentages (Basic, HRA, PF), allowances, and state tax rules.",
     quickQuestions: [
       "How do I configure salary structure templates?",
+      "How are Basic, HRA, and PF percentages defined?",
+      "How do I add fixed allowances like Conveyance or Medical?",
     ],
     topics: [
       {
         keywords: ["salary template", "ctc template", "basic percent", "hra percent", "structure", "configure salary"],
         answer:
-          "To configure salary templates:\n1. Head to **Settings -> Payroll** (or `/workspace/settings/payroll`).\n2. Click **'+ Add Template'** or edit an existing salary blueprint.\n3. Configure default proportions:\n   - **Basic Salary**: 40% to 50% of CTC.\n   - **HRA**: 20% to 25% of CTC.\n   - **Provident Fund (PF)**: 12% of Basic.\n   - **Conveyance & Medical**: Fixed amounts (e.g. ₹1600 & ₹1250).\n   - **Professional Tax**: Fixed tier deduction (e.g. ₹200).\n4. Save template. You can link this template to designations during hiring.",
+          "To configure salary templates:\n1. Head to **Settings -> Payroll** (or `/workspace/settings/payroll`).\n2. Click **'+ Add Template'** or edit an existing salary blueprint.\n3. Configure default proportions:\n   - **Basic Salary**: Typically 40% to 50% of CTC.\n   - **HRA**: Typically 20% to 25% of CTC.\n   - **Provident Fund (PF)**: 12% of Basic.\n   - **Conveyance & Medical**: Fixed amounts (e.g. ₹1600 & ₹1250) or custom percentages.\n   - **Professional Tax**: Fixed tier deduction (e.g. ₹200).\n4. Save template. You can link this template to designations during hiring.",
         action: { label: "Manage Salary Templates", url: "/workspace/settings/payroll" },
       },
     ],
   },
+
   {
     id: "settings-audit",
     name: "Audit Logs & Security",
@@ -369,16 +468,115 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
     summary: "Monitor chronological system actions, security changes, approvals, and user telemetry.",
     quickQuestions: [
       "Where can I view system audit logs?",
+      "What actions are recorded in the audit trail?",
+      "Can audit logs be altered or deleted?",
     ],
     topics: [
       {
         keywords: ["audit", "audit log", "security log", "history", "who did what", "track changes", "telemetry"],
         answer:
-          "Audit Logs feature:\n1. Visit **Settings -> Audit Logs** (or `/workspace/settings/audit-logs`).\n2. The system maintains an immutable chronological log of actions:\n   - **CREATE**, **UPDATE**, **DELETE**, **APPROVE / REJECT**.\n3. Each entry logs User Identity, Action Badge, Target Entity, IP Address, Device Type, and ISO Timestamp.",
+          "Audit Logs feature:\n1. Visit **Settings -> Audit Logs** (or `/workspace/settings/audit-logs`).\n2. The system maintains an immutable chronological log of actions:\n   - **CREATE**: New employee created, job posted, leave applied.\n   - **UPDATE**: Salary changed, status altered, profile edited.\n   - **DELETE**: Record removed.\n   - **APPROVE / REJECT**: Leave approved, resignation cleared, payroll finalized.\n3. Each entry logs User Identity, Action Badge, Target Entity, IP Address, Device Type, and ISO Timestamp.",
         action: { label: "View Audit Logs", url: "/workspace/settings/audit-logs" },
       },
     ],
   },
+
+  {
+    id: "settings-holidays",
+    name: "Holidays & Company Calendar",
+    path: "/workspace/settings/holidays",
+    summary: "Define mandatory national holidays, optional festivals, and restricted leaves.",
+    quickQuestions: [
+      "How do I add holidays for the year?",
+      "What is the difference between mandatory and optional holidays?",
+    ],
+    topics: [
+      {
+        keywords: ["holiday", "holidays", "add holiday", "public holiday", "calendar", "national holiday", "festival"],
+        answer:
+          "To set up the annual holiday calendar:\n1. Go to **Settings -> Holidays**.\n2. Click **'Add Holiday'**.\n3. Choose Date, Name (e.g. Independence Day, New Year, Diwali), and Type (**Mandatory** or **Restricted/Optional**).\n4. Mandatory holidays automatically reflect on attendance sheets as paid off-days and do not count against employee leave balances.",
+        action: { label: "Manage Holiday Calendar", url: "/workspace/settings/holidays" },
+      },
+    ],
+  },
+
+  {
+    id: "settings-general",
+    name: "Company Settings & Administration",
+    path: "/workspace/settings",
+    summary: "Manage company profile, organization branding, roles & permissions, and departments.",
+    quickQuestions: [
+      "How do I update company branding and logo?",
+      "How do I configure roles and permissions (RBAC)?",
+      "Where do I add new departments and designations?",
+    ],
+    topics: [
+      {
+        keywords: ["company profile", "logo", "branding", "organization", "timezone", "address"],
+        answer:
+          "To update company information:\n1. Navigate to **Settings**.\n2. Under **Company Profile**, upload your corporate logo and brand colors.\n3. Set your legal business name, registered address, tax IDs (GSTIN/CIN/EIN), and default time zone.",
+        action: { label: "Open Company Settings", url: "/workspace/settings" },
+      },
+      {
+        keywords: ["role", "permissions", "rbac", "admin access", "hr permissions", "access control"],
+        answer:
+          "Roles & Permissions Matrix in TeamHub HRMS:\n- **ADMIN**: Complete system control, billing, audit logs, and settings.\n- **HR_MANAGER**: Employee records, onboarding, leave/attendance approvals, payroll runs, recruitment.\n- **DEPARTMENT_MANAGER**: Approves direct report leaves, attendance regularizations, and submits training recommendations.\n- **EMPLOYEE**: Self-service portal (apply leaves, clock attendance, view payslips, raise support tickets).",
+        action: { label: "Manage Roles & Permissions", url: "/workspace/settings" },
+      },
+      {
+        keywords: ["designation", "department", "add department", "job title", "hierarchy"],
+        answer:
+          "To configure organizational hierarchy:\n1. Go to **Settings -> Designations**.\n2. Add company departments (Engineering, Human Resources, Finance, Sales, Operations).\n3. Add designations/roles under each department with their reporting level.",
+        action: { label: "View Designations", url: "/workspace/settings/designations" },
+      },
+    ],
+  },
+
+  {
+    id: "tasks",
+    name: "Tasks & Action Items",
+    path: "/workspace/tasks",
+    summary: "Assign internal action items, track deadlines, set priority levels, and collaborate.",
+    quickQuestions: [
+      "How do I assign a task to an employee?",
+      "How do I track task deadlines and status?",
+    ],
+    topics: [
+      {
+        keywords: ["task", "create task", "assign task", "todo", "action item", "deadline"],
+        answer:
+          "To assign internal work tasks:\n1. Go to **Tasks**.\n2. Click **'Create Task'**.\n3. Enter Title, detailed instructions, due date, and priority (Low, Medium, High, Urgent).\n4. Assign to an employee or multiple assignees.\n5. Team members can update status from **To Do** -> **In Progress** -> **Completed** with attachments.",
+        action: { label: "Open Tasks", url: "/workspace/tasks" },
+      },
+    ],
+  },
+
+  {
+    id: "profile",
+    name: "Employee Self-Service Profile",
+    path: "/workspace/profile",
+    summary: "View and edit personal details, emergency contacts, encrypted bank data, and security settings.",
+    quickQuestions: [
+      "How do I update my bank account or tax information?",
+      "How do I change my login password or enable two-factor auth?",
+      "Where do I update my emergency contacts?",
+    ],
+    topics: [
+      {
+        keywords: ["profile", "bank details", "update bank", "pan", "aadhaar", "ifsc", "account number"],
+        answer:
+          "To update your banking or statutory data:\n1. Click your avatar in the top right or go to **Profile**.\n2. Switch to the **Bank & Statutory** tab.\n3. Update your Bank Name, Account Number, IFSC, and Tax IDs (PAN / Aadhaar / UAN).\n4. All sensitive financial records are encrypted using AES-256 for maximum security.",
+        action: { label: "Open My Profile", url: "/workspace/profile" },
+      },
+      {
+        keywords: ["password", "change password", "security", "login", "reset password", "2fa"],
+        answer:
+          "To manage your account security:\n1. Visit **Profile** -> **Security** tab.\n2. Enter your current password followed by your new password (minimum 8 characters with letters, numbers, and symbols).\n3. Click **Update Password** to secure your account across all active sessions.",
+        action: { label: "View Security Settings", url: "/workspace/profile" },
+      },
+    ],
+  },
+
   {
     id: "support",
     name: "Help & Support Tickets",
@@ -387,6 +585,7 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
     quickQuestions: [
       "How do I raise an HR or IT ticket?",
       "How to check the status of my ticket?",
+      "How do admins resolve support tickets?",
     ],
     topics: [
       {
@@ -395,10 +594,19 @@ export const HRMS_MODULE_GUIDES: ModuleGuide[] = [
           "To create an internal help ticket:\n1. Navigate to **Support**.\n2. Click **'Create Ticket'**.\n3. Pick the category (Hardware/IT, HR Query, Payroll Dispute, Facilities, Software Access).\n4. Select priority level (Low, Medium, High) and describe the problem.\n5. Click **Submit Ticket**. You will receive notifications as the assigned support agent updates the ticket status.",
         action: { label: "Open Support Desk", url: "/workspace/support" },
       },
+      {
+        keywords: ["status", "ticket status", "open tickets", "resolved"],
+        answer:
+          "To track existing tickets:\n1. Open **Support**.\n2. Filter by status: **Open**, **In Progress**, or **Resolved**.\n3. Click on any ticket to view response comments, request clarifications, or add attachments.",
+        action: { label: "View My Tickets", url: "/workspace/support" },
+      },
     ],
   },
 ];
 
+/**
+ * Common acronyms expansion mapping for HRMS queries
+ */
 const ACRONYMS_MAP: Record<string, string[]> = {
   ctc: ["salary", "payroll", "template", "compensation"],
   pf: ["provident fund", "deductions", "payroll"],
@@ -414,6 +622,9 @@ const ACRONYMS_MAP: Record<string, string[]> = {
   wo: ["weekly off", "schedule", "roster"],
 };
 
+/**
+ * Intelligent local matcher that inspects the user query, current route, and role.
+ */
 export function matchHRMSKnowledge(
   query: string,
   currentRoute: string = "",
@@ -421,6 +632,7 @@ export function matchHRMSKnowledge(
 ): CopilotResponse {
   const cleanQuery = (query || "").trim().toLowerCase();
 
+  // Find module matching current route (most specific route match first)
   const sortedModules = [...HRMS_MODULE_GUIDES].sort(
     (a, b) => b.path.length - a.path.length
   );
@@ -428,6 +640,7 @@ export function matchHRMSKnowledge(
     currentRoute.startsWith(m.path)
   );
 
+  // If query is empty or a simple greeting, provide a smart route-based welcome
   const isGreeting =
     !cleanQuery ||
     ["hi", "hello", "hey", "help", "who are you", "what can you do", "start", "guide me"].includes(
@@ -464,6 +677,7 @@ export function matchHRMSKnowledge(
     };
   }
 
+  // Expand query with acronym meanings
   let expandedQuery = cleanQuery;
   const words = cleanQuery.split(/\s+/);
   for (const w of words) {
@@ -472,6 +686,7 @@ export function matchHRMSKnowledge(
     }
   }
 
+  // Score all topics across all modules
   let bestMatch: {
     score: number;
     answer: string;
@@ -484,10 +699,12 @@ export function matchHRMSKnowledge(
       let score = 0;
       for (const kw of topic.keywords) {
         if (expandedQuery.includes(kw)) {
+          // Weight multi-word matches heavier
           score += kw.split(" ").length * 4;
         }
       }
 
+      // Bonus if topic belongs to the user's active route
       if (currentRoute.startsWith(mod.path)) {
         score += 3;
       }
@@ -516,6 +733,7 @@ export function matchHRMSKnowledge(
     };
   }
 
+  // Fallback if no specific topic scored
   const defaultQuestions = currentModule
     ? currentModule.quickQuestions
     : [
@@ -536,4 +754,3 @@ export function matchHRMSKnowledge(
     source: "knowledge_base",
   };
 }
-

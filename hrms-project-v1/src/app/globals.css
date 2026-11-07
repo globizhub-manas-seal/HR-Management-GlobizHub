@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-heading: var(--font-sans);
 
@@ -66,39 +66,38 @@
   --radius-full: 9999px;
   --radius: 10px;
 
-  /* Tailwind Slate Palette - high contrast tokens */
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #f1f5f9;
-  --color-slate-200: #e2e8f0;
-  --color-slate-300: #cbd5e1;
-  --color-slate-400: #94a3b8;
-  --color-slate-500: #64748b;
-  --color-slate-600: #475569;
-  --color-slate-700: #334155;
-  --color-slate-800: #1e293b;
-  --color-slate-900: #0f172a;
-  --color-slate-950: #020617;
+  /* Slate fallback tokens to gracefully map legacy classes into Apple HIG */
+  --color-slate-50: var(--slate-50);
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-400: var(--slate-400);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900);
+  --color-slate-950: var(--slate-950);
 }
 
 :root {
-  /* Apple HIG Light Palette */
-  --background: #F2F2F7;
+  --background: #FFFFFF;
   --surface: #FFFFFF;
   --elevated: #FFFFFF;
   --foreground: #1E2022;
   --label: #1E2022;
-  --label-secondary: rgba(60, 60, 67, 0.60);
-  --label-tertiary: rgba(60, 60, 67, 0.30);
-  --separator: rgba(60, 60, 67, 0.29);
-  --fill: rgba(120, 120, 128, 0.12);
-  --fill-secondary: rgba(120, 120, 128, 0.08);
+  --label-secondary: #65686C;
+  --label-tertiary: #94A3B8;
+  --separator: #E2E8F0;
+  --fill: #F1F5F9;
+  --fill-secondary: #F8FAFC;
 
   --card: #FFFFFF;
   --card-foreground: #1E2022;
-  --popover: rgba(255, 255, 255, 0.88);
-  --popover-foreground: #000000;
+  --popover: #FFFFFF;
+  --popover-foreground: #1E2022;
 
-  /* Original TeamHub Warm Gold/Yellow Primary & Accent */
+  /* Accent (Warm Golden Brand Color) */
   --primary: #FDCD56;
   --primary-foreground: #1E2022;
   --primary-halo: rgba(253, 205, 86, 0.25);
@@ -112,10 +111,10 @@
   --muted-foreground: #65686C;
 
   /* Status Colors */
-  --status-green: #34C759;
-  --status-orange: #FF9500;
-  --status-red: #FF3B30;
-  --status-yellow: #FFCC00;
+  --status-green: #10B981;
+  --status-orange: #F59E0B;
+  --status-red: #E11D48;
+  --status-yellow: #FBBF24;
   --destructive: #E11D48;
   --destructive-foreground: #FFFFFF;
 
@@ -127,12 +126,12 @@
   --sidebar-foreground: #1E2022;
   --sidebar-primary: #FDCD56;
   --sidebar-primary-foreground: #1E2022;
-  --sidebar-accent: rgba(253, 205, 86, 0.15);
+  --sidebar-accent: #F8FAFC;
   --sidebar-accent-foreground: #1E2022;
   --sidebar-border: #E2E8F0;
   --sidebar-ring: #FDCD56;
 
-  /* Slate Palette Variables */
+  /* Standard Slate palette */
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
   --slate-200: #e2e8f0;
@@ -147,24 +146,23 @@
 }
 
 .dark {
-  /* Apple HIG Dark Palette */
   --background: #18191B;
   --surface: #222326;
   --elevated: #2E3033;
-  --foreground: #FFFFFF;
-  --label: #FFFFFF;
-  --label-secondary: rgba(235, 235, 245, 0.60);
-  --label-tertiary: rgba(235, 235, 245, 0.30);
-  --separator: rgba(84, 84, 88, 0.60);
-  --fill: rgba(120, 120, 128, 0.24);
-  --fill-secondary: rgba(120, 120, 128, 0.16);
+  --foreground: #F3F4F6;
+  --label: #F3F4F6;
+  --label-secondary: #9CA3AF;
+  --label-tertiary: #65686C;
+  --separator: #2E3033;
+  --fill: #262729;
+  --fill-secondary: #222326;
 
-  --card: #1C1C1E;
-  --card-foreground: #FFFFFF;
-  --popover: rgba(28, 28, 30, 0.88);
-  --popover-foreground: #FFFFFF;
+  --card: #222326;
+  --card-foreground: #F3F4F6;
+  --popover: #222326;
+  --popover-foreground: #F3F4F6;
 
-  /* Original Warm Gold/Yellow Accent Dark */
+  /* Accent (Warm Golden Brand Color Dark) */
   --primary: #FDCD56;
   --primary-foreground: #18191B;
   --primary-halo: rgba(253, 205, 86, 0.25);
@@ -178,11 +176,11 @@
   --muted-foreground: #9CA3AF;
 
   /* Status Colors Dark */
-  --status-green: #30D158;
-  --status-orange: #FF9F0A;
-  --status-red: #FF453A;
-  --status-yellow: #FFD60A;
-  --destructive: #FF453A;
+  --status-green: #34D399;
+  --status-orange: #FBBF24;
+  --status-red: #F43F5E;
+  --status-yellow: #FDE047;
+  --destructive: #F43F5E;
   --destructive-foreground: #FFFFFF;
 
   --border: #2E3033;
@@ -193,23 +191,23 @@
   --sidebar-foreground: #F3F4F6;
   --sidebar-primary: #FDCD56;
   --sidebar-primary-foreground: #18191B;
-  --sidebar-accent: rgba(253, 205, 86, 0.15);
-  --sidebar-accent-foreground: #FDCD56;
+  --sidebar-accent: #2E3033;
+  --sidebar-accent-foreground: #F3F4F6;
   --sidebar-border: #2E3033;
   --sidebar-ring: #FDCD56;
 
-  /* Slate Palette Variables in Dark Mode */
-  --slate-50: #f8fafc;
-  --slate-100: #f1f5f9;
-  --slate-200: #e2e8f0;
-  --slate-300: #cbd5e1;
-  --slate-400: #94a3b8;
-  --slate-500: #64748b;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1e293b;
-  --slate-900: #0f172a;
-  --slate-950: #020617;
+  /* Inverted Slate palette for optimized dark mode contrast */
+  --slate-50: #1e2022;      /* deep charcoal background */
+  --slate-100: #262729;     /* charcoal */
+  --slate-200: #2e3033;     /* border/input color */
+  --slate-300: #3f4246;     /* muted border */
+  --slate-400: #65686c;     /* gray label */
+  --slate-500: #9ca3af;     /* medium light gray text */
+  --slate-600: #d1d5db;     /* lighter text */
+  --slate-700: #e5e7eb;     /* very light text */
+  --slate-800: #f3f4f6;     /* card titles */
+  --slate-900: #f9fafb;     /* bold text */
+  --slate-950: #ffffff;     /* pure white text */
 }
 
 @layer base {

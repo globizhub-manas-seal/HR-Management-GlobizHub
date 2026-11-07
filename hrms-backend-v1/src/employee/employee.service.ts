@@ -112,8 +112,12 @@ export class EmployeeService {
       );
     }
 
-    const tempPassword = await bcrypt.hash('Welcome123!', 10);
-    const inviteToken = randomBytes(32).toString('hex');
+    // S-03: Unusable temporary password — employee MUST set via invite link
+    const tempPassword = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
+    // S-14: Store a SHA-256 hash of the invite token; the raw token goes in the email
+    const rawInviteToken = randomBytes(32).toString('hex');
+    const { createHash } = await import('crypto');
+    const inviteToken = createHash('sha256').update(rawInviteToken).digest('hex');
 
     // Create employee in INVITED status without an Employee ID yet (assigned upon onboarding completion)
     const newEmployee = await this.prisma.employee.create({
@@ -136,14 +140,12 @@ export class EmployeeService {
       },
     });
 
-    const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${inviteToken}`;
+    const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${rawInviteToken}`;
 
     try {
       const fromEmail =
-        process.env.RESEND_FROM_EMAIL ||
-        process.env.SENDER_EMAIL ||
-        'Patholab.Cloud <noreply@patholab.cloud>';
-      const sendResult = await this.resend.emails.send({
+        process.env.RESEND_FROM_EMAIL || process.env.SENDER_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+      const { data, error } = await this.resend.emails.send({
         from: fromEmail,
         to: dto.email,
         subject: 'Welcome to the Team! Set your password',
@@ -158,14 +160,10 @@ export class EmployeeService {
           </div>
         `,
       });
-
-      if (sendResult?.error) {
-        console.error(
-          '❌ Resend API returned error for employee invitation:',
-          sendResult.error,
-        );
+      if (error) {
+        console.error('❌ Resend API returned error for employee invitation:', error);
       } else {
-        console.log(`✅ Onboarding invitation email sent to ${dto.email}`);
+        console.log(`✅ Onboarding invitation email sent to ${dto.email} (Message ID: ${data?.id})`);
       }
     } catch (emailError) {
       console.error(
@@ -377,16 +375,21 @@ export class EmployeeService {
 
   async updateMyProfile(
     employeeId: string,
-    data: any,
+    // S-01: strongly-typed DTO; ValidationPipe(whitelist:true) already stripped unknown fields
+    rawData: object,
     file?: Express.Multer.File,
   ) {
-    delete data.id;
-    delete data.companyId;
-    delete data.departmentId;
-    delete data.roleId;
-    delete data.email;
-    delete data.employeeId;
-    delete data.joiningDate;
+    // Defense-in-depth: explicitly remove any privilege-escalation fields
+    // even though the DTO should have already prevented them.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = { ...rawData };
+    const FORBIDDEN = [
+      'id', 'companyId', 'departmentId', 'roleId', 'role',
+      'email', 'employeeId', 'joiningDate', 'employmentStatus',
+      'designationId', 'reportingManagerId', 'password',
+      'inviteToken', 'resetPasswordToken', 'resetPasswordExpires',
+    ] as const;
+    for (const field of FORBIDDEN) delete data[field as string];
 
     if (file) {
       data.profilePhoto = await this.s3Service.uploadFile(
@@ -576,5 +579,162 @@ export class EmployeeService {
     if (!contact) throw new NotFoundException('Emergency contact not found');
 
     return this.prisma.emergencyContact.delete({ where: { id: contactId } });
+  }
+
+  // ==========================================
+  // ORG CHART & REPORTING HIERARCHY
+  // ==========================================
+  async getOrgChart(companyId: string) {
+    const employees = await this.prisma.employee.findMany({
+      where: { companyId, employmentStatus: 'ACTIVE' },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        profilePhoto: true,
+        employeeCode: true,
+        reportingManagerId: true,
+        department: { select: { id: true, name: true } },
+        designation: { select: { id: true, name: true, color: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const empMap = new Map<string, any>();
+    const childrenMap = new Map<string, string[]>();
+
+    employees.forEach((emp) => {
+      empMap.set(emp.id, emp);
+      childrenMap.set(emp.id, []);
+    });
+
+    const rootIds: string[] = [];
+
+    employees.forEach((emp) => {
+      if (emp.reportingManagerId && empMap.has(emp.reportingManagerId)) {
+        childrenMap.get(emp.reportingManagerId)!.push(emp.id);
+      } else {
+        rootIds.push(emp.id);
+      }
+    });
+
+    const buildNode = (id: string, depth = 1): any => {
+      const emp = empMap.get(id);
+      const childIds = childrenMap.get(id) || [];
+      const children = childIds.map((cid) => buildNode(cid, depth + 1));
+      const totalSubordinates = children.reduce(
+        (sum: number, c: any) => sum + 1 + c.totalSubordinatesCount,
+        0,
+      );
+
+      return {
+        id: emp.id,
+        employeeCode: emp.employeeCode,
+        name: (emp.firstName + " " + emp.lastName).trim(),
+        email: emp.email,
+        role: emp.role,
+        profilePhoto: emp.profilePhoto,
+        department: emp.department?.name || null,
+        designation: emp.designation?.name || null,
+        designationColor: emp.designation?.color || null,
+        depth,
+        directReportsCount: childIds.length,
+        totalSubordinatesCount: totalSubordinates,
+        children,
+      };
+    };
+
+    const tree = rootIds.map((rid) => buildNode(rid, 1));
+    return {
+      roots: tree,
+      totalEmployees: employees.length,
+    };
+  }
+
+  // ==========================================
+  // COMPLIANCE: GDPR / DPDP DATA PORTABILITY
+  // ==========================================
+  async exportEmployeeData(companyId: string, employeeId: string) {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+      include: {
+        department: true,
+        designation: true,
+        emergencyContacts: true,
+        skills: true,
+        employmentHistory: true,
+        devices: true,
+        notificationSettings: true,
+        leaveRequests: { take: 50, orderBy: { createdAt: 'desc' } },
+        attendances: { take: 60, orderBy: { date: 'desc' } },
+        payrollRecords: { take: 24, orderBy: { createdAt: 'desc' } },
+        documents: true,
+        exitRecord: true,
+      },
+    });
+
+    if (!employee) throw new NotFoundException('Employee not found in your workspace');
+
+    const decrypted = decryptEmployee(employee);
+    delete (decrypted as any).password;
+    delete (decrypted as any).inviteToken;
+    delete (decrypted as any).resetPasswordToken;
+
+    return {
+      exportedAt: new Date().toISOString(),
+      complianceStandard: 'GDPR_Article_15 / DPDP_Right_to_Access',
+      subject: decrypted,
+    };
+  }
+
+  // ==========================================
+  // COMPLIANCE: RIGHT TO ERASURE (ANONYMIZATION)
+  // ==========================================
+  async anonymizeEmployee(companyId: string, employeeId: string, actorId: string) {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+    });
+    if (!employee) throw new NotFoundException('Employee not found in your workspace');
+
+    const { createHash } = await import('crypto');
+    const anonHash = createHash('sha256').update(employee.id + Date.now().toString()).digest('hex').substring(0, 10);
+    const anonymizedEmail = "erased." + anonHash + "@anonymized.internal";
+
+    await this.prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        firstName: 'Anonymized',
+        lastName: 'Individual',
+        email: anonymizedEmail,
+        phone: null,
+        profilePhoto: null,
+        employmentStatus: 'TERMINATED',
+        bankName: null,
+        accountNumber: null,
+        ifscCode: null,
+        panNumber: null,
+        nationalId: null,
+        pfAccountNumber: null,
+        uanNumber: null,
+      },
+    });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId,
+      'UPDATE',
+      'Employee',
+      employeeId,
+      null,
+      { action: 'DPDP_GDPR_RIGHT_TO_ERASURE', originalEmailHash: anonHash },
+    );
+
+    return {
+      success: true,
+      message: 'Employee personal data permanently anonymized in compliance with DPDP/GDPR.',
+    };
   }
 }

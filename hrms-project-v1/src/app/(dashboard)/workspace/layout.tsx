@@ -49,7 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <MobileTabBar />
       </div>
 
-      {/* Gpilot AI Assistant */}
+      {/* Gpilot AI Assistant for User Guidance */}
       <CopilotWidget />
     </div>
   );
