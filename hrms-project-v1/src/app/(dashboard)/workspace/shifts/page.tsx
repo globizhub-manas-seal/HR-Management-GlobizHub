@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Clock, ShieldAlert, Coffee, Sun, Moon, CalendarDays, Loader2 } from "lucide-react";
@@ -8,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { CardGridSkeleton } from "@/components/skeletons";
 
 export default function ShiftsPage() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_URL = API_BASE_URL;
 
   // 1. Fetch Company Settings (for rules)
   const { data: settings, isLoading: loadingSettings } = useQuery({

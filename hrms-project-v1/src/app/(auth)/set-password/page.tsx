@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import axios from "axios";
+import { authApi } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -34,10 +34,7 @@ function SetPasswordForm() {
   // React Query useMutation replaces useState for loading/error handling
   const mutation = useMutation({
     mutationFn: async (password: string) => {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/set-password`,
-        { token, password }
-      );
+      const response = await authApi.setPassword({ token, password });
       return response.data;
     },
     onSuccess: (data) => {

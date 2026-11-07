@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import api from "@/lib/api";
 import Link from "next/link";
 import { 
   ArrowLeft, Briefcase, Plus, Percent, Receipt, Loader2, Calculator, Pencil 
@@ -37,33 +37,19 @@ export default function PayrollSettingsPage() {
   };
   const [form, setForm] = useState(defaultForm);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  const getToken = () => localStorage.getItem("hrms_token");
-
   // 1. Fetch Existing Templates
   const { data: templates, isLoading } = useQuery({
     queryKey: ["salaryTemplates"],
-    queryFn: async () => {
-      const res = await axios.get(`${API_URL}/payroll/templates`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      return res.data;
-    }
+    queryFn: () => api.get("/payroll/templates").then((res) => res.data),
   });
 
   // 2. Save Mutation (Handles both Create & Update)
   const saveMutation = useMutation({
     mutationFn: async (payload: typeof form) => {
       if (editingId) {
-        // UPDATE existing
-        await axios.patch(`${API_URL}/payroll/templates/${editingId}`, payload, {
-          headers: { Authorization: `Bearer ${getToken()}` }
-        });
+        await api.patch(`/payroll/templates/${editingId}`, payload);
       } else {
-        // CREATE new
-        await axios.post(`${API_URL}/payroll/templates`, payload, {
-          headers: { Authorization: `Bearer ${getToken()}` }
-        });
+        await api.post("/payroll/templates", payload);
       }
     },
     onSuccess: () => {

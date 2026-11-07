@@ -1,5 +1,6 @@
-// src/components/wizard/Step7LeavePolicies.tsx
 "use client";
+
+// src/components/wizard/Step7LeavePolicies.tsx
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

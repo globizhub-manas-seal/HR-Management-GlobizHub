@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -25,7 +27,7 @@ export default function AdminScheduleManager() {
     queryKey: ["adminEmployees"],
     queryFn: async () => {
       const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees`, {
+      const res = await axios.get(`${API_BASE_URL}/employees`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.data;
@@ -37,7 +39,7 @@ export default function AdminScheduleManager() {
     queryKey: ["activeShifts"],
     queryFn: async () => {
       const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/shifts`, {
+      const res = await axios.get(`${API_BASE_URL}/schedules/shifts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.data;
@@ -48,7 +50,7 @@ export default function AdminScheduleManager() {
   const createShiftMutation = useMutation({
     mutationFn: async (newShift: typeof shiftForm) => {
       const token = localStorage.getItem("hrms_token");
-      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/shifts`;
+      const url = `${API_BASE_URL}/schedules/shifts`;
       const res = await axios.post(url, newShift, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -67,7 +69,7 @@ export default function AdminScheduleManager() {
   const updateShiftMutation = useMutation({
     mutationFn: async (updatedShift: { id: string; name: string; startTime: string; endTime: string; isNightShift: boolean }) => {
       const token = localStorage.getItem("hrms_token");
-      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/shifts/${updatedShift.id}`;
+      const url = `${API_BASE_URL}/schedules/shifts/${updatedShift.id}`;
       const res = await axios.patch(url, updatedShift, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -87,7 +89,7 @@ export default function AdminScheduleManager() {
   const deleteShiftMutation = useMutation({
     mutationFn: async (shiftId: string) => {
       const token = localStorage.getItem("hrms_token");
-      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/shifts/${shiftId}`;
+      const url = `${API_BASE_URL}/schedules/shifts/${shiftId}`;
       await axios.delete(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -101,7 +103,7 @@ export default function AdminScheduleManager() {
   const assignScheduleMutation = useMutation({
     mutationFn: async (payload: typeof assignForm) => {
       const token = localStorage.getItem("hrms_token");
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/schedules/assign`, payload, {
+      const res = await axios.post(`${API_BASE_URL}/schedules/assign`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.data;

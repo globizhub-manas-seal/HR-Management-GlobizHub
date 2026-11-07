@@ -1,5 +1,6 @@
-// src/components/wizard/Step2CompanySettings.tsx
 "use client";
+
+// src/components/wizard/Step2CompanySettings.tsx
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

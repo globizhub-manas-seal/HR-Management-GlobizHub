@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
@@ -141,7 +143,7 @@ export default function OnboardingPage() {
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = API_BASE_URL;
 
   useEffect(() => {
     loadUserDataAndCases();

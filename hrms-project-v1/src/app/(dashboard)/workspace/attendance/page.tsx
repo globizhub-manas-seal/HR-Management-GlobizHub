@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { attendanceApi } from "@/lib/api";
 import { CalendarClock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,14 +42,7 @@ const formatTime = (dateString?: string | null) => {
 export default function AttendanceHistoryPage() {
   const { data: history, isLoading, error } = useQuery({
     queryKey: ["attendanceHistory"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/attendance/my-history`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
+    queryFn: attendanceApi.getMyHistory,
   });
 
   return (

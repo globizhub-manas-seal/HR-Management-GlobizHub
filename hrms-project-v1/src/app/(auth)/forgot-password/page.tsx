@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import axios from "axios";
+import { authApi } from "@/lib/api";
 import { ArrowLeft, Mail, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
 
     try {
       const trimmedEmail = email.trim();
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/forgot-password`, { email: trimmedEmail });
+      await authApi.forgotPassword(trimmedEmail);
       setSuccess(true);
     } catch (err: any) {
       const apiMessage = err.response?.data?.message;

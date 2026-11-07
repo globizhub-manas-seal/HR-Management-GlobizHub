@@ -1,5 +1,6 @@
-// src/components/wizard/Step3HolidayCalendar.tsx
 "use client";
+
+// src/components/wizard/Step3HolidayCalendar.tsx
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

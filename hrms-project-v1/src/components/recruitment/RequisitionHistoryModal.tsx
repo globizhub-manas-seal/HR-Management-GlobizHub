@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -20,7 +22,7 @@ interface RequisitionHistoryModalProps {
   requisitionId: string | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = API_BASE_URL;
 
 const ACTION_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   SUBMITTED: { label: "Submitted for Review", color: "bg-blue-500/10 text-blue-600 border-blue-500/20", icon: Send },

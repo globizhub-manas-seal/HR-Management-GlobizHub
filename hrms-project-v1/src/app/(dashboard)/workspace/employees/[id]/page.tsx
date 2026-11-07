@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import api, { employeesApi, API_BASE_URL } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -95,22 +95,18 @@ export default function EmployeeDetailsPage() {
 
   // Fetch dropdown lookup data
   useEffect(() => {
-    const token = localStorage.getItem("hrms_token");
-    const headers = { Authorization: `Bearer ${token}` };
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-    axios
-      .get(`${apiUrl}/employees`, { headers })
+    api
+      .get("/employees")
       .then((res) => setManagers(res.data))
       .catch((err) => console.error("Failed to load managers", err));
 
-    axios
-      .get(`${apiUrl}/organization/departments`, { headers })
+    api
+      .get("/organization/departments")
       .then((res) => setDepartments(res.data))
       .catch((err) => console.error("Failed to load departments", err));
 
-    axios
-      .get(`${apiUrl}/organization/designations`, { headers })
+    api
+      .get("/organization/designations")
       .then((res) => setDesignations(res.data))
       .catch((err) => console.error("Failed to load designations", err));
   }, []);
@@ -122,14 +118,7 @@ export default function EmployeeDetailsPage() {
     refetch,
   } = useQuery({
     queryKey: ["employeeDetails", employeeId],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return res.data;
-    },
+    queryFn: () => employeesApi.getById(employeeId),
     enabled: Boolean(employeeId),
   });
 
@@ -166,7 +155,6 @@ export default function EmployeeDetailsPage() {
   // Mutation: Update Employee Details
   const updateDetailsMutation = useMutation({
     mutationFn: async (values: EmployeeEditFormValues) => {
-      const token = localStorage.getItem("hrms_token");
       const payload = {
         ...values,
         departmentId: values.departmentId === "none" || !values.departmentId ? null : values.departmentId,
@@ -174,12 +162,7 @@ export default function EmployeeDetailsPage() {
         designationId: values.designationId === "none" || !values.designationId ? null : values.designationId,
         employeeCode: values.employeeCode ? values.employeeCode.trim() : null,
       };
-      const res = await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return res.data;
+      return await employeesApi.update(employeeId, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employeeDetails", employeeId] });
@@ -198,12 +181,7 @@ export default function EmployeeDetailsPage() {
   // Mutation: Add Skill
   const addSkillMutation = useMutation({
     mutationFn: async (data: any) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}/skills`,
-        data,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await employeesApi.addSkill(employeeId, data);
     },
     onSuccess: () => {
       refetch();
@@ -220,11 +198,7 @@ export default function EmployeeDetailsPage() {
   // Mutation: Delete Skill
   const deleteSkillMutation = useMutation({
     mutationFn: async (skillId: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}/skills/${skillId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await employeesApi.removeSkill(employeeId, skillId);
     },
     onSuccess: () => {
       refetch();
@@ -237,12 +211,7 @@ export default function EmployeeDetailsPage() {
   // Mutation: Add Emergency Contact
   const addContactMutation = useMutation({
     mutationFn: async (data: any) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}/emergency-contacts`,
-        data,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await employeesApi.addEmergencyContact(employeeId, data);
     },
     onSuccess: () => {
       refetch();
@@ -259,11 +228,7 @@ export default function EmployeeDetailsPage() {
   // Mutation: Delete Emergency Contact
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}/emergency-contacts/${contactId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await employeesApi.removeEmergencyContact(employeeId, contactId);
     },
     onSuccess: () => {
       refetch();
@@ -276,12 +241,7 @@ export default function EmployeeDetailsPage() {
   // Mutation: Add Employment History
   const addHistoryMutation = useMutation({
     mutationFn: async (data: any) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}/history`,
-        data,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post(`/employees/${employeeId}/history`, data);
     },
     onSuccess: () => {
       refetch();
@@ -298,12 +258,7 @@ export default function EmployeeDetailsPage() {
   // Mutation: Process Offboarding / Exit
   const exitMutation = useMutation({
     mutationFn: async (data: any) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employeeId}/exit`,
-        data,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await employeesApi.processExit(employeeId, data);
     },
     onSuccess: () => {
       refetch();
@@ -321,8 +276,7 @@ export default function EmployeeDetailsPage() {
     if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) {
       return photoPath;
     }
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-    return `${backendUrl}${photoPath}`;
+    return `${API_BASE_URL}${photoPath}`;
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {

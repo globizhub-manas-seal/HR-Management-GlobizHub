@@ -4,6 +4,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -458,24 +459,110 @@ export class AuthService {
   // ... KEEP YOUR EXISTING login() FUNCTION EXACTLY AS IT IS BELOW ...
   async login(email: string, pass: string) {
     const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Unified Authentication: Check if credentials belong to Platform SaaS Staff
+    if (this.prisma.platformUser) {
+      try {
+        const platformUser = await this.prisma.platformUser.findUnique({
+          where: { email: normalizedEmail },
+        });
+
+        if (platformUser && platformUser.isActive) {
+          const isPlatformMatch = await bcrypt.compare(pass, platformUser.password);
+          if (isPlatformMatch) {
+            // Update login metrics
+            await this.prisma.platformUser.update({
+              where: { id: platformUser.id },
+              data: { lastLoginAt: new Date() },
+            });
+
+            // Record audit event asynchronously
+            if (this.prisma.platformAuditLog) {
+              this.prisma.platformAuditLog
+                .create({
+                  data: {
+                    actorId: platformUser.id,
+                    actorEmail: platformUser.email,
+                    actorRole: platformUser.role,
+                    action: 'LOGIN',
+                    targetEntity: 'PlatformUser',
+                    targetId: platformUser.id,
+                  },
+                })
+                .catch(() => {});
+            }
+
+            const platformPayload = {
+              sub: platformUser.id,
+              email: platformUser.email,
+              role: platformUser.role,
+              isPlatform: true,
+            };
+
+            return {
+              access_token: await this.jwtService.signAsync(platformPayload, {
+                expiresIn: '8h',
+              }),
+              portal: 'PLATFORM_ADMIN',
+              targetUrl: '/platform-admin/dashboard',
+              user: {
+                id: platformUser.id,
+                email: platformUser.email,
+                firstName: platformUser.firstName,
+                lastName: platformUser.lastName,
+                role: platformUser.role,
+                isPlatform: true,
+              },
+            };
+          }
+        }
+      } catch (err: any) {
+        // Fall through to Employee lookup
+      }
+    }
+
+    // 2. Check if credentials belong to Tenant / Company Employee
     const user = await this.prisma.employee.findUnique({
       where: { email: normalizedEmail },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            subscription: true,
+          },
+        },
+      },
     });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
+    // SaaS Multi-tenancy Isolation: Enforce company operational status
+    if (user.company) {
+      if (user.company.status === 'SUSPENDED') {
+        throw new ForbiddenException(
+          'Your organization account has been suspended by the platform administrator. Please contact support.',
+        );
+      }
+      if (user.company.status === 'PENDING_VERIFICATION') {
+        throw new ForbiddenException(
+          'Your organization is currently awaiting platform verification and approval.',
+        );
+      }
+    }
+
     // S-03: Block logins if the invitation has not been accepted yet
-    if (user.inviteToken !== null) {
+    if (Boolean(user.inviteToken)) {
       throw new UnauthorizedException(
         'Your account is pending activation. Please set your password using the invitation link sent to your email.',
       );
     }
+
     // Block deactivated or terminated accounts
     if (user.employmentStatus === 'TERMINATED' || user.employmentStatus === 'RESIGNED') {
-      throw new UnauthorizedException(
-        'This account has been deactivated. Please contact your company administrator.',
-      );
+      throw new ForbiddenException('Your employee account is no longer active.');
     }
 
     // If the employee already accepted their invite, ensure status is ACTIVE
@@ -502,7 +589,20 @@ export class AuthService {
       companyId: user.companyId,
       role: user.role,
     };
-    return { access_token: await this.jwtService.signAsync(payload) };
+    return {
+      access_token: await this.jwtService.signAsync(payload),
+      portal: 'WORKSPACE',
+      targetUrl: '/workspace/dashboard',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        companyId: user.companyId,
+        companyName: user.company?.name,
+      },
+    };
   }
 
   async logout(employeeId: string, companyId: string) {
@@ -745,3 +845,4 @@ export class AuthService {
     return { designation: employee?.designation || null };
   }
 }
+

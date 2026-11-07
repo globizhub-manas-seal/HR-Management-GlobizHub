@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import api, { employeesApi } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,25 +66,21 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
 
   useEffect(() => {
     if (open) {
-      const token = localStorage.getItem("hrms_token");
-      const headers = { Authorization: `Bearer ${token}` };
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      
-      axios.get(`${apiUrl}/employees`, { headers })
+      api.get("/employees")
         .then(res => {
           console.log("DEBUG: fetched managers list:", res.data);
           setManagers(res.data);
         })
         .catch(err => console.error("Failed to load employees for managers list", err));
 
-      axios.get(`${apiUrl}/organization/departments`, { headers })
+      api.get("/organization/departments")
         .then(res => {
           console.log("DEBUG: fetched departments list:", res.data);
           setDepartments(res.data);
         })
         .catch(err => console.error("Failed to load departments", err));
 
-      axios.get(`${apiUrl}/organization/designations`, { headers })
+      api.get("/organization/designations")
         .then(res => {
           console.log("DEBUG: fetched designations list:", res.data);
           setDesignations(res.data);
@@ -110,14 +106,7 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
   // Query: Fetch full employee details including skills and emergency contacts
   const { data: fullEmployee, isLoading: isLoadingEmployee, refetch } = useQuery({
     queryKey: ["employeeDetails", employee.id],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employee.id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return res.data;
-    },
+    queryFn: () => employeesApi.getById(employee.id),
     enabled: open,
   });
 
@@ -125,18 +114,13 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
   async function onSubmit(values: z.infer<typeof employeeSchema>) {
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem("hrms_token");
       const payload = {
         ...values,
         departmentId: values.departmentId === "none" || !values.departmentId ? null : values.departmentId,
         reportingManagerId: values.reportingManagerId === "none" || !values.reportingManagerId ? null : values.reportingManagerId,
         designationId: values.designationId === "none" || !values.designationId ? null : values.designationId,
       };
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employee.id}`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await employeesApi.update(employee.id, payload);
       setOpen(false);
       window.location.reload();
     } catch (error: any) {
@@ -149,10 +133,7 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
   // Mutation: Add Skill
   const addSkillMutation = useMutation({
     mutationFn: async (data: any) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employee.id}/skills`, data, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await employeesApi.addSkill(employee.id, data);
     },
     onSuccess: () => {
       refetch();
@@ -167,10 +148,7 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
   // Mutation: Delete Skill
   const deleteSkillMutation = useMutation({
     mutationFn: async (skillId: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employee.id}/skills/${skillId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await employeesApi.removeSkill(employee.id, skillId);
     },
     onSuccess: () => {
       refetch();
@@ -184,10 +162,7 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
   // Mutation: Add Emergency Contact
   const addContactMutation = useMutation({
     mutationFn: async (data: any) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employee.id}/emergency-contacts`, data, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await employeesApi.addEmergencyContact(employee.id, data);
     },
     onSuccess: () => {
       refetch();
@@ -202,10 +177,7 @@ export function EditEmployeeModal({ employee }: { employee: EmployeeForEdit }) {
   // Mutation: Delete Emergency Contact
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/${employee.id}/emergency-contacts/${contactId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await employeesApi.removeEmergencyContact(employee.id, contactId);
     },
     onSuccess: () => {
       refetch();

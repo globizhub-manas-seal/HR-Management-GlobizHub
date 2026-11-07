@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import api, { leavesApi } from "@/lib/api";
 import { Loader2, CalendarCheck, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,11 +29,8 @@ export default function AdminLeaveApprovalPage() {
   const { data: leaves, isLoading: isLoadingLeaves, error } = useQuery({
     queryKey: ["adminCompanyLeaves", activeRole],
     queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
       const endpoint = activeRole === 'MANAGER' ? 'approvals' : 'company';
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/leaves/${endpoint}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get(`/leaves/${endpoint}`);
       return res.data;
     },
     enabled: !!activeRole,
@@ -41,14 +38,8 @@ export default function AdminLeaveApprovalPage() {
 
   // Mutation to update leave status (APPROVE / REJECT)
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/leaves/${id}/status`,
-        { status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      leavesApi.updateStatus(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminCompanyLeaves"] });
     },

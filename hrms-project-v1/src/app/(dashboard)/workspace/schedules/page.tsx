@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "axios";
@@ -12,7 +14,7 @@ import Link from "next/link";
 
 export default function SchedulesPage() {
   const [currentWeek, setCurrentWeek] = useState("Upcoming 7 Days");
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_URL = API_BASE_URL;
 
   // Fetch logged-in user profile
   const { data: me } = useQuery({

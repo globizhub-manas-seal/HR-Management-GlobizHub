@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import { documentsApi } from "@/lib/api";
 import { 
   FileText, Upload, CheckCircle2, Clock, AlertCircle, 
   Eye, Loader2, Briefcase, Shield, User, FileQuestion, FolderOpen,
@@ -41,9 +41,6 @@ export default function EmployeeDocumentsPage() {
   const [personalFile, setPersonalFile] = useState<File | null>(null);
   const [personalUploadProgress, setPersonalUploadProgress] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  const getToken = () => localStorage.getItem("hrms_token");
-
   const { activeRole, isLoading: isLoadingProfile } = useViewMode();
 
   // Redirect admin/HR/CEO users to the admin documents page
@@ -57,12 +54,7 @@ export default function EmployeeDocumentsPage() {
   // 1. Fetch the logged-in employee's documents
   const { data: documents, isLoading } = useQuery({
     queryKey: ["myDocuments"],
-    queryFn: async () => {
-      const res = await axios.get(`${API_URL}/documents/me`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      return res.data;
-    },
+    queryFn: documentsApi.getMyDocuments,
   });
 
   // 2. Upload Mutation
@@ -74,12 +66,7 @@ export default function EmployeeDocumentsPage() {
       formData.append("name", name);
       formData.append("category", category);
 
-      await axios.post(`${API_URL}/documents/upload`, formData, {
-        headers: { 
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "multipart/form-data" 
-        }
-      });
+      return documentsApi.uploadDocument(formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["myDocuments"] });

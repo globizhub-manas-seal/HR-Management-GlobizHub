@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
@@ -19,7 +21,7 @@ export function HRDashboardView() {
   const { isWidgetEnabled } = usePermissions();
   const showClockIn = isWidgetEnabled("clock_in_widget");
   const queryClient = useQueryClient();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_URL = API_BASE_URL;
   const getToken = () => localStorage.getItem("hrms_token");
 
   // Local state for Announcement Publisher

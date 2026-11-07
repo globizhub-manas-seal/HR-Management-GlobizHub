@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import { documentsApi } from "@/lib/api";
 import { 
   FileText, CheckCircle2, AlertCircle, Clock, 
   Plus, XCircle, ShieldCheck, FileSignature, Loader2 
@@ -25,24 +25,13 @@ export default function AdminEmployeeDocumentsPage() {
   // 1. Fetch this specific employee's documents
   const { data: documents, isLoading } = useQuery({
     queryKey: ["employeeDocuments", employeeId],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/employee/${employeeId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return res.data;
-    },
+    queryFn: () => documentsApi.getEmployeeDocuments(employeeId),
   });
 
   // 2. Mutation: Request a new document
   const requestMutation = useMutation({
-    mutationFn: async (payload: typeof requestForm) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/request`, 
-        { ...payload, employeeId }, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: (payload: typeof requestForm) =>
+      documentsApi.requestDocument({ ...payload, employeeId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employeeDocuments", employeeId] });
       setIsRequestModalOpen(false);
@@ -52,13 +41,8 @@ export default function AdminEmployeeDocumentsPage() {
 
   // 3. Mutation: Verify or Reject a document
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string, status: string }) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/${id}/status`, 
-        { status }, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: ({ id, status }: { id: string, status: string }) =>
+      documentsApi.updateStatus(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employeeDocuments", employeeId] });
     }

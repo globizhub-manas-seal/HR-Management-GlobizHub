@@ -1,5 +1,7 @@
 "use client";
 
+import api, { API_BASE_URL } from "@/lib/api";
+
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,7 +31,7 @@ export default function EmployeeProfileSettings() {
       if (!token) return null;
       try {
         const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/resignation/my`,
+          `${API_BASE_URL}/resignation/my`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         return res.data;
@@ -44,7 +46,7 @@ export default function EmployeeProfileSettings() {
     queryKey: ["userProfile"],
     queryFn: async () => {
       const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/me`, {
+      const res = await axios.get(`${API_BASE_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.data;
@@ -102,7 +104,7 @@ export default function EmployeeProfileSettings() {
         submitData.append("profileImage", selectedFile);
       }
 
-      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/me`, submitData, {
+      await axios.patch(`${API_BASE_URL}/employees/me`, submitData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data"
@@ -129,7 +131,7 @@ export default function EmployeeProfileSettings() {
         throw new Error("New passwords do not match");
       }
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/change-password`,
+        `${API_BASE_URL}/auth/change-password`,
         {
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
@@ -154,7 +156,7 @@ export default function EmployeeProfileSettings() {
     queryKey: ["userDevices"],
     queryFn: async () => {
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/me/devices`,
+        `${API_BASE_URL}/employees/me/devices`,
         { headers }
       );
       return res.data;
@@ -165,7 +167,7 @@ export default function EmployeeProfileSettings() {
   const registerDeviceMutation = useMutation({
     mutationFn: async (payload: { deviceName: string; deviceIdentifier: string }) => {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/me/devices`,
+        `${API_BASE_URL}/employees/me/devices`,
         payload,
         { headers }
       );
@@ -178,7 +180,7 @@ export default function EmployeeProfileSettings() {
   const revokeDeviceMutation = useMutation({
     mutationFn: async (deviceId: string) => {
       await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/me/devices/${deviceId}`,
+        `${API_BASE_URL}/employees/me/devices/${deviceId}`,
         { headers }
       );
     },
@@ -243,7 +245,7 @@ export default function EmployeeProfileSettings() {
     mutationFn: async (updatedData: typeof notifications) => {
       const token = localStorage.getItem("hrms_token");
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/me/notifications`,
+        `${API_BASE_URL}/employees/me/notifications`,
         updatedData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -277,7 +279,7 @@ export default function EmployeeProfileSettings() {
     mutationFn: async (updatedData: typeof appearance) => {
       const token = localStorage.getItem("hrms_token");
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees/me`,
+        `${API_BASE_URL}/employees/me`,
         updatedData,
         { headers: { Authorization: `Bearer ${token}` } }
       );

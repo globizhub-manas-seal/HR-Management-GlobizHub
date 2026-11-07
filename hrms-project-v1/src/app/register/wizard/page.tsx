@@ -1,5 +1,6 @@
-// src/app/register/wizard/page.tsx
 "use client";
+
+// src/app/register/wizard/page.tsx
 
 import { useSetupWizardStore } from "@/store/useSetupWizardStore";
 import { Button } from "@/components/ui/button";

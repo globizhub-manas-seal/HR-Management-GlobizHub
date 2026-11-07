@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import api, { documentsApi, employeesApi } from "@/lib/api";
 import { 
   Search, Upload, Plus, MoreVertical, Eye, Download, 
   ShieldCheck, XCircle, Clock, CheckCircle2, FileText,
@@ -72,39 +72,19 @@ export default function EnterpriseAdminDocumentHub() {
   // Fetch all documents from database
   const { data: documents, isLoading: isLoadingDocs } = useQuery({
     queryKey: ["adminDocuments"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
+    queryFn: documentsApi.getAllDocuments,
   });
 
   // Fetch employees list for dropdown when requesting document
   const { data: employees } = useQuery({
     queryKey: ["employeesList"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/employees`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    },
+    queryFn: employeesApi.getAll,
   });
 
   // Request document mutation
   const requestMutation = useMutation({
-    mutationFn: async (payload: { employeeId: string; name: string; category: string }) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/request`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: (payload: { employeeId: string; name: string; category: string }) =>
+      documentsApi.requestDocument(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminDocuments"] });
       setIsRequestModalOpen(false);
@@ -116,14 +96,11 @@ export default function EnterpriseAdminDocumentHub() {
 
   // Verify/Reject status mutation
   const statusMutation = useMutation({
-    mutationFn: async (payload: { documentId: string; status: string; rejectionReason?: string }) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/${payload.documentId}/status`,
-        { status: payload.status, rejectionReason: payload.rejectionReason },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: (payload: { documentId: string; status: string; rejectionReason?: string }) =>
+      documentsApi.updateStatus(payload.documentId, {
+        status: payload.status,
+        reason: payload.rejectionReason,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminDocuments"] });
       setSelectedDoc(null);
@@ -136,7 +113,6 @@ export default function EnterpriseAdminDocumentHub() {
     if (!uploadFile) return;
     setUploading(true);
     try {
-      const token = localStorage.getItem("hrms_token");
       const formData = new FormData();
       formData.append("file", uploadFile);
       formData.append("name", uploadForm.name);
@@ -145,12 +121,7 @@ export default function EnterpriseAdminDocumentHub() {
         formData.append("employeeId", uploadForm.employeeId);
       }
 
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/upload`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data" 
-        }
-      });
+      await documentsApi.uploadDocument(formData);
 
       alert("Document uploaded successfully!");
       setIsUploadOpen(false);
@@ -167,13 +138,7 @@ export default function EnterpriseAdminDocumentHub() {
 
   // Delete document mutation
   const deleteMutation = useMutation({
-    mutationFn: async (documentId: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/${documentId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    },
+    mutationFn: (documentId: string) => documentsApi.deleteDocument(documentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminDocuments"] });
       setSelectedDoc(null);
@@ -189,12 +154,8 @@ export default function EnterpriseAdminDocumentHub() {
   // Edit document details mutation
   const editMutation = useMutation({
     mutationFn: async (payload: { name: string; category: string; employeeId: string | null }) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/documents/${selectedDoc.id}/details`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.patch(`/documents/${selectedDoc.id}/details`, payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminDocuments"] });

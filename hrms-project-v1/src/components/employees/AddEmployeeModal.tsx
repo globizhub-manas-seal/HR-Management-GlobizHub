@@ -1,5 +1,5 @@
 "use client";
-import axios from "axios";
+import api, { employeesApi } from "@/lib/api";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -63,37 +63,27 @@ export function AddEmployeeModal() {
 
   useEffect(() => {
     if (open) {
-      const token = localStorage.getItem("hrms_token");
-      const headers = { Authorization: `Bearer ${token}` };
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      
-      axios.get(`${apiUrl}/employees`, { headers })
-        .then(res => setManagers(res.data))
-        .catch(err => console.error("Failed to load employees for managers list", err));
+      api.get("/employees")
+        .then((res) => setManagers(res.data))
+        .catch((err) => console.error("Failed to load employees for managers list", err));
 
-      axios.get(`${apiUrl}/organization/departments`, { headers })
-        .then(res => setDepartments(res.data))
-        .catch(err => console.error("Failed to load departments", err));
+      api.get("/organization/departments")
+        .then((res) => setDepartments(res.data))
+        .catch((err) => console.error("Failed to load departments", err));
     }
   }, [open]);
 
   async function onSubmit(values: z.infer<typeof addEmployeeSchema>) {
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem("hrms_token");
-      
       const payload = {
         ...values,
         departmentId: values.departmentId === "none" || !values.departmentId ? null : values.departmentId,
         reportingManagerId: values.reportingManagerId === "none" || !values.reportingManagerId ? null : values.reportingManagerId,
       };
 
-      // Send the data to our new NestJS endpoint!
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/employees/invite`, 
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // Send the data using centralized employeesApi
+      await employeesApi.invite(payload);
       
       setOpen(false);
       form.reset();
