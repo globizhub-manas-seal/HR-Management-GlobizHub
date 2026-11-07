@@ -4,10 +4,14 @@ import { PayrollService } from './payroll.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../s3/s3.service';
 import { AuditService } from '../audit/audit.service';
+import { EmailService } from '../email/email.service';
 
 describe('PayrollService', () => {
   let service: PayrollService;
   const prisma = {
+    employee: {
+      findFirst: jest.fn(),
+    },
     company: {
       findUnique: jest.fn(),
     },
@@ -22,6 +26,7 @@ describe('PayrollService', () => {
       findMany: jest.fn(),
     },
     attendance: {
+      findMany: jest.fn(),
       aggregate: jest.fn(),
     },
     holiday: {
@@ -33,6 +38,10 @@ describe('PayrollService', () => {
   };
   const auditService = {
     logAction: jest.fn(),
+  };
+  const emailService = {
+    sendPayrollSlipsEmail: jest.fn(),
+    sendEmail: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -53,6 +62,10 @@ describe('PayrollService', () => {
           provide: AuditService,
           useValue: auditService,
         },
+        {
+          provide: EmailService,
+          useValue: emailService,
+        },
       ],
     }).compile();
 
@@ -65,7 +78,24 @@ describe('PayrollService', () => {
 
   describe('generateMonthlyPayroll', () => {
     beforeEach(() => {
-      // Mock active salary structure
+      // Mock employee with active salary structure
+      prisma.employee.findFirst.mockResolvedValue({
+        id: 'employee-1',
+        companyId: 'company-1',
+        employmentStatus: 'ACTIVE',
+        salaryStructure: {
+          basicSalary: 30000,
+          hra: 5000,
+          otherAllowances: 2000,
+          conveyanceAllowance: 1600,
+          medicalAllowance: 1250,
+          specialAllowance: 5000,
+          pfContribution: 1800,
+          taxDeduction: 2500,
+          professionalTax: 200,
+        },
+      });
+
       prisma.salaryStructure.findUnique.mockResolvedValue({
         basicSalary: 30000,
         hra: 5000,
@@ -88,6 +118,11 @@ describe('PayrollService', () => {
 
       // Overlapping leaves (empty by default)
       prisma.leaveRequest.findMany.mockResolvedValue([]);
+
+      // Mock attendance records (overtime hours = 5)
+      prisma.attendance.findMany.mockResolvedValue([
+        { status: 'PRESENT', isHalfDay: false, overtimeHours: 5 },
+      ]);
 
       // Mock attendance summary (overtime hours = 5)
       prisma.attendance.aggregate.mockResolvedValue({
@@ -155,6 +190,12 @@ describe('PayrollService', () => {
     });
 
     it('throws NotFoundException when salary structure is missing', async () => {
+      prisma.employee.findFirst.mockResolvedValue({
+        id: 'employee-1',
+        companyId: 'company-1',
+        employmentStatus: 'ACTIVE',
+        salaryStructure: null,
+      });
       prisma.salaryStructure.findUnique.mockResolvedValue(null);
 
       await expect(

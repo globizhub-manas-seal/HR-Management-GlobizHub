@@ -84,6 +84,21 @@ describe('AuthService', () => {
     );
   });
 
+  it('blocks login if user account has a pending invitation token', async () => {
+    const password = 'correct-horse-battery-staple';
+    prisma.employee.findUnique.mockResolvedValue({
+      id: 'employee-1',
+      email: 'alex@acme.com',
+      password: await bcrypt.hash(password, 10),
+      companyId: 'company-1',
+      inviteToken: 'pending-token-hash-123',
+    });
+
+    await expect(service.login('alex@acme.com', password)).rejects.toThrow(
+      'Your account is pending activation. Please set your password using the invitation link sent to your email.',
+    );
+  });
+
   it('unifies login for Platform Super Admin and routes to PLATFORM_ADMIN', async () => {
     const password = 'SuperAdminPassword123!';
     prisma.platformUser.findUnique.mockResolvedValue({

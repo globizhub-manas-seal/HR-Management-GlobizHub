@@ -554,7 +554,7 @@ export class AuthService {
     }
 
     // S-03: Block logins if the invitation has not been accepted yet
-    if (user.inviteToken !== null) {
+    if (Boolean(user.inviteToken)) {
       throw new UnauthorizedException(
         'Your account is pending activation. Please set your password using the invitation link sent to your email.',
       );
@@ -845,3 +845,4 @@ export class AuthService {
     return { designation: employee?.designation || null };
   }
 }
+
