@@ -1,6 +1,6 @@
 generator client {
   provider            = "prisma-client"
-  output              = "../generated/prisma"
+  output = "../generated/prisma"
   importFileExtension = ""
   moduleFormat        = "cjs"
 }
@@ -24,6 +24,27 @@ enum EmployeeRole {
   OWNER
   MANAGER
   EMPLOYEE
+}
+
+enum WorkerType {
+  SALARIED
+  CONSULTANT
+  CONTRACT_LABOUR
+}
+
+enum CredentialType {
+  MEDICAL_COUNCIL_REGISTRATION
+  NURSING_COUNCIL_REGISTRATION
+  PHARMACY_COUNCIL_REGISTRATION
+  DENTAL_COUNCIL_REGISTRATION
+  LIFE_SUPPORT_BLS
+  LIFE_SUPPORT_ACLS
+  PALS
+  ATLS
+  RADIATION_SAFETY
+  BOARD_SPECIALIZATION
+  CLINICAL_PRIVILEGE
+  OTHER
 }
 
 // 2. The Core Company (Tenant) Table
@@ -129,6 +150,7 @@ model Company {
 
   taxDeclarations      EmployeeTaxDeclaration[]
   employeeLoans        EmployeeLoan[]
+  credentials          ProfessionalCredential[]
 
   @@index([status, createdAt])
   @@index([subscription, status])
@@ -194,6 +216,11 @@ model Employee {
   statutoryContributions StatutoryContribution[]
   taxDeclarations        EmployeeTaxDeclaration[]
   employeeLoans          EmployeeLoan[]
+  credentials            ProfessionalCredential[]
+
+  workerType             WorkerType @default(SALARIED)
+  tdsSection             String?    @default("192") // "192" for Salaried, "194J" for Consultants
+  tdsRate                Float?     @default(10) // 10% for 194J professional fees
 
   // Add these for Password Reset
   resetPasswordToken   String?
@@ -379,6 +406,8 @@ model CompanySettings {
   enableMockLocation   Boolean  @default(true) // Block fake GPS apps
   requireSelfie        Boolean  @default(false)
   oneDevicePerEmployee Boolean  @default(true)
+  allowMultiPunch      Boolean  @default(false) // When false (e.g. IT 9-5), prevents second clock-in after checkout
+  enableSplitShifts    Boolean  @default(false) // Enables multi-session split shifts
 
   // Shift Settings
   officeStartTime        String @default("09:00")
@@ -471,6 +500,10 @@ model Attendance {
   shiftSwapRequestId String?
   shiftSwapRequest   ShiftSwapRequest?  @relation(fields: [shiftSwapRequestId], references: [id])
 
+  isCrossMidnight    Boolean            @default(false)
+  shiftDate          DateTime?
+  sessions           AttendanceSession[]
+
   @@index([employeeId, companyId, date])
   @@index([companyId, date])
 }
@@ -542,6 +575,8 @@ model Shift {
   startTime    String // e.g., "09:00"
   endTime      String // e.g., "17:00"
   isNightShift Boolean    @default(false)
+  allowMultiPunch Boolean @default(false) // Whether split shifts or multiple sessions are allowed
+  isSplitShift    Boolean @default(false)
   schedules    Schedule[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -551,6 +586,21 @@ model Shift {
   targetSwaps            ShiftSwapRequest[]        @relation("TargetShift")
   overrideOriginals      ShiftAssignmentOverride[] @relation("OverrideOriginalShift")
   overrideShifts         ShiftAssignmentOverride[] @relation("OverrideShift")
+}
+
+model AttendanceSession {
+  id                 String     @id @default(uuid())
+  attendanceId       String
+  attendance         Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  sessionIndex       Int        @default(1)
+  checkInTime        DateTime
+  checkOutTime       DateTime?
+  workingHours       Float?     @default(0)
+  verificationMethod String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([attendanceId])
 }
 
 model Schedule {
@@ -817,6 +867,11 @@ model SalaryStructure {
   // Dynamic custom allowances and deductions stored as JSON
   customComponents    Json?
 
+  // 194J Consultant / Doctor Compensation
+  retainerFee              Float    @default(0) // Fixed monthly retainer for consultants/doctors
+  opdConsultationRate      Float    @default(0) // Variable per-OPD fee
+  surgeriesSharePercentage Float    @default(0) // Surgery/procedure revenue share %
+
   effectiveDate DateTime @default(now())
 
   createdAt DateTime @default(now())
@@ -857,6 +912,13 @@ model PayrollRecord {
   releasedById String?
   loanDeductions Float @default(0)
   tdsDeduction Float @default(0)
+
+  // Doctor / Consultant Section 194J Support
+  workerType       WorkerType @default(SALARIED)
+  tdsSection       String     @default("192") // "192" or "194J"
+  tdsRate          Float?     @default(10) // 10% under Section 194J
+  formType         String     @default("FORM_16") // "FORM_16" or "FORM_16A"
+  professionalFees Float      @default(0) // Gross professional fees for 194J
 
   // We store the full detailed breakdown as JSON so the PDF Payslip never changes, 
   // even if the employee's SalaryStructure is updated years later!
@@ -2889,4 +2951,39 @@ model LoanRepayment {
   status          String        @default("PAID") // PAID, WAIVED
 
   loan EmployeeLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// MEDICAL & PROFESSIONAL CREDENTIALS MODULE
+// ==========================================
+
+model ProfessionalCredential {
+  id                 String          @id @default(uuid())
+  companyId          String
+  company            Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId         String
+  employee           Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  title              String          // e.g., "State Medical Council Registration"
+  credentialType     CredentialType  // MEDICAL_COUNCIL_REGISTRATION, LIFE_SUPPORT_BLS, etc.
+  registrationNumber String          // Registration / License / Certificate Number
+  issuingAuthority   String          // e.g., "Delhi Medical Council", "American Heart Association"
+  issueDate          DateTime?
+  expiryDate         DateTime?       // Null for permanent licenses
+  doesNotExpire      Boolean         @default(false)
+
+  verificationStatus String          @default("PENDING") // PENDING, VERIFIED, REJECTED
+  verifiedById       String?
+  verifiedAt         DateTime?
+  rejectionReason    String?
+
+  documentUrl        String?         // Uploaded certificate document link
+  notes              String?
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([companyId, employeeId])
+  @@index([companyId, expiryDate])
+  @@index([credentialType])
 }

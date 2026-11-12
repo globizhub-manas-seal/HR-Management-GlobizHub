@@ -205,6 +205,168 @@ export class PayrollService {
       company?.settings?.workingDays,
     );
 
+    // ========================================================
+    // DOCTOR / CONSULTANT 194J PROFESSIONAL FEES PIPELINE
+    // ========================================================
+    const isConsultant =
+      (employee as any).workerType === 'CONSULTANT' ||
+      (employee as any).tdsSection === '194J';
+
+    if (isConsultant) {
+      const retainerFee =
+        (structure as any).retainerFee > 0
+          ? (structure as any).retainerFee
+          : structure.basicSalary;
+
+      // Handle custom earnings/allowances (OPD share, surgery share, on-call allowances)
+      let customEarningsTotal = 0;
+      let customDeductionsTotal = 0;
+      const customBreakdown: any[] = [];
+
+      if (Array.isArray(structure.customComponents)) {
+        for (const comp of structure.customComponents as any[]) {
+          const val = Number(comp.value) || 0;
+          if (comp.type === 'EARNING') {
+            customEarningsTotal += val;
+          } else if (comp.type === 'DEDUCTION') {
+            customDeductionsTotal += val;
+          }
+          customBreakdown.push({
+            name: comp.name,
+            type: comp.type,
+            amount: val,
+          });
+        }
+      }
+
+      const variableAllowances =
+        (structure.otherAllowances || 0) +
+        customEarningsTotal +
+        ((structure as any).opdConsultationRate || 0);
+
+      const grossProfessionalFees = parseFloat(
+        (retainerFee + variableAllowances).toFixed(2),
+      );
+
+      // Section 194J TDS: Flat 10% (or employee configured rate e.g. 2% or 10%)
+      const tdsRate = (employee as any).tdsRate ?? 10;
+      // Section 194J statutory threshold is ₹30,000/year
+      let calculated194jTds = 0;
+      if (
+        grossProfessionalFees * 12 >= 30000 ||
+        grossProfessionalFees >= 30000
+      ) {
+        calculated194jTds = parseFloat(
+          ((grossProfessionalFees * tdsRate) / 100).toFixed(2),
+        );
+      }
+
+      // Check active loans/advances for this consultant
+      const activeLoan = await this.prisma.employeeLoan.findFirst({
+        where: {
+          employeeId,
+          status: { in: ['APPROVED', 'ACTIVE'] },
+          remainingBalance: { gt: 0 },
+        },
+      });
+
+      let loanDeduction = 0;
+      if (activeLoan) {
+        loanDeduction = Math.min(
+          activeLoan.monthlyEmi,
+          activeLoan.remainingBalance,
+        );
+      }
+
+      const totalDeductions = parseFloat(
+        (calculated194jTds + loanDeduction + customDeductionsTotal).toFixed(2),
+      );
+      const netPayout = parseFloat(
+        Math.max(0, grossProfessionalFees - totalDeductions).toFixed(2),
+      );
+
+      const consultantRecord = await this.prisma.payrollRecord.create({
+        data: {
+          companyId,
+          employeeId,
+          month,
+          year,
+          totalWorkingDays: totalScheduledWorkingDays,
+          presentDays: totalScheduledWorkingDays,
+          unpaidLeaves: 0,
+          overtimeHours: 0,
+
+          basicPay: retainerFee,
+          allowances: variableAllowances,
+          deductions: totalDeductions,
+          netSalary: netPayout,
+          loanDeductions: loanDeduction,
+          tdsDeduction: calculated194jTds,
+
+          workerType: 'CONSULTANT',
+          tdsSection: '194J',
+          tdsRate,
+          formType: 'FORM_16A',
+          professionalFees: grossProfessionalFees,
+
+          status: 'DRAFT',
+          processedById: generatedById,
+          processedDate: new Date(),
+
+          breakdown: {
+            meta: {
+              companyName: company?.name ?? null,
+              letterheadUrl: company?.settings?.payslipHeaderUrl ?? null,
+              generatedAt: new Date().toISOString(),
+              payoutType: 'PROFESSIONAL_FEES_194J',
+              formType: 'FORM_16A',
+            },
+            professionalFees: {
+              retainerFee,
+              variableFees: variableAllowances,
+              customEarnings: customEarningsTotal,
+              customComponents: customBreakdown,
+              grossProfessionalFees,
+            },
+            taxDetails: {
+              section: '194J',
+              natureOfPayment: 'Fees for Professional or Technical Services',
+              rate: tdsRate,
+              tdsDeducted: calculated194jTds,
+              thresholdApplicable: 30000,
+            },
+            statutoryExemptions: {
+              epfo: 'EXEMPT',
+              esic: 'EXEMPT',
+              professionalTax: 'EXEMPT',
+              labourWelfareFund: 'EXEMPT',
+              reason: 'Independent Professional Consultant / Doctor u/s 194J',
+            },
+            deductions: {
+              tds: calculated194jTds,
+              loans: loanDeduction,
+              customDeductions: customDeductionsTotal,
+              totalDeductions,
+            },
+            netPayout,
+          },
+        },
+      });
+
+      // Audit Log
+      await this.auditService.logAction(
+        companyId,
+        generatedById,
+        'CREATE',
+        'PayrollRecord',
+        consultantRecord.id,
+        null,
+        { month, year, employeeId, netSalary: netPayout, tdsSection: '194J' },
+      );
+
+      return consultantRecord;
+    }
+
     // 5. ATTENDANCE & LEAVE RECONCILIATION
     // Fetch all APPROVED leaves overlapping this month
     const overlappingLeaves = await this.prisma.leaveRequest.findMany({
@@ -419,6 +581,10 @@ export class PayrollService {
         netSalary,
         loanDeductions: loanDeduction,
         tdsDeduction: calculatedTds,
+
+        workerType: 'SALARIED',
+        tdsSection: '192',
+        formType: 'FORM_16',
 
         status: 'DRAFT',
         processedById: generatedById,
@@ -1633,5 +1799,151 @@ export class PayrollService {
 
   async generatePayrollJv(companyId: string, month: number, year: number) {
     return this.jvService.generatePayrollJv(companyId, month, year);
+  }
+
+  // ========================================================
+  // FORM 16A & 194J CONSULTANT SPECIALIST CERTIFICATE
+  // ========================================================
+
+  async generateForm16A(
+    companyId: string,
+    employeeId: string,
+    financialYear: string,
+    quarter: number,
+  ) {
+    if (quarter < 1 || quarter > 4) {
+      throw new BadRequestException('Quarter must be between 1 and 4.');
+    }
+
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      include: { settings: true },
+    });
+    if (!company) throw new NotFoundException('Company not found.');
+
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+      include: { department: true, designation: true },
+    });
+    if (!employee) throw new NotFoundException('Consultant not found.');
+
+    // Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar
+    const quarterMonthMap: Record<number, number[]> = {
+      1: [4, 5, 6],
+      2: [7, 8, 9],
+      3: [10, 11, 12],
+      4: [1, 2, 3],
+    };
+    const months = quarterMonthMap[quarter];
+    const [startYearStr, endYearStr] = financialYear.split('-').map(Number);
+    const targetYear = quarter === 4 ? endYearStr : startYearStr;
+
+    const records = await this.prisma.payrollRecord.findMany({
+      where: {
+        companyId,
+        employeeId,
+        month: { in: months },
+        year: targetYear,
+        OR: [{ tdsSection: '194J' }, { workerType: 'CONSULTANT' }],
+      },
+      orderBy: { month: 'asc' },
+    });
+
+    const totalGrossPaid = records.reduce(
+      (acc, r) =>
+        acc +
+        (r.professionalFees ||
+          (r.breakdown as any)?.professionalFees?.grossProfessionalFees ||
+          r.basicPay + r.allowances),
+      0,
+    );
+    const totalTdsDeducted = records.reduce(
+      (acc, r) => acc + (r.tdsDeduction || 0),
+      0,
+    );
+
+    const certificateNumber = `194J-${companyId.slice(0, 6).toUpperCase()}-${employee.panNumber || 'NOPAN'}-Q${quarter}-${financialYear}`;
+
+    return {
+      certificateNumber,
+      section: '194J',
+      natureOfPayment: 'Fees for Professional or Technical Services',
+      financialYear,
+      quarter: `Q${quarter}`,
+      deductor: {
+        name: company.name,
+        tan: company.gstin || (company.settings as any)?.taxId || 'NOT_CONFIGURED',
+        pan: company.pan || 'NOT_CONFIGURED',
+        address: company.address || company.settings?.officeAddress || '',
+      },
+      deductee: {
+        name: `${employee.firstName} ${employee.lastName}`,
+        pan: employee.panNumber || 'PAN_NOT_PROVIDED',
+        employeeCode: employee.employeeCode,
+        designation: employee.designation?.name || 'Consultant Specialist',
+        department: employee.department?.name || 'Medical Services',
+      },
+      summary: {
+        grossAmountCredited: parseFloat(totalGrossPaid.toFixed(2)),
+        taxDeducted: parseFloat(totalTdsDeducted.toFixed(2)),
+        taxDeposited: parseFloat(totalTdsDeducted.toFixed(2)),
+        recordCount: records.length,
+      },
+      monthlyBreakdown: records.map((r) => ({
+        month: r.month,
+        year: r.year,
+        grossPaid: r.professionalFees || r.basicPay + r.allowances,
+        tdsDeducted: r.tdsDeduction,
+        netPaid: r.netSalary,
+        status: r.status,
+      })),
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  async getConsultantPayouts(
+    companyId: string,
+    month: number,
+    year: number,
+  ) {
+    const records = await this.prisma.payrollRecord.findMany({
+      where: {
+        companyId,
+        month,
+        year,
+        OR: [{ tdsSection: '194J' }, { workerType: 'CONSULTANT' }],
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            panNumber: true,
+            department: { select: { name: true } },
+            designation: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const totalGross = records.reduce(
+      (sum, r) => sum + (r.professionalFees || r.basicPay + r.allowances),
+      0,
+    );
+    const totalTds = records.reduce((sum, r) => sum + (r.tdsDeduction || 0), 0);
+    const totalNet = records.reduce((sum, r) => sum + r.netSalary, 0);
+
+    return {
+      month,
+      year,
+      totalConsultants: records.length,
+      totalGrossProfessionalFees: parseFloat(totalGross.toFixed(2)),
+      totalTds194jDeducted: parseFloat(totalTds.toFixed(2)),
+      totalNetPayout: parseFloat(totalNet.toFixed(2)),
+      records,
+    };
   }
 }
