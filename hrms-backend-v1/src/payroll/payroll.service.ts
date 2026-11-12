@@ -13,6 +13,16 @@ import {
   calculateCtcBreakdown,
   CtcCalculationInput,
 } from './payroll-calculator.util';
+import { calculateStateProfessionalTax } from './statutory-compliance/common/state-statutory.util';
+import { calculateTds } from './tax/tds-calculator.util';
+import { Form16GeneratorService } from './tax/form16-generator.service';
+import { PayrollJvService } from './journal/payroll-jv.service';
+import { StatutoryCalculatorService } from './statutory-compliance/common/statutory-calculator.service';
+import {
+  UpsertTaxDeclarationDto,
+  VerifyTaxDeclarationDto,
+} from './dto/tax-declaration.dto';
+import { CreateLoanDto, UpdateLoanStatusDto } from './dto/employee-loan.dto';
 
 @Injectable()
 export class PayrollService {
@@ -21,6 +31,9 @@ export class PayrollService {
     private readonly s3Service: S3Service,
     private readonly auditService: AuditService,
     private readonly emailService: EmailService,
+    private readonly form16Service: Form16GeneratorService,
+    private readonly jvService: PayrollJvService,
+    private readonly statutoryCalculator: StatutoryCalculatorService,
   ) {}
 
   /**
@@ -293,23 +306,99 @@ export class PayrollService {
 
     // P-06: Include otherAllowances & overtimePay in earnings
     const otherAllowances = structure.otherAllowances || 0;
+
+    // Handle dynamic custom components (custom allowances & custom deductions)
+    let customEarningsTotal = 0;
+    let customDeductionsTotal = 0;
+    const customBreakdown: any[] = [];
+
+    if (Array.isArray(structure.customComponents)) {
+      for (const comp of structure.customComponents as any[]) {
+        const val = Number(comp.value) || 0;
+        if (comp.type === 'EARNING') {
+          customEarningsTotal += val;
+        } else if (comp.type === 'DEDUCTION') {
+          customDeductionsTotal += val;
+        }
+        customBreakdown.push({
+          name: comp.name,
+          type: comp.type,
+          amount: val,
+        });
+      }
+    }
+
     const allowances =
       structure.hra +
       structure.conveyanceAllowance +
       structure.medicalAllowance +
       structure.specialAllowance +
       otherAllowances +
+      customEarningsTotal +
       overtimePay;
 
     const grossEarnings = structure.basicSalary + allowances;
 
+    // Professional Tax: Dynamic State PT or configured value
+    const statePt = calculateStateProfessionalTax({
+      state: (company?.settings as any)?.state || 'MAHARASHTRA',
+      grossSalary: grossEarnings,
+      month,
+    });
+    const professionalTax = structure.professionalTax > 0 ? structure.professionalTax : statePt;
+
+    // TDS: Use approved IT Declaration if present, else configured tax deduction
+    const currentFinancialYear = month >= 4 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+    const approvedTaxDeclaration = await this.prisma.employeeTaxDeclaration.findFirst({
+      where: {
+        employeeId,
+        financialYear: currentFinancialYear,
+        status: 'APPROVED',
+      },
+    });
+
+    let calculatedTds = structure.taxDeduction || 0;
+    if (approvedTaxDeclaration) {
+      const tdsResult = calculateTds({
+        annualGrossSalary: grossEarnings * 12,
+        annualBasicSalary: structure.basicSalary * 12,
+        annualHraReceived: structure.hra * 12,
+        regime: (approvedTaxDeclaration.regime as 'OLD' | 'NEW') || 'NEW',
+        isMetro: approvedTaxDeclaration.isMetro,
+        annualRentPaid: approvedTaxDeclaration.annualRentPaid,
+        section80C: approvedTaxDeclaration.section80C,
+        section80D: approvedTaxDeclaration.section80D,
+        section24b: approvedTaxDeclaration.section24b,
+        section80E: approvedTaxDeclaration.section80E,
+        section80G: approvedTaxDeclaration.section80G,
+        otherDeductions: approvedTaxDeclaration.otherExemptions,
+      });
+      calculatedTds = tdsResult.monthlyTds;
+    }
+
+    // Loans & Advances: Check for active loan and compute monthly deduction
+    const activeLoan = await this.prisma.employeeLoan.findFirst({
+      where: {
+        employeeId,
+        status: { in: ['APPROVED', 'ACTIVE'] },
+        remainingBalance: { gt: 0 },
+      },
+    });
+
+    let loanDeduction = 0;
+    if (activeLoan) {
+      loanDeduction = Math.min(activeLoan.monthlyEmi, activeLoan.remainingBalance);
+    }
+
     const standardDeductions =
       structure.pfContribution +
-      structure.taxDeduction +
-      structure.professionalTax;
+      calculatedTds +
+      professionalTax +
+      customDeductionsTotal +
+      loanDeduction;
     const totalDeductions = standardDeductions + lopDeduction;
     const netSalary = parseFloat(
-      (grossEarnings - totalDeductions).toFixed(2),
+      Math.max(0, grossEarnings - totalDeductions).toFixed(2),
     );
 
     // 7. CREATE IMMUTABLE SNAPSHOT
@@ -328,6 +417,8 @@ export class PayrollService {
         allowances,
         deductions: totalDeductions,
         netSalary,
+        loanDeductions: loanDeduction,
+        tdsDeduction: calculatedTds,
 
         status: 'DRAFT',
         processedById: generatedById,
@@ -354,14 +445,18 @@ export class PayrollService {
             medical: structure.medicalAllowance,
             special: structure.specialAllowance,
             otherAllowances,
+            customEarnings: customEarningsTotal,
+            customComponents: customBreakdown,
             overtimePay,
             overtimeHours: totalOvertimeHours,
             total: grossEarnings,
           },
           deductions: {
             pf: structure.pfContribution,
-            tax: structure.taxDeduction,
-            profTax: structure.professionalTax,
+            tax: calculatedTds,
+            profTax: professionalTax,
+            loanDeduction,
+            customDeductions: customDeductionsTotal,
             lop: lopDeduction,
             lopDays: totalUnpaidDays,
             total: totalDeductions,
@@ -369,6 +464,48 @@ export class PayrollService {
         },
       },
     });
+
+    // Record loan repayment if loan deducted
+    if (loanDeduction > 0 && activeLoan) {
+      const updatedBalance = Math.max(0, activeLoan.remainingBalance - loanDeduction);
+      await this.prisma.loanRepayment.create({
+        data: {
+          loanId: activeLoan.id,
+          payrollRecordId: record.id,
+          amount: loanDeduction,
+          principalPaid: loanDeduction,
+          interestPaid: 0,
+          month,
+          year,
+          status: 'PAID',
+        },
+      });
+      await this.prisma.employeeLoan.update({
+        where: { id: activeLoan.id },
+        data: {
+          totalPaid: activeLoan.totalPaid + loanDeduction,
+          remainingBalance: updatedBalance,
+          status: updatedBalance <= 0 ? 'PAID_OFF' : 'ACTIVE',
+        },
+      });
+    }
+
+    // Auto-calculate statutory contributions (EPFO/ESIC) for employee
+    try {
+      const profile = await this.prisma.employeeStatutoryProfile.findFirst({
+        where: { employeeId },
+      });
+      if (profile) {
+        await this.statutoryCalculator.calculateAndSnapshot(companyId, {
+          establishmentId: profile.establishmentId,
+          month,
+          year,
+          type: 'ALL',
+        });
+      }
+    } catch {
+      // Allow payroll creation to proceed even if establishment rules have not been configured yet
+    }
 
     // S-18: Audit log
     await this.auditService.logAction(
@@ -690,13 +827,33 @@ export class PayrollService {
       throw new NotFoundException('Employee not found in your company.');
     }
 
+    const {
+      companyId: _cid,
+      employeeId: _eid,
+      annualCTC: _ctc,
+      ...structureData
+    } = data;
+
+    const payload = {
+      basicSalary: Number(structureData.basicSalary) || 0,
+      hra: Number(structureData.hra) || 0,
+      otherAllowances: Number(structureData.otherAllowances) || 0,
+      conveyanceAllowance: Number(structureData.conveyanceAllowance) || 0,
+      medicalAllowance: Number(structureData.medicalAllowance) || 0,
+      specialAllowance: Number(structureData.specialAllowance) || 0,
+      pfContribution: Number(structureData.pfContribution) || 0,
+      taxDeduction: Number(structureData.taxDeduction) || 0,
+      professionalTax: Number(structureData.professionalTax) || 0,
+      customComponents: structureData.customComponents ?? null,
+      ...(structureData.effectiveDate ? { effectiveDate: new Date(structureData.effectiveDate) } : {}),
+    };
+
     const result = await this.prisma.salaryStructure.upsert({
       where: { employeeId },
-      update: { ...data },
+      update: payload,
       create: {
-        ...data,
+        ...payload,
         employeeId,
-        companyId,
       },
     });
 
@@ -707,10 +864,21 @@ export class PayrollService {
       'SalaryStructure',
       employeeId,
       null,
-      { employeeId, ...data },
+      { employeeId, ...payload },
     );
 
     return result;
+  }
+
+  async getSalaryStructure(companyId: string, employeeId: string) {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+      include: { salaryStructure: true },
+    });
+    if (!employee) {
+      throw new NotFoundException('Employee not found in your company.');
+    }
+    return employee.salaryStructure;
   }
 
   // ==========================================
@@ -821,8 +989,15 @@ export class PayrollService {
   // HR/ADMIN: SALARY TEMPLATES
   // ==========================================
   async createSalaryTemplate(companyId: string, data: any) {
+    const {
+      id: _id,
+      companyId: _companyId,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      ...templateData
+    } = data;
     return this.prisma.salaryTemplate.create({
-      data: { ...data, companyId },
+      data: { ...templateData, companyId },
     });
   }
 
@@ -853,6 +1028,20 @@ export class PayrollService {
     return this.prisma.salaryTemplate.update({
       where: { id: templateId },
       data: templateData,
+    });
+  }
+
+  async deleteSalaryTemplate(companyId: string, templateId: string) {
+    const template = await this.prisma.salaryTemplate.findFirst({
+      where: { id: templateId, companyId },
+    });
+
+    if (!template) {
+      throw new NotFoundException('Salary template not found.');
+    }
+
+    return this.prisma.salaryTemplate.delete({
+      where: { id: templateId },
     });
   }
 
@@ -1069,5 +1258,380 @@ export class PayrollService {
       success: true,
       settlement: calculation,
     };
+  }
+
+  // ==========================================
+  // SALARY HOLD & RELEASE
+  // ==========================================
+  async holdPayrollRecord(
+    companyId: string,
+    recordId: string,
+    reason: string,
+    actorId: string,
+  ) {
+    const record = await this.prisma.payrollRecord.findFirst({
+      where: { id: recordId, companyId },
+    });
+    if (!record) throw new NotFoundException('Payroll record not found.');
+    if (record.status === 'PAID') {
+      throw new BadRequestException(
+        'Cannot hold a payroll record that has already been marked as PAID.',
+      );
+    }
+
+    const updated = await this.prisma.payrollRecord.update({
+      where: { id: recordId },
+      data: {
+        status: 'HELD',
+        isHeld: true,
+        holdReason: reason || 'Salary placed on hold by HR',
+      },
+    });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId,
+      'UPDATE',
+      'PayrollRecord',
+      recordId,
+      { status: record.status },
+      { status: 'HELD', holdReason: reason },
+    );
+
+    return updated;
+  }
+
+  async releasePayrollRecord(
+    companyId: string,
+    recordId: string,
+    actorId: string,
+  ) {
+    const record = await this.prisma.payrollRecord.findFirst({
+      where: { id: recordId, companyId },
+    });
+    if (!record) throw new NotFoundException('Payroll record not found.');
+    if (record.status !== 'HELD') {
+      throw new BadRequestException('Payroll record is not currently on hold.');
+    }
+
+    const updated = await this.prisma.payrollRecord.update({
+      where: { id: recordId },
+      data: {
+        status: 'APPROVED',
+        isHeld: false,
+        releasedAt: new Date(),
+        releasedById: actorId,
+      },
+    });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId,
+      'UPDATE',
+      'PayrollRecord',
+      recordId,
+      { status: 'HELD' },
+      { status: 'APPROVED' },
+    );
+
+    return updated;
+  }
+
+  // ==========================================
+  // INCOME TAX & IT DECLARATIONS
+  // ==========================================
+  async upsertTaxDeclaration(
+    companyId: string,
+    employeeId: string,
+    dto: UpsertTaxDeclarationDto,
+    actorId: string,
+  ) {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+    });
+    if (!employee) {
+      throw new NotFoundException('Employee not found in your company.');
+    }
+
+    const payload: any = {
+      regime: dto.regime || 'NEW',
+      section80C: Number(dto.section80C) || 0,
+      section80CDetails: dto.section80CDetails ?? null,
+      section80D: Number(dto.section80D) || 0,
+      section80DDetails: dto.section80DDetails ?? null,
+      section24b: Number(dto.section24b) || 0,
+      section80E: Number(dto.section80E) || 0,
+      section80G: Number(dto.section80G) || 0,
+      otherExemptions: Number(dto.otherExemptions) || 0,
+      annualRentPaid: Number(dto.annualRentPaid) || 0,
+      landlordPan: dto.landlordPan || null,
+      landlordName: dto.landlordName || null,
+      rentalAddress: dto.rentalAddress || null,
+      isMetro: Boolean(dto.isMetro),
+      proofDocuments: dto.proofDocuments ?? null,
+      status: dto.status || 'SUBMITTED',
+    };
+
+    const result = await this.prisma.employeeTaxDeclaration.upsert({
+      where: {
+        employeeId_financialYear: {
+          employeeId,
+          financialYear: dto.financialYear,
+        },
+      },
+      update: payload,
+      create: {
+        ...payload,
+        companyId,
+        employeeId,
+        financialYear: dto.financialYear,
+      },
+    });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId,
+      'UPDATE',
+      'EmployeeTaxDeclaration',
+      result.id,
+      null,
+      { financialYear: dto.financialYear, regime: dto.regime },
+    );
+
+    return result;
+  }
+
+  async getTaxDeclaration(
+    companyId: string,
+    employeeId: string,
+    financialYear: string,
+  ) {
+    return this.prisma.employeeTaxDeclaration.findUnique({
+      where: {
+        employeeId_financialYear: {
+          employeeId,
+          financialYear,
+        },
+      },
+    });
+  }
+
+  async listCompanyTaxDeclarations(companyId: string, financialYear?: string) {
+    return this.prisma.employeeTaxDeclaration.findMany({
+      where: {
+        companyId,
+        ...(financialYear ? { financialYear } : {}),
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            department: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async verifyTaxDeclaration(
+    companyId: string,
+    declarationId: string,
+    dto: VerifyTaxDeclarationDto,
+    actorId: string,
+  ) {
+    const dec = await this.prisma.employeeTaxDeclaration.findFirst({
+      where: { id: declarationId, companyId },
+    });
+    if (!dec) throw new NotFoundException('Tax declaration not found.');
+
+    const updated = await this.prisma.employeeTaxDeclaration.update({
+      where: { id: declarationId },
+      data: {
+        status: dto.status,
+        rejectionReason: dto.status === 'REJECTED' ? dto.rejectionReason : null,
+        verifiedById: actorId,
+        verifiedAt: new Date(),
+      },
+    });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId,
+      'UPDATE',
+      'EmployeeTaxDeclaration',
+      declarationId,
+      { status: dec.status },
+      { status: dto.status },
+    );
+
+    return updated;
+  }
+
+  // ==========================================
+  // LOANS & SALARY ADVANCES
+  // ==========================================
+  async createLoan(companyId: string, dto: CreateLoanDto, actorId: string) {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: dto.employeeId, companyId },
+    });
+    if (!employee) {
+      throw new NotFoundException('Employee not found in your company.');
+    }
+
+    const principal = Number(dto.principalAmount);
+    const tenure = Math.max(1, Number(dto.tenureMonths));
+    const rate = Number(dto.interestRate || 0);
+
+    let monthlyEmi = principal / tenure;
+    if (rate > 0) {
+      const monthlyRate = rate / 12 / 100;
+      monthlyEmi =
+        (principal * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
+        (Math.pow(1 + monthlyRate, tenure) - 1);
+    }
+    monthlyEmi = parseFloat(monthlyEmi.toFixed(2));
+
+    const loan = await this.prisma.employeeLoan.create({
+      data: {
+        companyId,
+        employeeId: dto.employeeId,
+        type: dto.type,
+        principalAmount: principal,
+        interestRate: rate,
+        tenureMonths: tenure,
+        monthlyEmi,
+        remainingBalance: principal,
+        totalPaid: 0,
+        reason: dto.reason || null,
+        status: 'ACTIVE',
+        approvedById: actorId,
+        disbursedDate: new Date(),
+        deductionStartMonth:
+          dto.deductionStartMonth || new Date().getMonth() + 1,
+        deductionStartYear: dto.deductionStartYear || new Date().getFullYear(),
+      },
+    });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId,
+      'CREATE',
+      'EmployeeLoan',
+      loan.id,
+      null,
+      { principal, tenure, type: dto.type },
+    );
+
+    return loan;
+  }
+
+  async listCompanyLoans(
+    companyId: string,
+    status?: string,
+    employeeId?: string,
+  ) {
+    return this.prisma.employeeLoan.findMany({
+      where: {
+        companyId,
+        ...(status ? { status } : {}),
+        ...(employeeId ? { employeeId } : {}),
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+          },
+        },
+        repayments: {
+          orderBy: { repaymentDate: 'desc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getMyLoans(employeeId: string) {
+    return this.prisma.employeeLoan.findMany({
+      where: { employeeId },
+      include: {
+        repayments: {
+          orderBy: { repaymentDate: 'desc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateLoanStatus(
+    companyId: string,
+    loanId: string,
+    dto: UpdateLoanStatusDto,
+    actorId: string,
+  ) {
+    const loan = await this.prisma.employeeLoan.findFirst({
+      where: { id: loanId, companyId },
+    });
+    if (!loan) throw new NotFoundException('Loan record not found.');
+
+    const updated = await this.prisma.employeeLoan.update({
+      where: { id: loanId },
+      data: {
+        status: dto.status,
+        rejectionReason: dto.rejectionReason || null,
+        approvedById: ['APPROVED', 'ACTIVE'].includes(dto.status)
+          ? actorId
+          : loan.approvedById,
+      },
+    });
+
+    await this.auditService.logAction(
+      companyId,
+      actorId,
+      'UPDATE',
+      'EmployeeLoan',
+      loanId,
+      { status: loan.status },
+      { status: dto.status },
+    );
+
+    return updated;
+  }
+
+  // ==========================================
+  // FORM 16, FORM 24Q & JOURNAL VOUCHER (JV)
+  // ==========================================
+  async getForm16(
+    companyId: string,
+    employeeId: string,
+    financialYear: string,
+  ) {
+    return this.form16Service.generateForm16(
+      companyId,
+      employeeId,
+      financialYear,
+    );
+  }
+
+  async getForm24Q(
+    companyId: string,
+    quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4',
+    financialYear: string,
+  ) {
+    return this.form16Service.generateForm24Q(
+      companyId,
+      quarter,
+      financialYear,
+    );
+  }
+
+  async generatePayrollJv(companyId: string, month: number, year: number) {
+    return this.jvService.generatePayrollJv(companyId, month, year);
   }
 }
