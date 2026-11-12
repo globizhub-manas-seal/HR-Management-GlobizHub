@@ -12,6 +12,7 @@ import { randomBytes } from 'crypto';
 import { S3Service } from '../s3/s3.service';
 import { encrypt, decrypt } from '../common/utils/encryption.util';
 import { AuditService } from '../audit/audit.service';
+import { generateDepartmentScopedEmployeeCode } from './utils/employee-code.util';
 
 const SENSITIVE_FIELDS = [
   'bankName',
@@ -312,6 +313,12 @@ export class EmployeeService {
       throw new NotFoundException('Employee not found in your workspace');
     }
 
+    const isDepartmentChanging =
+      dto.departmentId !== undefined &&
+      dto.departmentId !== employee.departmentId;
+
+    let targetEmployeeCode = dto.employeeCode;
+
     if (
       dto.employeeCode !== undefined &&
       dto.employeeCode !== employee.employeeCode
@@ -330,13 +337,24 @@ export class EmployeeService {
             `Employee ID '${trimmedCode}' is already assigned to another employee.`,
           );
         }
-        dto.employeeCode = trimmedCode;
+        targetEmployeeCode = trimmedCode;
       } else {
-        dto.employeeCode = null;
+        targetEmployeeCode = null;
       }
+    } else if (isDepartmentChanging) {
+      // Automatically generate a new department-scoped ID when department changes
+      targetEmployeeCode = await generateDepartmentScopedEmployeeCode({
+        prisma: this.prisma,
+        companyId,
+        departmentId: dto.departmentId,
+        excludeEmployeeId: employeeId,
+      });
     }
 
     const { esicIpNumber, establishmentId, ...restDto } = dto;
+    if (targetEmployeeCode !== undefined) {
+      (restDto as any).employeeCode = targetEmployeeCode;
+    }
     const encryptedData = encryptPayload(restDto);
 
     const updated = await this.prisma.employee.update({
@@ -351,8 +369,27 @@ export class EmployeeService {
         role: true,
         employeeCode: true,
         uanNumber: true,
+        departmentId: true,
       },
     });
+
+    if (isDepartmentChanging) {
+      await this.auditService.logAction(
+        companyId,
+        actorId || null,
+        'UPDATE',
+        'Employee',
+        employeeId,
+        {
+          departmentId: employee.departmentId,
+          employeeCode: employee.employeeCode,
+        },
+        {
+          departmentId: dto.departmentId,
+          employeeCode: updated.employeeCode,
+        },
+      );
+    }
 
     if (establishmentId !== undefined || esicIpNumber !== undefined || dto.uanNumber !== undefined) {
       try {

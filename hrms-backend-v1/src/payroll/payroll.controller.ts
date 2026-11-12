@@ -451,4 +451,37 @@ export class PayrollController {
 
     return res.status(200).json(jv);
   }
+
+  // ==========================================
+  // SECTION 194J CONSULTANT / DOCTOR PAYOUTS
+  // ==========================================
+  @Get('consultant/payouts')
+  @RequirePermissions('payroll.view')
+  async getConsultantPayouts(
+    @Request() req,
+    @Query('month', ParseIntPipe) month: number,
+    @Query('year', ParseIntPipe) year: number,
+  ) {
+    return this.payrollService.getConsultantPayouts(
+      req.user.companyId,
+      month,
+      year,
+    );
+  }
+
+  @Get('consultant/:employeeId/form16a')
+  @RequirePermissions('payroll.view')
+  async getConsultantForm16A(
+    @Request() req,
+    @Param('employeeId') employeeId: string,
+    @Query('financialYear') financialYear: string,
+    @Query('quarter', ParseIntPipe) quarter: number,
+  ) {
+    return this.payrollService.generateForm16A(
+      req.user.companyId,
+      employeeId,
+      financialYear || '2026-2027',
+      quarter || 1,
+    );
+  }
 }
