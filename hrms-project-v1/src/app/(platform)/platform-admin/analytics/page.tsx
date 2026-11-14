@@ -33,6 +33,7 @@ interface SnapshotItem {
 export default function PlatformAnalyticsPage() {
   const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRecalculating, setIsRecalculating] = useState(false);
 
@@ -42,6 +43,7 @@ export default function PlatformAnalyticsPage() {
       const res = await platformApi.get<any>("/platform/dashboard/overview");
       setSnapshots(res.data?.snapshots || []);
       setPlans(res.data?.distribution?.byPlan || []);
+      setMetrics(res.data?.metrics || null);
     } catch (e) {
       console.error("Failed to load platform analytics", e);
     } finally {
@@ -80,13 +82,19 @@ export default function PlatformAnalyticsPage() {
   const latestSnapshot = snapshots[snapshots.length - 1];
   const previousSnapshot = snapshots[0];
   const mrrGrowth =
-    previousSnapshot && Number(previousSnapshot.mrr) > 0
+    metrics?.mrr?.growthPercent ??
+    (previousSnapshot && Number(previousSnapshot.mrr) > 0
       ? Math.round(
           ((Number(latestSnapshot?.mrr || 0) - Number(previousSnapshot.mrr)) /
             Number(previousSnapshot.mrr)) *
             100
         )
-      : 0;
+      : 0);
+
+  const displayMrr = Number(latestSnapshot?.mrr ?? metrics?.mrr?.current ?? 0);
+  const displayArr = Number(latestSnapshot?.arr ?? metrics?.arr?.current ?? (displayMrr * 12));
+  const displayPayingSubs = latestSnapshot?.activeSubscriptions ?? metrics?.subscriptions?.active ?? 0;
+  const displayActiveOrgs = latestSnapshot?.activeOrganizations ?? metrics?.totalOrganizations?.active ?? 0;
 
   return (
     <div className="space-y-6">
@@ -130,7 +138,7 @@ export default function PlatformAnalyticsPage() {
             Current MRR (Run-Rate)
           </span>
           <div className="text-3xl font-bold font-mono text-foreground">
-            ₹{Number(latestSnapshot?.mrr || 0).toLocaleString()}
+            ₹{displayMrr.toLocaleString()}
           </div>
           <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-status-green">
             <TrendingUp className="size-3.5" />
@@ -143,7 +151,7 @@ export default function PlatformAnalyticsPage() {
             Annual Recurring Revenue (ARR)
           </span>
           <div className="text-3xl font-bold font-mono text-foreground">
-            ₹{Number(latestSnapshot?.arr || 0).toLocaleString()}
+            ₹{displayArr.toLocaleString()}
           </div>
           <span className="text-xs text-muted-foreground mt-2 block font-mono">12x annualized monthly revenue</span>
         </div>
@@ -153,10 +161,10 @@ export default function PlatformAnalyticsPage() {
             Paying Tenant Base
           </span>
           <div className="text-3xl font-bold font-mono text-foreground">
-            {latestSnapshot?.activeSubscriptions || 0}
+            {displayPayingSubs}
           </div>
           <span className="text-xs text-primary font-semibold mt-2 block">
-            Across {latestSnapshot?.activeOrganizations || 0} verified organizations
+            Across {displayActiveOrgs} verified organizations
           </span>
         </div>
       </div>

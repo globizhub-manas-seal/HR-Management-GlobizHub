@@ -6,7 +6,7 @@ import api, { documentsApi, employeesApi } from "@/lib/api";
 import { 
   Search, Upload, Plus, MoreVertical, Eye, Download, 
   ShieldCheck, XCircle, Clock, CheckCircle2, FileText,
-  AlertCircle, Loader2, Pencil, Trash2
+  AlertCircle, Loader2, Pencil, Trash2, User
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -154,8 +154,7 @@ export default function EnterpriseAdminDocumentHub() {
   // Edit document details mutation
   const editMutation = useMutation({
     mutationFn: async (payload: { name: string; category: string; employeeId: string | null }) => {
-      const res = await api.patch(`/documents/${selectedDoc.id}/details`, payload);
-      return res.data;
+      return documentsApi.editDocument(selectedDoc.id, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminDocuments"] });
@@ -229,6 +228,13 @@ export default function EnterpriseAdminDocumentHub() {
         </div>
         
         <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={() => router.push("/workspace/documents")} 
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 h-9"
+          >
+            <User className="w-4 h-4 mr-2" /> My Personal Documents
+          </Button>
           <Button onClick={() => setIsUploadOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-9">
             <Upload className="w-4 h-4 mr-2" /> Upload Document
           </Button>

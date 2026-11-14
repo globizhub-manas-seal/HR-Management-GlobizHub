@@ -18,6 +18,11 @@ import { PayrollService } from './payroll.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
+import {
+  PayrollTierGuard,
+  RequirePayrollTier,
+  PayrollFeatureTier,
+} from './guards/payroll-tier.guard';
 import { UpsertSalaryStructureDto } from './dto/upsert-salary-structure.dto';
 import { GenerateBatchPayrollDto } from './dto/generate-batch-payroll.dto';
 import { CalculateCtcDto } from './dto/calculate-ctc.dto';
@@ -29,7 +34,7 @@ import {
 import { CreateLoanDto, UpdateLoanStatusDto } from './dto/employee-loan.dto';
 
 @Controller('payroll')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, PermissionsGuard, PayrollTierGuard)
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
@@ -51,19 +56,77 @@ export class PayrollController {
     );
   }
 
-  // HR/Admin: Bulk payroll run for the entire company or department (P-14)
-  @Post('generate-batch')
+  // HR/Admin: Bulk payroll run with Asynchronous Background Processing & Ticket (P-14)
+  @Post(['batch', 'generate-batch'])
   @RequirePermissions('payroll.manage')
   async generateBatchPayroll(
     @Request() req,
     @Body() dto: GenerateBatchPayrollDto,
   ) {
-    return this.payrollService.generateBatchPayroll(
+    return this.payrollService.startBatchPayrollRun(
       req.user.companyId,
       dto.month,
       dto.year,
       req.user.sub,
       dto.departmentId,
+    );
+  }
+
+  // HR/Admin: Track real-time progress of a batch payroll job
+  @Get('batch/:jobId')
+  @RequirePermissions('payroll.manage')
+  async getBatchProgress(
+    @Request() req,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.payrollService.getBatchRunProgress(req.user.companyId, jobId);
+  }
+
+  // HR/Admin: List past batch execution runs
+  @Get('batch-runs')
+  @RequirePermissions('payroll.manage')
+  async listBatchRuns(
+    @Request() req,
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+  ) {
+    return this.payrollService.listBatchRuns(
+      req.user.companyId,
+      month ? parseInt(month, 10) : undefined,
+      year ? parseInt(year, 10) : undefined,
+    );
+  }
+
+  // Enterprise: Flexible Pay Cycle Configuration (e.g. 26th-to-25th custom cut-offs)
+  @Post('settings/pay-cycle')
+  @Patch('settings/pay-cycle')
+  @RequirePermissions('payroll.manage')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
+  async updatePayCycleSettings(
+    @Request() req,
+    @Body('payCycleType') payCycleType: 'CALENDAR_MONTH' | 'CUSTOM_CUTOFF',
+    @Body('payCycleStartDay') payCycleStartDay: number,
+    @Body('payCycleEndDay') payCycleEndDay: number,
+  ) {
+    return this.payrollService.updatePayCycleSettings(
+      req.user.companyId,
+      payCycleType || 'CALENDAR_MONTH',
+      payCycleStartDay || 1,
+      payCycleEndDay || 0,
+    );
+  }
+
+  // Enterprise: View Pending Retroactive Salary Revisions & Arrears
+  @Get('arrears/pending')
+  @RequirePermissions('payroll.view')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
+  async getPendingRevisions(
+    @Request() req,
+    @Query('employeeId') employeeId?: string,
+  ) {
+    return this.payrollService.getPendingSalaryRevisions(
+      req.user.companyId,
+      employeeId,
     );
   }
 
@@ -90,6 +153,27 @@ export class PayrollController {
     );
 
     const filename = `bank_advice_${String(month).padStart(2, '0')}_${year}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(csvContent);
+  }
+
+  // HR/Admin: Download comprehensive Monthly Salary Sheet & ECR Register (CSV)
+  @Get('monthly-salary-sheet')
+  @RequirePermissions('payroll.manage')
+  async downloadMonthlySalarySheet(
+    @Request() req,
+    @Query('month', ParseIntPipe) month: number,
+    @Query('year', ParseIntPipe) year: number,
+    @Response() res: ExpressResponse,
+  ) {
+    const csvContent = await this.payrollService.generateMonthlySalarySheetCsv(
+      req.user.companyId,
+      month,
+      year,
+    );
+
+    const filename = `salary_sheet_ecr_${String(month).padStart(2, '0')}_${year}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(csvContent);
@@ -341,6 +425,7 @@ export class PayrollController {
 
   @Get('form16/:employeeId')
   @RequirePermissions('payroll.view')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async getEmployeeForm16(
     @Request() req,
     @Param('employeeId') employeeId: string,
@@ -352,6 +437,7 @@ export class PayrollController {
 
   @Get('form24q')
   @RequirePermissions('payroll.manage')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async downloadForm24Q(
     @Request() req,
     @Query('quarter') quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4',
@@ -426,6 +512,7 @@ export class PayrollController {
   // ==========================================
   @Get('journal-voucher')
   @RequirePermissions('payroll.manage')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async getPayrollJv(
     @Request() req,
     @Query('month', ParseIntPipe) month: number,
@@ -471,6 +558,7 @@ export class PayrollController {
 
   @Get('consultant/:employeeId/form16a')
   @RequirePermissions('payroll.view')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async getConsultantForm16A(
     @Request() req,
     @Param('employeeId') employeeId: string,

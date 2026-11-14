@@ -140,23 +140,44 @@ export class PlatformDashboardService {
         orderBy: { snapshotDate: 'asc' },
       });
 
+      // Ensure snapshots array has at least a current baseline snapshot so charts and analytics are never blank
+      const effectiveSnapshots: any[] =
+        snapshots.length > 0
+          ? snapshots
+          : [
+              {
+                id: 'live-today',
+                snapshotDate: new Date(),
+                totalOrganizations,
+                activeOrganizations,
+                totalEmployees,
+                activeEmployees,
+                mrr: currentMrr,
+                arr: currentArr,
+                collectedRevenue: Number(succeededPayments._sum.amount) || 0,
+                activeSubscriptions: activeSubs.length,
+                trialSubscriptions: trialSubsCount,
+                churnedCount: 0,
+              },
+            ];
+
       // Format Chart Trends
-      const revenueTrend = snapshots.map((s) => ({
-        date: s.snapshotDate.toISOString().split('T')[0],
+      const revenueTrend = effectiveSnapshots.map((s) => ({
+        date: (s.snapshotDate instanceof Date ? s.snapshotDate : new Date(s.snapshotDate)).toISOString().split('T')[0],
         mrr: Number(s.mrr),
         arr: Number(s.arr),
         collected: Number(s.collectedRevenue),
       }));
 
-      const tenantGrowth = snapshots.map((s) => ({
-        date: s.snapshotDate.toISOString().split('T')[0],
+      const tenantGrowth = effectiveSnapshots.map((s) => ({
+        date: (s.snapshotDate instanceof Date ? s.snapshotDate : new Date(s.snapshotDate)).toISOString().split('T')[0],
         totalOrgs: s.totalOrganizations,
         activeOrgs: s.activeOrganizations,
-        churned: s.churnedCount,
+        churned: s.churnedCount || 0,
       }));
 
       // Calculate previous month comparison for growth percentages
-      const previousSnapshot = snapshots[0];
+      const previousSnapshot = effectiveSnapshots[0];
       const previousMrr = previousSnapshot ? Number(previousSnapshot.mrr) : currentMrr;
       const mrrGrowthPercent =
         previousMrr > 0 ? Number((((currentMrr - previousMrr) / previousMrr) * 100).toFixed(1)) : 0;
@@ -305,6 +326,31 @@ export class PlatformDashboardService {
             companyName: a.company?.name || 'Platform System',
             reason: a.reason,
             createdAt: a.createdAt,
+          })),
+        },
+        // Historical snapshots directly for the analytics view & time series
+        snapshots: effectiveSnapshots.map((s) => ({
+          id: s.id,
+          snapshotDate: (s.snapshotDate instanceof Date ? s.snapshotDate : new Date(s.snapshotDate)).toISOString(),
+          totalOrganizations: s.totalOrganizations,
+          activeOrganizations: s.activeOrganizations,
+          totalEmployees: s.totalEmployees,
+          activeSubscriptions: s.activeSubscriptions,
+          mrr: Number(s.mrr),
+          arr: Number(s.arr),
+          netRevenue: Number(s.collectedRevenue || 0),
+        })),
+        // Breakdown distribution for analytics plan cards
+        distribution: {
+          byPlan: planDistribution.map((p) => ({
+            planId: p.planId,
+            planName: p.planName,
+            count: p.subscribers,
+            percentage:
+              activeSubs.length > 0
+                ? Math.round((p.subscribers / activeSubs.length) * 100)
+                : 0,
+            monthlyPrice: p.monthlyPrice,
           })),
         },
       };

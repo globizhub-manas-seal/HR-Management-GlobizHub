@@ -19,7 +19,7 @@ import {
   RejectRequisitionDto,
 } from '../dto/review-manpower-requisition.dto';
 
-@Controller('recruitment/manpower')
+@Controller(['recruitment/manpower', 'recruitment/requisitions'])
 @UseGuards(AuthGuard)
 export class ManpowerRequisitionController {
   constructor(private readonly service: ManpowerRequisitionService) {}

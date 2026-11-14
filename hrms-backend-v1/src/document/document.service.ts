@@ -127,7 +127,7 @@ export class DocumentService {
     dueDate?: Date,
     requestMessage?: string,
   ) {
-    if (requesterRole !== 'SUPER_ADMIN' && requesterRole !== 'HR_HEAD') {
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(requesterRole)) {
       throw new ForbiddenException('Only Admins can request documents.');
     }
 
@@ -179,8 +179,7 @@ export class DocumentService {
     uploaderRole: string,
     companyId: string,
   ) {
-    const isAdmin =
-      uploaderRole === 'SUPER_ADMIN' || uploaderRole === 'HR_HEAD';
+    const isAdmin = ['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(uploaderRole);
 
     // A. Upload against an existing document request
     if (documentId) {
@@ -295,7 +294,7 @@ export class DocumentService {
     userRole: string,
     companyId: string,
   ) {
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(userRole)) {
       throw new ForbiddenException('Only Admins can verify documents.');
     }
 
@@ -377,7 +376,7 @@ export class DocumentService {
     userRole: string,
     companyId: string,
   ) {
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(userRole)) {
       throw new ForbiddenException(
         "Only Admins can view other employees' documents.",
       );
@@ -413,7 +412,7 @@ export class DocumentService {
   // 6. HR ADMIN: Get all documents (pending verification queue)
   // ==========================================
   async getAllDocuments(userRole: string, companyId: string) {
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(userRole)) {
       throw new ForbiddenException('Only Admins can view all documents.');
     }
 
@@ -461,7 +460,7 @@ export class DocumentService {
     userRole: string,
     companyId: string,
   ) {
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(userRole)) {
       throw new ForbiddenException('Only Admins can delete documents.');
     }
 
@@ -510,7 +509,7 @@ export class DocumentService {
     userRole: string,
     companyId: string,
   ) {
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'HR_HEAD') {
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(userRole)) {
       throw new ForbiddenException('Only Admins can edit document details.');
     }
 
@@ -563,5 +562,164 @@ export class DocumentService {
         companyId: targetCompanyId,
       },
     });
+  }
+
+  // ==========================================
+  // 9. Single Document Details
+  // ==========================================
+  async getDocumentById(
+    documentId: string,
+    userId: string,
+    userRole: string,
+    companyId: string,
+  ) {
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            companyId: true,
+            department: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const docCompanyId = document.companyId || document.employee?.companyId;
+    if (docCompanyId && docCompanyId !== companyId) {
+      throw new ForbiddenException('Access denied to this document.');
+    }
+
+    const isPrivileged = ['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(userRole);
+    const isOwner = document.employeeId === userId;
+    const isCompanyDoc = document.category === DocumentCategory.COMPANY;
+
+    if (!isPrivileged && !isOwner && !isCompanyDoc) {
+      throw new ForbiddenException('You are not authorized to view this document.');
+    }
+
+    const docs = await this.attachSecureUrls([document]);
+    return docs[0];
+  }
+
+  // ==========================================
+  // 10. E-Signature / Acknowledgement
+  // ==========================================
+  async signDocument(
+    documentId: string,
+    userId: string,
+    companyId: string,
+  ) {
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      include: { employee: true },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const docCompanyId = document.companyId || document.employee?.companyId;
+    if (docCompanyId && docCompanyId !== companyId) {
+      throw new ForbiddenException('Document does not belong to your company.');
+    }
+
+    const isAssigned = document.employeeId === userId;
+    const isCompanyPolicy = document.category === DocumentCategory.COMPANY;
+
+    if (!isAssigned && !isCompanyPolicy) {
+      throw new ForbiddenException('You are not authorized to sign this document.');
+    }
+
+    // P0 Multi-Tenant / Multi-Employee Safety:
+    // If this is a shared company policy with no specific employeeId, record an individual acknowledgement
+    // instead of mutating the shared template row for the entire company.
+    if (isCompanyPolicy && !document.employeeId) {
+      const existingAck = await this.prisma.document.findFirst({
+        where: {
+          companyId,
+          employeeId: userId,
+          category: DocumentCategory.COMPANY,
+          name: document.name,
+          isSigned: true,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+            },
+          },
+        },
+      });
+
+      if (existingAck) {
+        const docs = await this.attachSecureUrls([existingAck]);
+        return docs[0];
+      }
+
+      const ackDoc = await this.prisma.document.create({
+        data: {
+          name: document.name,
+          category: DocumentCategory.COMPANY,
+          status: DocumentStatus.VERIFIED,
+          fileUrl: document.fileUrl,
+          requiresSign: true,
+          isSigned: true,
+          signedAt: new Date(),
+          employeeId: userId,
+          companyId,
+          uploadedById: document.uploadedById,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+            },
+          },
+        },
+      });
+
+      const docs = await this.attachSecureUrls([ackDoc]);
+      return docs[0];
+    }
+
+    const updated = await this.prisma.document.update({
+      where: { id: documentId },
+      data: {
+        isSigned: true,
+        signedAt: new Date(),
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+          },
+        },
+      },
+    });
+
+    const docs = await this.attachSecureUrls([updated]);
+    return docs[0];
   }
 }

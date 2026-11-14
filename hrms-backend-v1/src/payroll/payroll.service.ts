@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../s3/s3.service';
@@ -18,6 +20,7 @@ import { calculateTds } from './tax/tds-calculator.util';
 import { Form16GeneratorService } from './tax/form16-generator.service';
 import { PayrollJvService } from './journal/payroll-jv.service';
 import { StatutoryCalculatorService } from './statutory-compliance/common/statutory-calculator.service';
+import { PayrollBatchQueueService } from './batch/payroll-batch-queue.service';
 import {
   UpsertTaxDeclarationDto,
   VerifyTaxDeclarationDto,
@@ -34,6 +37,8 @@ export class PayrollService {
     private readonly form16Service: Form16GeneratorService,
     private readonly jvService: PayrollJvService,
     private readonly statutoryCalculator: StatutoryCalculatorService,
+    @Inject(forwardRef(() => PayrollBatchQueueService))
+    private readonly batchQueue: PayrollBatchQueueService,
   ) {}
 
   /**
@@ -131,6 +136,63 @@ export class PayrollService {
   // CORE: GENERATE MONTHLY PAYROLL
   // ==========================================
 
+  /**
+   * Resolves the start and end dates for a payroll cycle.
+   * Supports standard calendar months (1st to end-of-month) as well as enterprise
+   * custom cut-off windows (e.g., 26th of previous month to 25th of current month).
+   */
+  getPayCycleDateRange(
+    month: number,
+    year: number,
+    settings?: {
+      payCycleType?: string | null;
+      payCycleStartDay?: number | null;
+      payCycleEndDay?: number | null;
+    } | null,
+  ) {
+    const isCustom =
+      settings?.payCycleType === 'CUSTOM_CUTOFF' &&
+      (settings?.payCycleStartDay || 1) > 1;
+
+    if (isCustom) {
+      const startDay = settings?.payCycleStartDay || 26;
+      const endDay =
+        settings?.payCycleEndDay && settings.payCycleEndDay > 0
+          ? settings.payCycleEndDay
+          : startDay - 1;
+
+      const prevMonth = month === 1 ? 12 : month - 1;
+      const prevYear = month === 1 ? year - 1 : year;
+
+      const cycleStart = new Date(Date.UTC(prevYear, prevMonth - 1, startDay, 0, 0, 0, 0));
+      const cycleEnd = new Date(Date.UTC(year, month - 1, endDay, 23, 59, 59, 999));
+      const daysInCycle =
+        Math.round((cycleEnd.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      return {
+        cycleStart,
+        cycleEnd,
+        daysInPeriod: daysInCycle,
+        cycleType: 'CUSTOM_CUTOFF',
+        startDay,
+        endDay,
+      };
+    }
+
+    const cycleStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const cycleEnd = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
+
+    return {
+      cycleStart,
+      cycleEnd,
+      daysInPeriod: daysInMonth,
+      cycleType: 'CALENDAR_MONTH',
+      startDay: 1,
+      endDay: daysInMonth,
+    };
+  }
+
   async generateMonthlyPayroll(
     companyId: string,
     employeeId: string,
@@ -145,10 +207,27 @@ export class PayrollService {
       throw new BadRequestException('Invalid payroll year.');
     }
 
-    // 1. Define boundaries of the payroll month
-    const startOfMonth = new Date(year, month - 1, 1);
-    const endOfMonth = new Date(year, month, 0);
-    const daysInMonth = endOfMonth.getDate();
+    // 1. Fetch Company Settings for branding, working days, and flexible Pay Cycle
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        name: true,
+        settings: {
+          select: {
+            payslipHeaderUrl: true,
+            workingDays: true,
+            payCycleType: true,
+            payCycleStartDay: true,
+            payCycleEndDay: true,
+            nightShiftAllowanceRate: true,
+          },
+        },
+      },
+    });
+
+    // Resolve flexible pay cycle boundaries (Calendar vs Custom Cut-off e.g. 26th-25th)
+    const cycle = this.getPayCycleDateRange(month, year, company?.settings);
+    const { cycleStart, cycleEnd, daysInPeriod } = cycle;
 
     // 2. Prevent Double-Processing
     const existingRecord = await this.prisma.payrollRecord.findFirst({
@@ -183,24 +262,10 @@ export class PayrollService {
       );
     }
 
-    // 4. Fetch Company Settings for branding and working days
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-      select: {
-        name: true,
-        settings: {
-          select: {
-            payslipHeaderUrl: true,
-            workingDays: true,
-          },
-        },
-      },
-    });
-
-    // P-16: Scheduled working days in the month
+    // Scheduled working days in the pay cycle
     const totalScheduledWorkingDays = await this.calculateWorkingDaysInRange(
-      startOfMonth,
-      endOfMonth,
+      cycleStart,
+      cycleEnd,
       companyId,
       company?.settings?.workingDays,
     );
@@ -368,13 +433,13 @@ export class PayrollService {
     }
 
     // 5. ATTENDANCE & LEAVE RECONCILIATION
-    // Fetch all APPROVED leaves overlapping this month
+    // Fetch all APPROVED leaves overlapping this pay cycle
     const overlappingLeaves = await this.prisma.leaveRequest.findMany({
       where: {
         employeeId,
         status: 'APPROVED',
-        startDate: { lte: endOfMonth },
-        endDate: { gte: startOfMonth },
+        startDate: { lte: cycleEnd },
+        endDate: { gte: cycleStart },
       },
       include: {
         allocation: {
@@ -394,9 +459,9 @@ export class PayrollService {
         leave.allocation?.leavePolicy?.isPaid === false;
 
       const effectiveStart =
-        leave.startDate < startOfMonth ? startOfMonth : leave.startDate;
+        leave.startDate < cycleStart ? cycleStart : leave.startDate;
       const effectiveEnd =
-        leave.endDate > endOfMonth ? endOfMonth : leave.endDate;
+        leave.endDate > cycleEnd ? cycleEnd : leave.endDate;
 
       const chunkDays = await this.calculateWorkingDaysInRange(
         effectiveStart,
@@ -412,34 +477,49 @@ export class PayrollService {
       }
     }
 
-    // Fetch Attendance records in the month
+    // Fetch Attendance records in the pay cycle
     const attendanceRecords = await this.prisma.attendance.findMany({
       where: {
         employeeId,
         companyId,
         date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
+          gte: cycleStart,
+          lte: cycleEnd,
         },
       },
       select: {
         status: true,
         isHalfDay: true,
         overtimeHours: true,
+        shift: {
+          select: {
+            isNightShift: true,
+          },
+        },
       },
     });
 
     let attendanceWorkedDays = 0;
     let totalOvertimeHours = 0;
+    let nightShiftsCount = 0;
 
     for (const att of attendanceRecords) {
       if (att.status === 'PRESENT') {
         attendanceWorkedDays += att.isHalfDay ? 0.5 : 1.0;
+        if ((att as any).shift?.isNightShift) {
+          nightShiftsCount += att.isHalfDay ? 0.5 : 1.0;
+        }
       } else if (att.status === 'HALF_DAY') {
         attendanceWorkedDays += 0.5;
+        if ((att as any).shift?.isNightShift) {
+          nightShiftsCount += 0.5;
+        }
       }
       totalOvertimeHours += att.overtimeHours || 0;
     }
+
+    const nightShiftRate = (company?.settings as any)?.nightShiftAllowanceRate || 0;
+    const totalNightShiftAllowance = nightShiftsCount * nightShiftRate;
 
     // P-02: Attendance-linked LOP:
     // If an employee neither attended nor was on approved paid leave during a working day,
@@ -453,7 +533,7 @@ export class PayrollService {
 
     // 6. FINANCIAL MATH
     const workingDaysDivisor =
-      totalScheduledWorkingDays > 0 ? totalScheduledWorkingDays : daysInMonth;
+      totalScheduledWorkingDays > 0 ? totalScheduledWorkingDays : daysInPeriod;
     const dailyRate = structure.basicSalary / workingDaysDivisor;
     const lopDeduction = parseFloat((totalUnpaidDays * dailyRate).toFixed(2));
 
@@ -461,7 +541,7 @@ export class PayrollService {
     const hourlyRate =
       totalScheduledWorkingDays > 0
         ? structure.basicSalary / (totalScheduledWorkingDays * 8)
-        : structure.basicSalary / (daysInMonth * 8);
+        : structure.basicSalary / (daysInPeriod * 8);
     const overtimePay = parseFloat(
       (totalOvertimeHours * hourlyRate).toFixed(2),
     );
@@ -497,9 +577,82 @@ export class PayrollService {
       structure.specialAllowance +
       otherAllowances +
       customEarningsTotal +
-      overtimePay;
+      overtimePay +
+      totalNightShiftAllowance;
 
-    const grossEarnings = structure.basicSalary + allowances;
+    // ========================================================
+    // RETROACTIVE SALARY REVISIONS & ARREARS ENGINE (SaaS Feature)
+    // ========================================================
+    let totalArrearsPay = 0;
+    const arrearsBreakdown: Array<{
+      revisionId: string;
+      reason: string | null;
+      effectiveDate: string;
+      backdatedMonth: number;
+      backdatedYear: number;
+      diffBasic: number;
+      diffGross: number;
+    }> = [];
+
+    const pendingRevisions = await this.prisma.salaryRevisionHistory.findMany({
+      where: {
+        employeeId,
+        companyId,
+        isSettled: false,
+      },
+      orderBy: { effectiveDate: 'asc' },
+    });
+
+    for (const rev of pendingRevisions) {
+      const pastRecords = await this.prisma.payrollRecord.findMany({
+        where: {
+          employeeId,
+          companyId,
+          OR: [
+            { year: { lt: year } },
+            { year, month: { lt: month } },
+          ],
+        },
+        orderBy: [{ year: 'asc' }, { month: 'asc' }],
+      });
+
+      let revTotal = 0;
+      for (const pr of pastRecords) {
+        const prDate = new Date(Date.UTC(pr.year, pr.month - 1, 1));
+        const revStart = new Date(Date.UTC(rev.effectiveDate.getUTCFullYear(), rev.effectiveDate.getUTCMonth(), 1));
+
+        if (prDate >= revStart) {
+          const diffBasic = Math.max(0, rev.newBasicSalary - pr.basicPay);
+          const diffHra = Math.round(diffBasic * 0.4);
+          const diffGross = diffBasic + diffHra;
+
+          revTotal += diffGross;
+          arrearsBreakdown.push({
+            revisionId: rev.id,
+            reason: rev.reason,
+            effectiveDate: rev.effectiveDate.toISOString(),
+            backdatedMonth: pr.month,
+            backdatedYear: pr.year,
+            diffBasic,
+            diffGross,
+          });
+        }
+      }
+
+      totalArrearsPay += revTotal;
+
+      await this.prisma.salaryRevisionHistory.update({
+        where: { id: rev.id },
+        data: {
+          isSettled: true,
+          arrearsAmount: revTotal,
+          arrearsPaidInMonth: month,
+          arrearsPaidInYear: year,
+        },
+      });
+    }
+
+    const grossEarnings = structure.basicSalary + allowances + totalArrearsPay;
 
     // Professional Tax: Dynamic State PT or configured value
     const statePt = calculateStateProfessionalTax({
@@ -574,9 +727,11 @@ export class PayrollService {
         presentDays: Math.max(0, totalScheduledWorkingDays - totalUnpaidDays),
         unpaidLeaves: totalUnpaidDays,
         overtimeHours: totalOvertimeHours,
+        nightShiftAllowance: totalNightShiftAllowance,
 
         basicPay: structure.basicSalary,
         allowances,
+        arrearsPay: totalArrearsPay,
         deductions: totalDeductions,
         netSalary,
         loanDeductions: loanDeduction,
@@ -595,6 +750,18 @@ export class PayrollService {
             companyName: company?.name ?? null,
             letterheadUrl: company?.settings?.payslipHeaderUrl ?? null,
             generatedAt: new Date().toISOString(),
+          },
+          payCycle: {
+            cycleType: cycle.cycleType,
+            startDay: cycle.startDay,
+            endDay: cycle.endDay,
+            startDate: cycle.cycleStart.toISOString(),
+            endDate: cycle.cycleEnd.toISOString(),
+          },
+          arrears: {
+            totalArrears: totalArrearsPay,
+            settledRevisionsCount: pendingRevisions.length,
+            details: arrearsBreakdown,
           },
           attendanceSummary: {
             scheduledWorkingDays: totalScheduledWorkingDays,
@@ -615,6 +782,7 @@ export class PayrollService {
             customComponents: customBreakdown,
             overtimePay,
             overtimeHours: totalOvertimeHours,
+            arrearsPay: totalArrearsPay,
             total: grossEarnings,
           },
           deductions: {
@@ -882,6 +1050,150 @@ export class PayrollService {
   }
 
   // ==========================================
+  // MONTHLY SALARY SHEET & ECR COMPATIBLE EXPORT
+  // ==========================================
+
+  async generateMonthlySalarySheetCsv(
+    companyId: string,
+    month: number,
+    year: number,
+  ): Promise<string> {
+    const records = await this.prisma.payrollRecord.findMany({
+      where: { companyId, month, year },
+      include: {
+        employee: {
+          select: {
+            employeeCode: true,
+            firstName: true,
+            lastName: true,
+            uanNumber: true,
+            panNumber: true,
+            bankName: true,
+            accountNumber: true,
+            ifscCode: true,
+            department: { select: { name: true } },
+            designation: { select: { name: true } },
+            statutoryProfiles: {
+              select: {
+                epfoUan: true,
+                esicIpNumber: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { employee: { employeeCode: 'asc' } },
+    });
+
+    if (records.length === 0) {
+      throw new NotFoundException(
+        `No payroll records found for ${month}/${year}. Please process payroll first.`,
+      );
+    }
+
+    // Standard 11 EPFO ECR columns followed by full salary breakdown and banking details
+    const headers = [
+      'UAN',
+      'Member Name',
+      'Gross Wages',
+      'EPF Wages',
+      'EPS Wages',
+      'EDLI Wages',
+      'EE Share Remitted (12%)',
+      'EPS Share Remitted (8.33%)',
+      'ER EPF Difference (3.67%)',
+      'NCP Days',
+      'Refund of Advances',
+      'Employee ID',
+      'Department',
+      'Designation',
+      'Scheduled Working Days',
+      'Days Present',
+      'Unpaid Days (LOP)',
+      'Basic Pay',
+      'Allowances',
+      'Arrears',
+      'Overtime Hours',
+      'Total Deductions',
+      'TDS Deducted',
+      'Net Salary',
+      'Bank Name',
+      'Account Number',
+      'IFSC Code',
+      'PAN Number',
+    ];
+
+    const escapeCsv = (val: string | number | null | undefined): string => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const wageCeiling = 15000;
+
+    const rows = records.map((r) => {
+      const emp = r.employee;
+      const cleanName = `${emp.firstName} ${emp.lastName}`.trim().replace(/[^a-zA-Z\s.]/g, '');
+      const rawUan = emp.uanNumber ? decrypt(emp.uanNumber) : emp.statutoryProfiles?.[0]?.epfoUan;
+      const uan = (rawUan || '').replace(/\D/g, '').trim();
+
+      const grossWages = Math.round(r.basicPay + r.allowances + (r.arrearsPay || 0));
+      const epfWage = Math.min(Math.round(r.basicPay), wageCeiling);
+      const epsWage = epfWage;
+      const edliWage = epfWage;
+
+      // EE 12% contribution
+      const eeEpfShare = Math.round(epfWage * 0.12);
+      // ER EPS 8.33% capped at 1250
+      const erEpsShare = Math.min(Math.round(epsWage * 0.0833), 1250);
+      // ER EPF diff (3.67%)
+      const erEpfDiff = Math.max(0, eeEpfShare - erEpsShare);
+
+      const ncpDays = r.unpaidLeaves || 0;
+      const refundOfAdvances = 0;
+
+      const bankName = emp.bankName ? decrypt(emp.bankName) : 'N/A';
+      const accountNumber = emp.accountNumber ? decrypt(emp.accountNumber) : 'N/A';
+      const ifsc = emp.ifscCode ? decrypt(emp.ifscCode) : 'N/A';
+      const pan = emp.panNumber ? decrypt(emp.panNumber) : 'N/A';
+
+      return [
+        escapeCsv(uan || 'N/A'),
+        escapeCsv(cleanName),
+        grossWages.toString(),
+        epfWage.toString(),
+        epsWage.toString(),
+        edliWage.toString(),
+        eeEpfShare.toString(),
+        erEpsShare.toString(),
+        erEpfDiff.toString(),
+        ncpDays.toString(),
+        refundOfAdvances.toString(),
+        escapeCsv(emp.employeeCode || 'N/A'),
+        escapeCsv(emp.department?.name || 'General'),
+        escapeCsv(emp.designation?.name || 'Staff'),
+        r.totalWorkingDays.toString(),
+        r.presentDays.toString(),
+        r.unpaidLeaves.toString(),
+        r.basicPay.toFixed(2),
+        r.allowances.toFixed(2),
+        (r.arrearsPay || 0).toFixed(2),
+        (r.overtimeHours || 0).toString(),
+        r.deductions.toFixed(2),
+        (r.tdsDeduction || 0).toFixed(2),
+        r.netSalary.toFixed(2),
+        escapeCsv(bankName),
+        escapeCsv(accountNumber),
+        escapeCsv(ifsc),
+        escapeCsv(pan),
+      ].join(',');
+    });
+
+    // UTF-8 BOM for Excel / external software compatibility
+    return '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+  }
+
+  // ==========================================
   // PAYSLIP EMAIL DISPATCH (P-18)
   // ==========================================
 
@@ -1014,6 +1326,42 @@ export class PayrollService {
       ...(structureData.effectiveDate ? { effectiveDate: new Date(structureData.effectiveDate) } : {}),
     };
 
+    // Check for existing structure to record retroactive revisions & arrears
+    const existingStructure = await this.prisma.salaryStructure.findUnique({
+      where: { employeeId },
+    });
+
+    if (existingStructure && structureData.effectiveDate) {
+      const effectiveDate = new Date(structureData.effectiveDate);
+      const now = new Date();
+      const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+      // If effective date is backdated prior to current calendar month
+      if (effectiveDate < currentMonthStart) {
+        const prevBasic = existingStructure.basicSalary;
+        const newBasic = payload.basicSalary;
+        const prevCtc = (existingStructure as any).annualCTC || prevBasic * 12;
+        const newCtc = Number(_ctc) || newBasic * 12;
+
+        if (newBasic > prevBasic || newCtc > prevCtc) {
+          await this.prisma.salaryRevisionHistory.create({
+            data: {
+              companyId,
+              employeeId,
+              previousBasicSalary: prevBasic,
+              newBasicSalary: newBasic,
+              previousCtc: prevCtc,
+              newCtc: newCtc,
+              effectiveDate,
+              reason: structureData.revisionReason || structureData.reason || 'Annual Appraisal / Increment Revision',
+              isSettled: false,
+              createdById: actorId || null,
+            },
+          });
+        }
+      }
+    }
+
     const result = await this.prisma.salaryStructure.upsert({
       where: { employeeId },
       update: payload,
@@ -1083,7 +1431,7 @@ export class PayrollService {
     role: string,
     actorId?: string,
   ) {
-    if (!['SUPER_ADMIN', 'HR_HEAD', 'MANAGER'].includes(role)) {
+    if (!['SUPER_ADMIN', 'HR_HEAD', 'MANAGER', 'OWNER'].includes(role)) {
       throw new ForbiddenException(
         'You do not have permission to approve payroll.',
       );
@@ -1945,5 +2293,73 @@ export class PayrollService {
       totalNetPayout: parseFloat(totalNet.toFixed(2)),
       records,
     };
+  }
+
+  // ==========================================
+  // ASYNC BATCH RUNS (SaaS Scalability)
+  // ==========================================
+  async startBatchPayrollRun(
+    companyId: string,
+    month: number,
+    year: number,
+    actorId: string,
+    departmentId?: string,
+  ) {
+    return this.batchQueue.enqueueBatchRun(
+      companyId,
+      month,
+      year,
+      actorId,
+      departmentId,
+    );
+  }
+
+  async getBatchRunProgress(companyId: string, jobId: string) {
+    return this.batchQueue.getBatchRunProgress(companyId, jobId);
+  }
+
+  async listBatchRuns(companyId: string, month?: number, year?: number) {
+    return this.batchQueue.listBatchRuns(companyId, month, year);
+  }
+
+  // ==========================================
+  // PAY CYCLE SETTINGS & REVISIONS (SaaS Configuration)
+  // ==========================================
+  async updatePayCycleSettings(
+    companyId: string,
+    payCycleType: 'CALENDAR_MONTH' | 'CUSTOM_CUTOFF',
+    payCycleStartDay: number,
+    payCycleEndDay: number,
+  ) {
+    return this.prisma.companySettings.update({
+      where: { companyId },
+      data: {
+        payCycleType,
+        payCycleStartDay: payCycleStartDay || 1,
+        payCycleEndDay: payCycleEndDay || 0,
+      },
+    });
+  }
+
+  async getPendingSalaryRevisions(companyId: string, employeeId?: string) {
+    return this.prisma.salaryRevisionHistory.findMany({
+      where: {
+        companyId,
+        isSettled: false,
+        ...(employeeId ? { employeeId } : {}),
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            department: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { effectiveDate: 'desc' },
+    });
   }
 }

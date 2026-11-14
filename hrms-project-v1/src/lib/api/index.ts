@@ -6,4 +6,8 @@ export { leavesApi } from "./leaves";
 export { payrollApi } from "./payroll";
 export { recruitmentApi } from "./recruitment";
 export { authApi } from "./auth";
+export { designationsApi } from "./designations";
+export { settingsApi } from "./settings";
+export { organizationApi } from "./organization";
+export { auditApi } from "./audit";
 

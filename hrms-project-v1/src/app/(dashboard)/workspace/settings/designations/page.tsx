@@ -1,10 +1,9 @@
 "use client";
 
-import api, { API_BASE_URL } from "@/lib/api";
+import { designationsApi } from "@/lib/api";
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import {
   Plus,
   Trash2,
@@ -60,13 +59,6 @@ import {
   getDefaultModulePermissions,
 } from "@/lib/permissions";
 
-const API_URL = API_BASE_URL;
-
-function getHeaders() {
-  const token = typeof window !== "undefined" ? localStorage.getItem("hrms_token") : "";
-  return { Authorization: `Bearer ${token}` };
-}
-
 // ============================================================
 // Main Page Component
 // ============================================================
@@ -82,10 +74,7 @@ export default function DesignationsPage() {
     queryKey: ["designations"],
     queryFn: async () => {
       try {
-        const res = await axios.get(`${API_URL}/organization/designations`, {
-          headers: getHeaders(),
-        });
-        return res.data;
+        return await designationsApi.getAll();
       } catch {
         // API not ready — return empty so page still renders
         return [];
@@ -99,9 +88,7 @@ export default function DesignationsPage() {
 
   const deleteDesignation = useMutation({
     mutationFn: async (id: string) => {
-      await axios.delete(`${API_URL}/organization/designations/${id}`, {
-        headers: getHeaders(),
-      });
+      await designationsApi.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["designations"] });
@@ -367,20 +354,15 @@ function CreateDesignationDialog({
       const defaultWidgets = getDefaultDashboardWidgets(baseRole);
       const defaultPerms = getDefaultModulePermissions(baseRole);
 
-      const res = await axios.post(
-        `${API_URL}/organization/designations`,
-        {
-          name,
-          description,
-          baseRole,
-          color,
-          sidebarModules: defaultSidebar,
-          dashboardWidgets: defaultWidgets,
-          modulePermissions: defaultPerms,
-        },
-        { headers: getHeaders() }
-      );
-      return res.data;
+      return await designationsApi.create({
+        name,
+        description,
+        baseRole,
+        color,
+        sidebarModules: defaultSidebar,
+        dashboardWidgets: defaultWidgets,
+        modulePermissions: defaultPerms,
+      });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["designations"] });
@@ -547,16 +529,11 @@ function PermissionEditor({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const res = await axios.patch(
-        `${API_URL}/organization/designations/${designation.id}/permissions`,
-        {
-          sidebarModules,
-          modulePermissions,
-          dashboardWidgets,
-        },
-        { headers: getHeaders() }
-      );
-      return res.data;
+      return await designationsApi.updatePermissions(designation.id, {
+        sidebarModules,
+        modulePermissions,
+        dashboardWidgets,
+      });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["designations"] });

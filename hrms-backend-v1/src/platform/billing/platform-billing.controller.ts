@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -10,6 +11,8 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PlatformBillingService } from './platform-billing.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -96,16 +99,78 @@ export class PlatformBillingController {
     return this.billingService.getFailedPayments({ page, limit });
   }
 
-  // Payment Webhook (Public with Idempotency)
+  // Discount Coupons
+  @Get('coupons')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async getCoupons() {
+    return this.billingService.getCoupons();
+  }
+
+  @Post('coupons')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async createCoupon(
+    @Body()
+    body: {
+      code: string;
+      name: string;
+      discountType: 'PERCENTAGE' | 'FIXED';
+      discountValue: number;
+      validUntil: string;
+      maxUsage: number;
+      isActive?: boolean;
+    },
+  ) {
+    return this.billingService.createCoupon(body);
+  }
+
+  @Delete('coupons/:code')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async deleteCoupon(@Param('code') code: string) {
+    return this.billingService.deleteCoupon(code);
+  }
+
+  @Post('coupons/validate')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async validateCoupon(
+    @Body() body: { code: string; amount: number },
+  ) {
+    return this.billingService.validateCoupon(body.code, body.amount);
+  }
+
+  // Payment Webhook (Public with Idempotency & Cryptographic Signature Validation)
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   async handleWebhook(
     @Body() payload: any,
-    @Headers('stripe-signature') signature?: string,
+    @Headers('stripe-signature') stripeSignature?: string,
+    @Headers('x-webhook-signature') webhookSignature?: string,
     @Headers('x-idempotency-key') idempotencyHeader?: string,
   ) {
+    const secret = process.env.STRIPE_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const signature = stripeSignature || webhookSignature;
+
+    if (secret) {
+      if (!signature) {
+        throw new UnauthorizedException('Missing webhook signature header');
+      }
+      const rawPayload = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      const isValid = this.billingService.verifyWebhookSignature(rawPayload, signature, secret);
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid webhook signature');
+      }
+    } else if (isProduction) {
+      throw new UnauthorizedException('Webhook secret not configured on server');
+    }
+
+    const key = idempotencyHeader || payload?.id;
+    if (!key) {
+      throw new BadRequestException('Webhook requires a unique event ID or x-idempotency-key');
+    }
+
     const eventType = payload?.type || payload?.event || 'payment.succeeded';
-    const key = idempotencyHeader || payload?.id || `webhook_${Date.now()}_${Math.random()}`;
     return this.billingService.handleWebhook(payload, eventType, key);
   }
 }

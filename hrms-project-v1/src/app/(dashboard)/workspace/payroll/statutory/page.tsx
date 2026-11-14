@@ -10,6 +10,7 @@ import {
   Calendar as CalendarIcon,
   Download,
   FileText,
+  FileSpreadsheet,
   Plus,
   CheckCircle2,
   Clock,
@@ -429,6 +430,39 @@ export default function StatutoryCompliancePage() {
                   <ShieldCheck className="w-4 h-4 mr-2" />
                 )}
                 Calculate Snapshot
+              </Button>
+
+              <Button
+                variant="outline"
+                className="border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                onClick={async () => {
+                  try {
+                    const res = await payrollApi.getMonthlySalarySheet(Number(selectedMonth), Number(selectedYear));
+                    const url = window.URL.createObjectURL(new Blob([res.data], { type: "text/csv;charset=utf-8;" }));
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.setAttribute("download", `salary_sheet_ecr_${String(selectedMonth).padStart(2, "0")}_${selectedYear}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+                  } catch (err: any) {
+                    let msg = "No payroll records found for this period. Please process payroll first.";
+                    if (err.response?.data instanceof Blob) {
+                      try {
+                        const text = await err.response.data.text();
+                        const parsed = JSON.parse(text);
+                        if (parsed.message) msg = parsed.message;
+                      } catch {}
+                    } else if (err.response?.data?.message) {
+                      msg = err.response.data.message;
+                    }
+                    alert(msg);
+                  }
+                }}
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2 text-primary" />
+                ECR Salary Sheet (.csv)
               </Button>
 
               <Button

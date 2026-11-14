@@ -15,6 +15,11 @@ import type { Response as ExpressResponse } from 'express';
 import { AuthGuard } from '../../auth/auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
+import {
+  PayrollTierGuard,
+  RequirePayrollTier,
+  PayrollFeatureTier,
+} from '../guards/payroll-tier.guard';
 import { StatutoryEstablishmentService } from './common/statutory-establishment.service';
 import { StatutoryRulesService } from './common/statutory-rules.service';
 import { StatutoryCalculatorService } from './common/statutory-calculator.service';
@@ -35,7 +40,8 @@ import {
 } from './dto/statutory-operations.dto';
 
 @Controller('payroll/statutory')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, PermissionsGuard, PayrollTierGuard)
+@RequirePayrollTier(PayrollFeatureTier.GROWTH)
 export class StatutoryComplianceController {
   constructor(
     private readonly establishmentService: StatutoryEstablishmentService,
@@ -45,27 +51,31 @@ export class StatutoryComplianceController {
     private readonly reconciliationService: StatutoryReconciliationService,
   ) {}
 
-  // 1. Establishments
+  // 1. Establishments (Enterprise Plan: Multi-branch Statutory Profiles)
   @Get('establishments')
   @RequirePermissions('payroll.view')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async listEstablishments(@Request() req) {
     return this.establishmentService.listEstablishments(req.user.companyId);
   }
 
   @Post('establishments')
   @RequirePermissions('payroll.manage')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async createEstablishment(@Request() req, @Body() dto: CreateEstablishmentDto) {
     return this.establishmentService.createEstablishment(req.user.companyId, dto);
   }
 
   @Get('establishments/:id')
   @RequirePermissions('payroll.view')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async getEstablishment(@Request() req, @Param('id') id: string) {
     return this.establishmentService.getEstablishment(req.user.companyId, id);
   }
 
   @Patch('establishments/:id')
   @RequirePermissions('payroll.manage')
+  @RequirePayrollTier(PayrollFeatureTier.ENTERPRISE)
   async updateEstablishment(
     @Request() req,
     @Param('id') id: string,

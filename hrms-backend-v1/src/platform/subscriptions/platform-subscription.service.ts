@@ -32,6 +32,7 @@ export class PlatformSubscriptionService implements OnModuleInit {
 
   async onModuleInit() {
     await this.seedDefaultPlans();
+    await this.backfillMissingSubscriptions();
   }
 
   /**
@@ -147,6 +148,55 @@ export class PlatformSubscriptionService implements OnModuleInit {
       this.logger.log('Default subscription tiers seeded successfully.');
     } catch (err: any) {
       this.logger.warn(`Could not seed default subscription tiers: ${err.message}`);
+    }
+  }
+
+  /**
+   * Backfill missing subscriptions for any existing companies
+   */
+  async backfillMissingSubscriptions() {
+    try {
+      const companiesWithoutSub = await this.prisma.company.findMany({
+        where: {
+          subscriptions: {
+            none: {},
+          },
+        },
+        select: { id: true, name: true, createdAt: true, subscription: true },
+      });
+
+      if (companiesWithoutSub.length === 0) return;
+
+      this.logger.log(`Found ${companiesWithoutSub.length} companies without active Subscription records. Auto-provisioning...`);
+
+      const trialPlan = await this.prisma.platformPlan.findFirst({
+        where: { OR: [{ code: 'PLAN_FREE' }, { name: 'Free Trial' }] },
+      });
+
+      if (!trialPlan) return;
+
+      for (const comp of companiesWithoutSub) {
+        const trialDays = trialPlan.trialDays || 14;
+        const start = comp.createdAt || new Date();
+        const trialEndsAt = new Date(start.getTime() + trialDays * 24 * 60 * 60 * 1000);
+        const isPast = trialEndsAt.getTime() < Date.now();
+
+        await this.prisma.subscription.create({
+          data: {
+            companyId: comp.id,
+            planId: trialPlan.id,
+            billingCycle: 'MONTHLY',
+            status: isPast ? 'EXPIRED' : 'TRIAL',
+            startDate: start,
+            trialEndsAt,
+            currentPeriodEnd: trialEndsAt,
+          },
+        });
+      }
+
+      this.logger.log(`Successfully provisioned subscriptions for ${companiesWithoutSub.length} companies.`);
+    } catch (err: any) {
+      this.logger.warn(`Could not backfill missing subscriptions: ${err.message}`);
     }
   }
 

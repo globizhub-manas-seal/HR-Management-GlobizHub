@@ -39,7 +39,7 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
     }
     setUser(null);
     setToken(null);
-    router.replace("/platform-admin/login");
+    router.replace("/login");
   }, [router]);
 
   const refreshProfile = useCallback(async () => {
@@ -58,8 +58,10 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
       if (typeof window !== "undefined") {
         localStorage.setItem("platform_user", JSON.stringify(res.data));
       }
-    } catch {
-      logout();
+    } catch (err: any) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        logout();
+      }
     } finally {
       setIsLoading(false);
     }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import { leavesApi } from "@/lib/api";
 import { Calendar, Plus, Trash2, Loader2, PartyPopper } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,23 +16,12 @@ export default function HolidayCalendarPage() {
   // 1. Fetch Holidays
   const { data: holidays, isLoading } = useQuery({
     queryKey: ["holidays"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/leave/holidays`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return res.data;
-    }
+    queryFn: () => leavesApi.getHolidays(),
   });
 
   // 2. Add Holiday Mutation
   const addHolidayMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/leave/holidays`, data, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-    },
+    mutationFn: (data: any) => leavesApi.addHoliday(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holidays"] });
       setFormData({ name: "", date: "", type: "NATIONAL" });
@@ -41,12 +30,7 @@ export default function HolidayCalendarPage() {
 
   // 3. Delete Holiday Mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/leave/holidays/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-    },
+    mutationFn: (id: string) => leavesApi.deleteHoliday(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["holidays"] })
   });
 

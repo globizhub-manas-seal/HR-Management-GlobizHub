@@ -15,6 +15,11 @@ import { ScheduleService } from './schedule.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
+import {
+  BulkAssignScheduleDto,
+  ApplyRotationPatternDto,
+  QueryRosterMatrixDto,
+} from './dto/schedule-operations.dto';
 
 @Controller('schedules')
 @UseGuards(AuthGuard, PermissionsGuard)
@@ -45,6 +50,54 @@ export class ScheduleController {
       employeeId,
       date,
       req.user.companyId,
+    );
+  }
+
+  // ==========================================
+  // ROSTER MATRIX GRID API (Visual SaaS Grid)
+  // ==========================================
+  @Get('matrix')
+  @RequirePermissions('schedule.view')
+  async getRosterMatrix(
+    @Request() req,
+    @Query() query: QueryRosterMatrixDto,
+  ) {
+    return this.scheduleService.getRosterMatrix(
+      req.user.companyId,
+      req.user.sub,
+      req.user.role,
+      query,
+    );
+  }
+
+  // ==========================================
+  // BULK & RECURRING ROSTER GENERATION
+  // ==========================================
+  @Post('bulk-assign')
+  @RequirePermissions('schedule.create')
+  async bulkAssignSchedule(
+    @Request() req,
+    @Body() dto: BulkAssignScheduleDto,
+  ) {
+    return this.scheduleService.bulkAssignSchedule(
+      req.user.companyId,
+      dto,
+      req.user.role,
+      req.user.sub,
+    );
+  }
+
+  @Post('apply-rotation')
+  @RequirePermissions('schedule.create')
+  async applyRotationPattern(
+    @Request() req,
+    @Body() dto: ApplyRotationPatternDto,
+  ) {
+    return this.scheduleService.applyRotationPattern(
+      req.user.companyId,
+      dto,
+      req.user.role,
+      req.user.sub,
     );
   }
 

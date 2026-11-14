@@ -27,7 +27,6 @@ export default function EmployeeDocumentsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [redirecting, setRedirecting] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("employment");
 
   // View All Dialog state
@@ -42,14 +41,7 @@ export default function EmployeeDocumentsPage() {
   const [personalUploadProgress, setPersonalUploadProgress] = useState(false);
 
   const { activeRole, isLoading: isLoadingProfile } = useViewMode();
-
-  // Redirect admin/HR/CEO users to the admin documents page
-  useEffect(() => {
-    if (!isLoadingProfile && activeRole && activeRole !== "EMPLOYEE") {
-      setRedirecting(true);
-      router.push("/workspace/documents/admin");
-    }
-  }, [activeRole, isLoadingProfile, router]);
+  const isCompanyAdmin = ["SUPER_ADMIN", "OWNER", "HR_HEAD"].includes(activeRole || "");
 
   // 1. Fetch the logged-in employee's documents
   const { data: documents, isLoading } = useQuery({
@@ -84,7 +76,19 @@ export default function EmployeeDocumentsPage() {
     }
   });
 
-  if (redirecting || isLoading) {
+  // 3. E-Sign / Acknowledgement Mutation
+  const signMutation = useMutation({
+    mutationFn: (documentId: string) => documentsApi.signDocument(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myDocuments"] });
+    },
+    onError: (error) => {
+      console.error("Signing failed:", error);
+      alert("Failed to acknowledge/sign document. Please try again.");
+    },
+  });
+
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
@@ -290,17 +294,36 @@ export default function EmployeeDocumentsPage() {
               </div>
             )
           ) : (
-            // Other columns have "View" button if fileUrl exists
-            doc.fileUrl && (
-              <a 
-                href={doc.fileUrl} 
-                target="_blank" 
-                rel="noreferrer" 
-                className="text-xs font-semibold text-indigo-600 hover:text-white bg-slate-50 hover:bg-indigo-600 border border-slate-200 hover:border-indigo-600 px-3 py-1.5 rounded-lg transition-all shrink-0 shadow-sm"
-              >
-                View
-              </a>
-            )
+            // Other columns have "View" and "Sign" action buttons
+            <div className="flex items-center space-x-2 shrink-0">
+              {doc.requiresSign && (
+                doc.isSigned ? (
+                  <Badge className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center">
+                    <CheckCircle2 className="w-3 h-3 mr-1" /> Signed
+                  </Badge>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                    onClick={() => signMutation.mutate(doc.id)}
+                    disabled={signMutation.isPending}
+                  >
+                    Acknowledge
+                  </Button>
+                )
+              )}
+              {doc.fileUrl && (
+                <a 
+                  href={doc.fileUrl} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="text-xs font-semibold text-indigo-600 hover:text-white bg-slate-50 hover:bg-indigo-600 border border-slate-200 hover:border-indigo-600 px-3 py-1.5 rounded-lg transition-all shrink-0 shadow-sm"
+                >
+                  View
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -314,7 +337,7 @@ export default function EmployeeDocumentsPage() {
     { id: "personal", name: "Personal Files", icon: FolderOpen },
   ];
 
-  if (isLoading || isLoadingProfile || redirecting) {
+  if (isLoading || isLoadingProfile) {
     return (
       <div className="p-6 md:p-8 space-y-6 font-sans">
         <div className="space-y-2">
@@ -328,6 +351,24 @@ export default function EmployeeDocumentsPage() {
 
   return (
     <div className="p-6 md:p-8 space-y-8 font-sans bg-slate-50/50 min-h-screen">
+      {/* Admin Switcher Banner */}
+      {isCompanyAdmin && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-indigo-50/80 border border-indigo-100 rounded-2xl shadow-sm">
+          <div>
+            <h3 className="text-sm font-semibold text-indigo-950">Viewing Personal Documents</h3>
+            <p className="text-xs text-indigo-700/80 mt-0.5">
+              You are currently viewing your personal documents. Switch to the Company Documents Hub to review employee uploads or manage team policies.
+            </p>
+          </div>
+          <Button 
+            onClick={() => router.push("/workspace/documents/admin")}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shrink-0"
+            size="sm"
+          >
+            Switch to Company Documents Hub &rarr;
+          </Button>
+        </div>
+      )}
       
 
 

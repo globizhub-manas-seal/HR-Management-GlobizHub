@@ -33,8 +33,27 @@ export const documentsApi = {
     return res.data;
   },
 
-  updateStatus: async (documentId: string, payload: { status: string; reason?: string }) => {
-    const res = await api.patch(`/documents/${documentId}/status`, payload);
+  updateStatus: async (
+    documentId: string,
+    payload: { status: string; reason?: string; rejectionReason?: string },
+  ) => {
+    const res = await api.patch(`/documents/${documentId}/status`, {
+      status: payload.status,
+      rejectionReason: payload.rejectionReason || payload.reason,
+    });
+    return res.data;
+  },
+
+  editDocument: async (
+    documentId: string,
+    payload: { name: string; category: string; employeeId: string | null },
+  ) => {
+    const res = await api.patch(`/documents/${documentId}/details`, payload);
+    return res.data;
+  },
+
+  signDocument: async (documentId: string) => {
+    const res = await api.post(`/documents/${documentId}/sign`);
     return res.data;
   },
 

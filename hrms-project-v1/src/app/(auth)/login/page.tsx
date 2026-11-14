@@ -47,12 +47,23 @@ export default function LoginPage() {
       const resData = await authApi.login({ email: values.email, password: values.password });
       const response = { data: resData };
 
+      // Clear any previous session tokens to prevent role/portal crossover
+      localStorage.removeItem("platform_token");
+      localStorage.removeItem("platform_user");
+      localStorage.removeItem("hrms_token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
       if (response.data.portal === "PLATFORM_ADMIN") {
         localStorage.setItem("platform_token", response.data.access_token);
         localStorage.setItem("platform_user", JSON.stringify(response.data.user));
         window.location.href = response.data.targetUrl || "/platform-admin/dashboard";
       } else {
         localStorage.setItem("hrms_token", response.data.access_token);
+        localStorage.setItem("token", response.data.access_token);
+        if (response.data.user) {
+          localStorage.setItem("user", JSON.stringify(response.data.user));
+        }
         window.location.href = response.data.targetUrl || "/workspace/dashboard";
       }
     } catch (error: any) {
@@ -76,7 +87,7 @@ export default function LoginPage() {
             Sign in to TeamHub
           </h1>
           <p className="type-subhead text-label-secondary text-center mt-1">
-            Access your workforce workspace and dashboard.
+            Access your workspace or administrator dashboard.
           </p>
         </div>
 
@@ -146,7 +157,7 @@ export default function LoginPage() {
           </form>
         </Form>
         
-        <div className="mt-6 text-center space-y-2">
+        <div className="mt-6 text-center">
           <p className="type-footnote text-label-secondary">
             Don't have a workspace yet?{" "}
             <button 
@@ -156,14 +167,6 @@ export default function LoginPage() {
               Register your company
             </button>
           </p>
-          <div className="pt-2 border-t border-border">
-            <a
-              href="/platform-admin/login"
-              className="text-[12px] text-muted-foreground hover:text-primary transition-colors font-medium inline-flex items-center gap-1"
-            >
-              Platform Super Admin? Go to SaaS Control Center &rarr;
-            </a>
-          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,84 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
+
+const ALLOWED_SETTINGS_FIELDS = new Set([
+  'companyName',
+  'companyLogo',
+  'officeAddress',
+  'timeZone',
+  'workingDays',
+  'fiscalYear',
+  'attendanceMethod',
+  'officeLatitude',
+  'officeLongitude',
+  'allowedRadiusMeters',
+  'officeWifiSsids',
+  'enableGps',
+  'enableWifi',
+  'enableMockLocation',
+  'requireSelfie',
+  'oneDevicePerEmployee',
+  'allowMultiPunch',
+  'enableSplitShifts',
+  'officeStartTime',
+  'officeEndTime',
+  'gracePeriodMinutes',
+  'minimumHoursForFullDay',
+  'halfDayMinHours',
+  'defaultCasualLeaves',
+  'defaultSickLeaves',
+  'defaultEarnedLeaves',
+  'allowMultipleDevices',
+  'sessionTimeoutHours',
+  'auditLogsEnabled',
+  'noticePeriodDays',
+  'isIpRestrictionOn',
+  'officeIpAddress',
+  'legalName',
+  'industry',
+  'registrationNumber',
+  'taxId',
+  'website',
+  'incorporationDate',
+  'officialEmail',
+  'officialPhone',
+  'city',
+  'state',
+  'country',
+  'zipCode',
+  'themeColor',
+  'payslipHeaderUrl',
+  'overtimeIncludesShiftSwaps',
+  'employeeIdFormat',
+  'employeeIdPrefix',
+  'employeeIdDigits',
+  'employeeIdCounter',
+  'payCycleType',
+  'payCycleStartDay',
+  'payCycleEndDay',
+  'nightShiftAllowanceRate',
+]);
+
+const NUMERIC_FIELDS = new Set([
+  'officeLatitude',
+  'officeLongitude',
+  'allowedRadiusMeters',
+  'gracePeriodMinutes',
+  'minimumHoursForFullDay',
+  'halfDayMinHours',
+  'defaultCasualLeaves',
+  'defaultSickLeaves',
+  'defaultEarnedLeaves',
+  'sessionTimeoutHours',
+  'noticePeriodDays',
+  'employeeIdDigits',
+  'employeeIdCounter',
+  'payCycleStartDay',
+  'payCycleEndDay',
+  'nightShiftAllowanceRate',
+]);
 
 @Injectable()
 export class SettingsService {
@@ -17,17 +95,20 @@ export class SettingsService {
 
     if (!settings) {
       settings = await this.prisma.companySettings.create({
-        data: { companyId },
+        data: {
+          companyId,
+          workingDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
+        },
       });
     }
 
     return settings;
   }
 
-  // Update company settings (restricted to Admin/HR)
+  // Update company settings (restricted to Admin/HR/Owner)
   async updateSettings(
     companyId: string,
-    dto: any,
+    dto: UpdateCompanySettingsDto | any,
     userRole: string,
     actorId?: string,
   ) {
@@ -46,20 +127,44 @@ export class SettingsService {
       where: { companyId },
     });
 
-    // IMPORTANT: Strip out restricted/unique fields so Prisma doesn't crash
-    // trying to overwrite them when the frontend sends the full object back.
-    delete dto.id;
-    delete dto.companyId;
-    delete dto.createdAt;
-    delete dto.updatedAt;
+    // Sanitize and whitelist fields to prevent Prisma unknown argument crashes
+    const sanitizedData: Record<string, any> = {};
 
-    // Use UPSERT for maximum safety: Update if it exists, create if it somehow doesn't.
+    for (const [key, value] of Object.entries(dto)) {
+      if (!ALLOWED_SETTINGS_FIELDS.has(key) || value === undefined) {
+        continue;
+      }
+
+      // Convert numeric fields if passed as strings from form inputs
+      if (NUMERIC_FIELDS.has(key)) {
+        if (value === null || value === '') {
+          sanitizedData[key] = null;
+        } else {
+          const num = Number(value);
+          sanitizedData[key] = isNaN(num) ? value : num;
+        }
+        continue;
+      }
+
+      // Normalize working days to uppercase for consistent engine calculations
+      if (key === 'workingDays' && Array.isArray(value)) {
+        sanitizedData.workingDays = value
+          .filter((d) => typeof d === 'string' && d.trim().length > 0)
+          .map((d: string) => d.toUpperCase());
+        continue;
+      }
+
+      sanitizedData[key] = value;
+    }
+
+    // Use UPSERT for safety: Update if it exists, create if missing
     const newSettings = await this.prisma.companySettings.upsert({
       where: { companyId },
-      update: dto,
+      update: sanitizedData,
       create: {
         companyId,
-        ...dto,
+        workingDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
+        ...sanitizedData,
       },
     });
 

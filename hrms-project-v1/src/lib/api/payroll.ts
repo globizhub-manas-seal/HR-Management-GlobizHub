@@ -253,5 +253,14 @@ export const payrollApi = {
     });
     return res.data;
   },
+
+  // Monthly Salary Sheet / ECR Salary Register CSV
+  getMonthlySalarySheet: async (month: number, year: number) => {
+    const res = await api.get("/payroll/monthly-salary-sheet", {
+      params: { month, year },
+      responseType: "blob",
+    });
+    return res;
+  },
 };
 

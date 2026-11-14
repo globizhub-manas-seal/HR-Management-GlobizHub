@@ -51,6 +51,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   const { data: designation, isLoading: designationLoading } = useQuery<Designation | null>({
     queryKey: ["userDesignation", user?.id],
     queryFn: async () => {
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/platform-admin")) return null;
       try {
         const data = await authApi.getMyPermissions();
         return data?.designation || null;
@@ -59,7 +60,10 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         return null;
       }
     },
-    enabled: !!user?.id,
+    enabled:
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/platform-admin") &&
+      Boolean(user?.id),
     retry: false,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });

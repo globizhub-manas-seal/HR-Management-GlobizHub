@@ -8,6 +8,8 @@ import { EmailModule } from '../email/email.module';
 import { StatutoryComplianceModule } from './statutory-compliance/statutory-compliance.module';
 import { Form16GeneratorService } from './tax/form16-generator.service';
 import { PayrollJvService } from './journal/payroll-jv.service';
+import { PayrollBatchQueueService } from './batch/payroll-batch-queue.service';
+import { PayrollTierGuard } from './guards/payroll-tier.guard';
 
 @Module({
   imports: [
@@ -18,12 +20,20 @@ import { PayrollJvService } from './journal/payroll-jv.service';
     StatutoryComplianceModule,
   ],
   controllers: [PayrollController],
-  providers: [PayrollService, Form16GeneratorService, PayrollJvService],
+  providers: [
+    PayrollService,
+    Form16GeneratorService,
+    PayrollJvService,
+    PayrollBatchQueueService,
+    PayrollTierGuard,
+  ],
   exports: [
     PayrollService,
     StatutoryComplianceModule,
     Form16GeneratorService,
     PayrollJvService,
+    PayrollBatchQueueService,
+    PayrollTierGuard,
   ],
 })
 export class PayrollModule {}

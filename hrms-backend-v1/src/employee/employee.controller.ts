@@ -6,9 +6,11 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   Delete,
   UseGuards,
   Request,
+  ForbiddenException,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
@@ -18,6 +20,8 @@ import { EmployeeService } from './employee.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { QueryEmployeesDto } from './dto/query-employees.dto';
+import { BulkImportEmployeesDto } from './dto/bulk-import-employee.dto';
 // S-01: typed DTO that whitelists only self-editable profile fields
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -29,8 +33,8 @@ export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
 
   @Get()
-  async getDirectory(@Request() req) {
-    return this.employeeService.findAllByCompany(req.user.companyId);
+  async getDirectory(@Request() req, @Query() query: QueryEmployeesDto) {
+    return this.employeeService.findAllByCompany(req.user.companyId, query);
   }
 
   @Post('invite')
@@ -39,6 +43,19 @@ export class EmployeeController {
     return this.employeeService.inviteEmployee(
       req.user.companyId,
       dto,
+      req.user.sub,
+    );
+  }
+
+  @Post('bulk-import')
+  @RequirePermissions('employee.create')
+  async bulkImportEmployees(
+    @Request() req,
+    @Body() dto: BulkImportEmployeesDto,
+  ) {
+    return this.employeeService.bulkImportEmployees(
+      req.user.companyId,
+      dto.employees,
       req.user.sub,
     );
   }
@@ -81,6 +98,15 @@ export class EmployeeController {
     return this.employeeService.updateMyNotifications(req.user.sub, body);
   }
 
+  // Self-Service GDPR Article 15 / DPDP Data Portability Export
+  @Get('me/export')
+  async exportMyData(@Request() req) {
+    return this.employeeService.exportEmployeeData(
+      req.user.companyId,
+      req.user.sub,
+    );
+  }
+
   // Update an employee (Admin feature)
   @Patch(':id')
   @Put(':id')
@@ -102,14 +128,29 @@ export class EmployeeController {
 
   // --- LIFECYCLE & DETAILS ENDPOINTS (Admin/HR feature) ---
 
+  @Get(':id/emergency-contacts')
+  async getEmergencyContacts(@Param('id') id: string) {
+    return this.employeeService.getEmergencyContacts(id);
+  }
+
   @Post(':id/emergency-contacts')
   async addEmergencyContact(@Param('id') id: string, @Body() body: any) {
     return this.employeeService.addEmergencyContact(id, body);
   }
 
+  @Get(':id/skills')
+  async getSkills(@Param('id') id: string) {
+    return this.employeeService.getSkills(id);
+  }
+
   @Post(':id/skills')
   async addSkill(@Param('id') id: string, @Body() body: any) {
     return this.employeeService.addSkill(id, body);
+  }
+
+  @Get(':id/history')
+  async getEmploymentHistory(@Param('id') id: string) {
+    return this.employeeService.getEmploymentHistory(id);
   }
 
   @Post(':id/history')
@@ -126,6 +167,45 @@ export class EmployeeController {
   @Post(':id/exit')
   async processEmployeeExit(@Param('id') id: string, @Body() body: any) {
     return this.employeeService.processEmployeeExit(id, body);
+  }
+
+  @Get('org-chart')
+  async getOrgChart(@Request() req) {
+    return this.employeeService.getOrgChart(req.user.companyId);
+  }
+
+  @Post(':id/resend-invite')
+  @RequirePermissions('employee.create')
+  async resendInvite(@Request() req, @Param('id') id: string) {
+    return this.employeeService.resendInvite(
+      req.user.companyId,
+      id,
+      req.user.sub,
+    );
+  }
+
+  // Admin or Self GDPR Article 15 / DPDP Data Portability Export
+  @Get(':id/export')
+  async exportEmployeeData(@Request() req, @Param('id') id: string) {
+    if (
+      req.user.sub !== id &&
+      !['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(req.user.role)
+    ) {
+      throw new ForbiddenException(
+        'You only have permission to export your own personal data.',
+      );
+    }
+    return this.employeeService.exportEmployeeData(req.user.companyId, id);
+  }
+
+  @Post(':id/anonymize')
+  @RequirePermissions('employee.delete')
+  async anonymizeEmployee(@Request() req, @Param('id') id: string) {
+    return this.employeeService.anonymizeEmployee(
+      req.user.companyId,
+      id,
+      req.user.sub,
+    );
   }
 
   @Get(':id')
@@ -147,6 +227,14 @@ export class EmployeeController {
     @Param('contactId') contactId: string,
   ) {
     return this.employeeService.removeEmergencyContact(id, contactId);
+  }
+
+  @Delete(':id/history/:historyId')
+  async removeEmploymentHistory(
+    @Param('id') id: string,
+    @Param('historyId') historyId: string,
+  ) {
+    return this.employeeService.removeEmploymentHistory(id, historyId);
   }
 
   // 3. Protect this specific route!

@@ -29,12 +29,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
       const isPlatform = window.location.pathname.startsWith("/platform-admin");
-      if (isPlatform) {
-        localStorage.removeItem("platform_token");
-        if (!window.location.pathname.startsWith("/platform-admin/login")) {
-          window.location.href = "/platform-admin/login";
-        }
-      } else {
+      // Do not wipe platform administration session from workspace API failures
+      if (!isPlatform) {
         localStorage.removeItem("hrms_token");
         localStorage.removeItem("token");
         if (!window.location.pathname.startsWith("/login")) {
@@ -54,5 +50,9 @@ export { leavesApi } from "./api/leaves";
 export { payrollApi } from "./api/payroll";
 export { recruitmentApi } from "./api/recruitment";
 export { authApi } from "./api/auth";
+export { designationsApi } from "./api/designations";
+export { settingsApi } from "./api/settings";
+export { organizationApi } from "./api/organization";
+export { auditApi } from "./api/audit";
 
 export default api;

@@ -21,6 +21,9 @@ import {
   DocumentCategory,
   DocumentStatus,
 } from '../../generated/prisma/client';
+import { RequestDocumentDto } from './dto/request-document.dto';
+import { UpdateDocumentStatusDto } from './dto/update-document-status.dto';
+import { EditDocumentDto } from './dto/edit-document.dto';
 
 @Controller('documents')
 @UseGuards(AuthGuard)
@@ -55,14 +58,7 @@ export class DocumentController {
   @Post('request')
   async requestDocument(
     @Request() req,
-    @Body()
-    body: {
-      employeeId: string;
-      name: string;
-      category: DocumentCategory;
-      dueDate?: string;
-      requestMessage?: string;
-    },
+    @Body() body: RequestDocumentDto,
   ) {
     // Convert string date to Date object if it exists
     const parsedDueDate = body.dueDate ? new Date(body.dueDate) : undefined;
@@ -187,8 +183,7 @@ export class DocumentController {
     );
 
     // Enforce that only Admins can specify employeeId on upload, and set it to null for COMPANY policies
-    const isAdmin =
-      req.user.role === 'SUPER_ADMIN' || req.user.role === 'HR_HEAD';
+    const isAdmin = ['SUPER_ADMIN', 'HR_HEAD', 'OWNER'].includes(req.user.role);
     const targetEmployeeId =
       body.category === DocumentCategory.COMPANY
         ? null
@@ -208,17 +203,46 @@ export class DocumentController {
     );
   }
 
+  @Get(':id/details')
+  async getDocumentDetails(@Request() req, @Param('id') id: string) {
+    return this.documentService.getDocumentById(
+      id,
+      req.user.sub,
+      req.user.role,
+      req.user.companyId,
+    );
+  }
+
+  @Get(':id')
+  async getDocumentById(@Request() req, @Param('id') id: string) {
+    return this.documentService.getDocumentById(
+      id,
+      req.user.sub,
+      req.user.role,
+      req.user.companyId,
+    );
+  }
+
+  @Post(':id/sign')
+  async signDocument(@Request() req, @Param('id') id: string) {
+    return this.documentService.signDocument(
+      id,
+      req.user.sub,
+      req.user.companyId,
+    );
+  }
+
   // ✅ NEW: Rejection reason added to the payload
   @Patch(':id/status')
   async updateStatus(
     @Request() req,
     @Param('id') id: string,
-    @Body() body: { status: DocumentStatus; rejectionReason?: string },
+    @Body() body: UpdateDocumentStatusDto,
   ) {
     return this.documentService.updateDocumentStatus(
       id,
       body.status,
-      body.rejectionReason || null, // Pass to service
+      body.rejectionReason || body.reason || null, // Pass to service
       req.user.sub,
       req.user.role,
       req.user.companyId,
@@ -239,12 +263,7 @@ export class DocumentController {
   async editDocument(
     @Request() req,
     @Param('id') id: string,
-    @Body()
-    body: {
-      name: string;
-      category: DocumentCategory;
-      employeeId: string | null;
-    },
+    @Body() body: EditDocumentDto,
   ) {
     return this.documentService.editDocument(
       id,

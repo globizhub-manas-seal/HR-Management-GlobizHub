@@ -30,18 +30,23 @@ async function bootstrap() {
       // S-13: Use exact string comparison only — no wildcard regex conversion.
       // Listing "https://*.vercel.app" would previously allow every Vercel tenant.
       // Allowed origins must be explicit, comma-separated in FRONTEND_ORIGIN.
-      const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? '')
+      const configuredOrigins = (process.env.FRONTEND_ORIGIN ?? '')
         .split(',')
         .map((o) => o.trim())
         .filter(Boolean);
 
-      const isAllowed =
-        allowedOrigins.length === 0 || allowedOrigins.includes(origin);
+      const isProduction = process.env.NODE_ENV === 'production';
+      // In development, automatically allow localhost and 127.0.0.1 on any port
+      const isLocalhost =
+        !isProduction &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-      if (isAllowed) {
+      if (isLocalhost || configuredOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(
+          new Error(`Not allowed by CORS: Origin ${origin} is not authorized`),
+        );
       }
     },
     credentials: true,
