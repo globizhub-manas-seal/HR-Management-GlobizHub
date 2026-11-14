@@ -23,6 +23,7 @@ import {
   AlertOctagon,
 } from "lucide-react";
 import { platformApi } from "@/lib/platform-api";
+import InvoiceReceiptModal from "@/components/billing/InvoiceReceiptModal";
 
 interface InvoiceItem {
   id: string;
@@ -78,6 +79,20 @@ export default function InvoicesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createSuccess, setCreateSuccess] = useState("");
   const [createError, setCreateError] = useState("");
+
+  // Invoice Receipt / Print Modal
+  const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+
+  const handleViewInvoice = async (id: string) => {
+    try {
+      const res = await platformApi.get(`/platform/billing/invoices/${id}`);
+      setSelectedInvoice(res.data);
+      setReceiptModalOpen(true);
+    } catch (err) {
+      console.error("Failed to load invoice details", err);
+    }
+  };
   const [form, setForm] = useState({
     companyId: "",
     amountDue: 4999,
@@ -374,9 +389,9 @@ export default function InvoicesPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => alert(`Downloading PDF for ${inv.invoiceNumber}...`)}
-                            className="p-1.5 rounded bg-card border border-border text-muted-foreground hover:text-foreground transition-colors"
-                            title="Download PDF"
+                            onClick={() => handleViewInvoice(inv.id)}
+                            className="p-1.5 rounded bg-card border border-border text-muted-foreground hover:text-foreground transition-colors hover:border-primary/40"
+                            title="View / Print Tax Invoice"
                           >
                             <Download className="h-3.5 w-3.5" />
                           </button>
@@ -540,6 +555,13 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+
+      {/* Tax Invoice Printable Receipt Modal */}
+      <InvoiceReceiptModal
+        invoice={selectedInvoice}
+        isOpen={receiptModalOpen}
+        onClose={() => setReceiptModalOpen(false)}
+      />
     </div>
   );
 }

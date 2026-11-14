@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import { attendanceApi } from "@/lib/api";
 import { CheckCircle, XCircle, Clock, Calendar, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,23 +16,13 @@ export default function AttendanceApprovalsPage() {
   // 1. Fetch Pending Corrections
   const { data: corrections, isLoading } = useQuery({
     queryKey: ["pendingCorrections"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/attendance/corrections/pending`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return res.data;
-    }
+    queryFn: attendanceApi.getApprovals,
   });
 
   // 2. Mutation to Review (Approve/Reject)
   const reviewMutation = useMutation({
     mutationFn: async ({ id, status, note }: { id: string, status: 'APPROVED' | 'REJECTED', note?: string }) => {
-      const token = localStorage.getItem("hrms_token");
-      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/attendance/corrections/${id}/review`, 
-        { status, note },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      return attendanceApi.approveCorrection(id, { status, note });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pendingCorrections"] });

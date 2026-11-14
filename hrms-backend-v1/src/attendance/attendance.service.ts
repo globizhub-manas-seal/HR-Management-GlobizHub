@@ -356,12 +356,32 @@ export class AttendanceService {
       }
     }
 
+    // 4. Half-day and minimum hours evaluation
+    const settings = await this.prisma.companySettings.findUnique({
+      where: { companyId },
+    });
+    const minFullDay = settings?.minimumHoursForFullDay ?? 8.0;
+    let isHalfDay = false;
+    let finalStatus = record.status;
+
+    if (record.status !== 'PROXY_SHIFT_SWAP') {
+      if (totalWorkingHours > 0 && totalWorkingHours < minFullDay) {
+        finalStatus = 'HALF_DAY';
+        isHalfDay = true;
+      } else if (totalWorkingHours >= minFullDay) {
+        finalStatus = record.isLate ? 'LATE' : 'PRESENT';
+        isHalfDay = false;
+      }
+    }
+
     const updated = await this.prisma.attendance.update({
       where: { id: record.id },
       data: {
         checkOutTime: now,
         workingHours: totalWorkingHours,
         overtimeHours,
+        status: finalStatus,
+        isHalfDay,
       },
       include: {
         sessions: {
@@ -623,13 +643,20 @@ export class AttendanceService {
           correction.requestedCheckOut.getTime() -
           correction.requestedCheckIn.getTime();
 
-        workingHours = diffMs / (1000 * 60 * 60);
+        workingHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
 
-        // Standard 9-hour workday
+        // Standard 9-hour workday threshold for overtime
         if (workingHours > 9) {
-          overtimeHours = workingHours - 9;
+          overtimeHours = Math.round((workingHours - 9) * 100) / 100;
         }
       }
+
+      const settings = await this.prisma.companySettings.findUnique({
+        where: { companyId },
+      });
+      const minFullDay = settings?.minimumHoursForFullDay ?? 8.0;
+      const isHalfDay = workingHours > 0 && workingHours < minFullDay;
+      const finalStatus = isHalfDay ? 'HALF_DAY' : 'PRESENT';
 
       if (correction.attendanceId) {
         // Update existing attendance
@@ -645,7 +672,8 @@ export class AttendanceService {
 
             workingHours,
             overtimeHours,
-            status: 'PRESENT',
+            status: finalStatus,
+            isHalfDay,
           },
         });
       } else {
@@ -665,7 +693,8 @@ export class AttendanceService {
             workingHours,
             overtimeHours,
 
-            status: 'PRESENT',
+            status: finalStatus,
+            isHalfDay,
 
             verificationMethod: 'MANUAL_CORRECTION',
           },
@@ -674,5 +703,220 @@ export class AttendanceService {
     }
 
     return updatedCorrection;
+  }
+
+  // ==========================================
+  // COMPANY ATTENDANCE REGISTER & EXPORT
+  // ==========================================
+  async getCompanyAttendanceRecords(
+    companyId: string,
+    query: {
+      date?: string;
+      departmentId?: string;
+      status?: string;
+      search?: string;
+    },
+  ) {
+    const targetDate = query.date ? new Date(query.date) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Fetch active employees
+    const employees = await this.prisma.employee.findMany({
+      where: {
+        companyId,
+        employmentStatus: { not: 'TERMINATED' },
+        ...(query.departmentId ? { departmentId: query.departmentId } : {}),
+      },
+      include: {
+        department: { select: { id: true, name: true } },
+        designation: { select: { id: true, name: true } },
+      },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    });
+
+    // Fetch all attendance records for targetDate
+    const attendanceRecords = await this.prisma.attendance.findMany({
+      where: {
+        companyId,
+        date: { gte: targetDate, lte: endOfDay },
+      },
+      include: {
+        shift: true,
+        sessions: { orderBy: { sessionIndex: 'asc' } },
+      },
+    });
+
+    const attendanceMap = new Map<string, any>();
+    attendanceRecords.forEach((att) => {
+      attendanceMap.set(att.employeeId, att);
+    });
+
+    // Fetch approved leaves on targetDate
+    const approvedLeaves = await this.prisma.leaveRequest.findMany({
+      where: {
+        companyId,
+        status: 'APPROVED',
+        startDate: { lte: endOfDay },
+        endDate: { gte: targetDate },
+      },
+    });
+    const leaveMap = new Map<string, any>();
+    approvedLeaves.forEach((lv) => {
+      leaveMap.set(lv.employeeId, lv);
+    });
+
+    // Merge employee records
+    let rows = employees.map((emp) => {
+      const att = attendanceMap.get(emp.id);
+      const leave = leaveMap.get(emp.id);
+
+      let status = 'ABSENT';
+      if (att) {
+        status = att.status;
+      } else if (leave) {
+        status = 'ON_LEAVE';
+      }
+
+      return {
+        id: att ? att.id : `virt-${emp.id}`,
+        employeeId: emp.id,
+        employeeCode: emp.employeeCode || emp.id.substring(0, 8),
+        name: `${emp.firstName} ${emp.lastName}`.trim(),
+        email: emp.email,
+        avatar: emp.profilePhoto || null,
+        role: emp.role,
+        department: emp.department?.name || 'Unassigned',
+        departmentId: emp.departmentId,
+        designation: emp.designation?.name || emp.role,
+        date: targetDate.toISOString().split('T')[0],
+        checkInTime: att?.checkInTime || null,
+        checkOutTime: att?.checkOutTime || null,
+        workingHours: att?.workingHours ?? 0,
+        overtimeHours: att?.overtimeHours ?? 0,
+        isLate: att?.isLate ?? false,
+        isHalfDay: att?.isHalfDay ?? false,
+        verificationMethod: att?.verificationMethod || 'NONE',
+        shiftName: att?.shift?.name || 'Standard',
+        status,
+        leaveType: leave?.type || null,
+      };
+    });
+
+    // Filter by search
+    if (query.search) {
+      const q = query.search.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.employeeCode.toLowerCase().includes(q) ||
+          r.department.toLowerCase().includes(q),
+      );
+    }
+
+    // Compute stats
+    const stats = {
+      total: rows.length,
+      present: rows.filter(
+        (r) =>
+          r.status === 'PRESENT' ||
+          r.status === 'LATE' ||
+          r.status === 'PROXY_SHIFT_SWAP',
+      ).length,
+      late: rows.filter((r) => r.isLate || r.status === 'LATE').length,
+      halfDay: rows.filter((r) => r.status === 'HALF_DAY' || r.isHalfDay).length,
+      absent: rows.filter((r) => r.status === 'ABSENT').length,
+      onLeave: rows.filter((r) => r.status === 'ON_LEAVE').length,
+    };
+
+    // Filter by status if requested
+    if (query.status && query.status !== 'ALL') {
+      rows = rows.filter((r) => r.status === query.status);
+    }
+
+    return {
+      date: targetDate.toISOString().split('T')[0],
+      stats,
+      records: rows,
+    };
+  }
+
+  async exportCompanyAttendanceCsv(
+    companyId: string,
+    query: {
+      date?: string;
+      departmentId?: string;
+      status?: string;
+      search?: string;
+    },
+  ): Promise<string> {
+    const { records } = await this.getCompanyAttendanceRecords(
+      companyId,
+      query,
+    );
+
+    const headers = [
+      'Employee ID',
+      'Employee Name',
+      'Email',
+      'Department',
+      'Designation',
+      'Date',
+      'Status',
+      'Check In',
+      'Check Out',
+      'Working Hours',
+      'Overtime Hours',
+      'Late',
+      'Half Day',
+      'Verification Method',
+    ];
+
+    const escapeCsv = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const csvRows = [headers.join(',')];
+
+    for (const r of records) {
+      const checkInStr = r.checkInTime
+        ? new Date(r.checkInTime).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '--:--';
+      const checkOutStr = r.checkOutTime
+        ? new Date(r.checkOutTime).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '--:--';
+
+      const row = [
+        escapeCsv(r.employeeCode),
+        escapeCsv(r.name),
+        escapeCsv(r.email),
+        escapeCsv(r.department),
+        escapeCsv(r.designation),
+        escapeCsv(r.date),
+        escapeCsv(r.status),
+        escapeCsv(checkInStr),
+        escapeCsv(checkOutStr),
+        escapeCsv(r.workingHours),
+        escapeCsv(r.overtimeHours),
+        escapeCsv(r.isLate ? 'YES' : 'NO'),
+        escapeCsv(r.isHalfDay ? 'YES' : 'NO'),
+        escapeCsv(r.verificationMethod),
+      ];
+      csvRows.push(row.join(','));
+    }
+
+    // UTF-8 BOM for Excel / external parsers
+    return '\uFEFF' + csvRows.join('\r\n');
   }
 }

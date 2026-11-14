@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api, { leavesApi } from "@/lib/api";
-import { Loader2, CalendarCheck, Check, X } from "lucide-react";
+import { Loader2, CalendarCheck, Check, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useViewMode } from "@/context/ViewModeContext";
 
 export default function AdminLeaveApprovalPage() {
@@ -17,6 +25,11 @@ export default function AdminLeaveApprovalPage() {
 
   // Fetch current user details from global workspace ViewModeContext
   const { user, activeRole, isLoading: isLoadingUser } = useViewMode();
+
+  // Rejection Dialog State
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Redirect users in Employee mode back to the standard leaves page
   useEffect(() => {
@@ -38,12 +51,38 @@ export default function AdminLeaveApprovalPage() {
 
   // Mutation to update leave status (APPROVE / REJECT)
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      leavesApi.updateStatus(id, { status }),
+    mutationFn: ({
+      id,
+      status,
+      rejectionReason,
+    }: {
+      id: string;
+      status: string;
+      rejectionReason?: string;
+    }) => leavesApi.updateStatus(id, { status, rejectionReason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminCompanyLeaves"] });
+      setRejectModalOpen(false);
+      setRejectTargetId(null);
+      setRejectionReason("");
     },
   });
+
+  const handleOpenReject = (id: string) => {
+    setRejectTargetId(id);
+    setRejectionReason("");
+    setRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (rejectTargetId) {
+      statusMutation.mutate({
+        id: rejectTargetId,
+        status: "REJECTED",
+        rejectionReason: rejectionReason.trim() || undefined,
+      });
+    }
+  };
 
   const isLoading = isLoadingUser || isLoadingLeaves;
 
@@ -78,6 +117,7 @@ export default function AdminLeaveApprovalPage() {
                   <TableHead className="font-semibold text-slate-700">Employee</TableHead>
                   <TableHead className="font-semibold text-slate-700">Type</TableHead>
                   <TableHead className="font-semibold text-slate-700">Dates</TableHead>
+                  <TableHead className="font-semibold text-slate-700">Days</TableHead>
                   <TableHead className="font-semibold text-slate-700">Reason</TableHead>
                   <TableHead className="font-semibold text-slate-700">Status</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right">Actions</TableHead>
@@ -88,7 +128,10 @@ export default function AdminLeaveApprovalPage() {
                   <TableRow key={req.id}>
                     <TableCell className="font-medium text-slate-900">
                       {req.employee?.firstName} {req.employee?.lastName}
-                      <span className="block text-xs text-slate-400 font-normal">{req.employee?.email}</span>
+                      <span className="block text-xs text-slate-400 font-normal">
+                        {req.employee?.employeeCode ? `${req.employee.employeeCode} · ` : ""}
+                        {req.employee?.email}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="font-semibold">{req.type}</Badge>
@@ -96,14 +139,23 @@ export default function AdminLeaveApprovalPage() {
                     <TableCell className="text-slate-600 text-xs">
                       {new Date(req.startDate).toLocaleDateString()} → {new Date(req.endDate).toLocaleDateString()}
                     </TableCell>
+                    <TableCell className="text-slate-900 font-medium text-xs tabular-nums">
+                      {req.totalDays} {req.totalDays === 1 ? "day" : "days"}
+                    </TableCell>
                     <TableCell className="text-slate-600 italic max-w-xs truncate">{req.reason}</TableCell>
                     <TableCell>
                       <Badge className={
                         req.status === 'APPROVED' ? 'bg-emerald-500' :
-                        req.status === 'REJECTED' ? 'bg-rose-500' : 'bg-amber-500'
+                        req.status === 'REJECTED' ? 'bg-rose-500' :
+                        req.status === 'WITHDRAWN' ? 'bg-slate-400' : 'bg-amber-500'
                       }>
                         {req.status}
                       </Badge>
+                      {req.rejectionReason && (
+                        <span className="block text-[11px] text-rose-600 not-italic mt-0.5 truncate max-w-[140px]" title={req.rejectionReason}>
+                          Reason: {req.rejectionReason}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       {req.status === 'PENDING' && (
@@ -120,7 +172,7 @@ export default function AdminLeaveApprovalPage() {
                             size="sm" 
                             variant="destructive"
                             className="h-8 px-3"
-                            onClick={() => statusMutation.mutate({ id: req.id, status: 'REJECTED' })}
+                            onClick={() => handleOpenReject(req.id)}
                             disabled={statusMutation.isPending}
                           >
                             <X className="w-4 h-4 mr-1" /> Reject
@@ -135,6 +187,45 @@ export default function AdminLeaveApprovalPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* REJECTION REASON MODAL */}
+      <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-rose-500" />
+              Reject Leave Request
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Provide an optional or required reason explaining why this request cannot be approved.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <label className="text-xs font-semibold text-slate-700">Rejection Note / Reason</label>
+            <textarea
+              rows={3}
+              placeholder="e.g. Critical project deadline, overlapping team leaves, insufficient coverage..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="w-full text-sm rounded-md border border-slate-300 p-2.5 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={statusMutation.isPending}
+            >
+              {statusMutation.isPending ? "Rejecting..." : "Confirm Rejection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 export default function AdminEmployeeDocumentsPage() {
@@ -21,6 +21,11 @@ export default function AdminEmployeeDocumentsPage() {
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestForm, setRequestForm] = useState({ name: "", category: "COMPLIANCE" });
+
+  // Rejection modal state
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectDocId, setRejectDocId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // 1. Fetch this specific employee's documents
   const { data: documents, isLoading } = useQuery({
@@ -41,10 +46,13 @@ export default function AdminEmployeeDocumentsPage() {
 
   // 3. Mutation: Verify or Reject a document
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string, status: string }) =>
-      documentsApi.updateStatus(id, { status }),
+    mutationFn: ({ id, status, reason }: { id: string, status: string, reason?: string }) =>
+      documentsApi.updateStatus(id, { status, rejectionReason: reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employeeDocuments", employeeId] });
+      setIsRejectModalOpen(false);
+      setRejectDocId(null);
+      setRejectionReason("");
     }
   });
 
@@ -53,11 +61,16 @@ export default function AdminEmployeeDocumentsPage() {
   const complianceDocs = documents?.filter((d: any) => d.category === "COMPLIANCE") || [];
   const employmentDocs = documents?.filter((d: any) => d.category === "EMPLOYMENT") || [];
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, reason?: string) => {
     switch(status) {
       case "VERIFIED": return <Badge className="bg-emerald-100 text-emerald-700"><CheckCircle2 className="w-3 h-3 mr-1"/> Verified</Badge>;
       case "SUBMITTED": return <Badge className="bg-amber-100 text-amber-700"><Clock className="w-3 h-3 mr-1"/> Needs Review</Badge>;
-      case "REJECTED": return <Badge className="bg-rose-100 text-rose-700"><XCircle className="w-3 h-3 mr-1"/> Rejected</Badge>;
+      case "REJECTED": return (
+        <div className="flex flex-col items-start gap-1">
+          <Badge className="bg-rose-100 text-rose-700"><XCircle className="w-3 h-3 mr-1"/> Rejected</Badge>
+          {reason && <span className="text-[11px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">Reason: {reason}</span>}
+        </div>
+      );
       case "REQUESTED": return <Badge className="bg-slate-100 text-slate-600"><AlertCircle className="w-3 h-3 mr-1"/> Pending Upload</Badge>;
       default: return null;
     }
@@ -72,7 +85,7 @@ export default function AdminEmployeeDocumentsPage() {
         </div>
         <div>
           <h4 className="font-semibold text-slate-900 text-sm">{doc.name}</h4>
-          <div className="mt-1">{getStatusBadge(doc.status)}</div>
+          <div className="mt-1">{getStatusBadge(doc.status, doc.rejectionReason)}</div>
         </div>
       </div>
 
@@ -99,7 +112,11 @@ export default function AdminEmployeeDocumentsPage() {
               size="sm" 
               variant="outline" 
               className="border-rose-200 text-rose-600 hover:bg-rose-50"
-              onClick={() => updateStatusMutation.mutate({ id: doc.id, status: "REJECTED" })}
+              onClick={() => {
+                setRejectDocId(doc.id);
+                setRejectionReason("");
+                setIsRejectModalOpen(true);
+              }}
               disabled={updateStatusMutation.isPending}
             >
               Reject
@@ -120,10 +137,14 @@ export default function AdminEmployeeDocumentsPage() {
           <p className="text-sm text-slate-500 mt-1">Review uploads, verify identities, and request new paperwork.</p>
         </div>
         
+        <Button 
+          onClick={() => setIsRequestModalOpen(true)} 
+          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Request Document
+        </Button>
+
         <Dialog open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
-          <DialogTrigger render={<Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" />}>
-            <Plus className="w-4 h-4 mr-2" /> Request Document
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Request Document from Employee</DialogTitle>
@@ -159,6 +180,48 @@ export default function AdminEmployeeDocumentsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* REJECT REASON MODAL */}
+      <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Document</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-slate-600">
+              Please provide a reason for rejecting this document so the employee knows what to fix.
+            </p>
+            <Input
+              placeholder="e.g. Document image is blurry, expired ID, etc."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsRejectModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!rejectionReason.trim() || updateStatusMutation.isPending}
+                onClick={() => {
+                  if (rejectDocId) {
+                    updateStatusMutation.mutate({
+                      id: rejectDocId,
+                      status: "REJECTED",
+                      reason: rejectionReason,
+                    });
+                  }
+                }}
+              >
+                {updateStatusMutation.isPending ? "Rejecting..." : "Confirm Rejection"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* COMPLIANCE SECTION */}
       <Card className="border-slate-200 shadow-sm">

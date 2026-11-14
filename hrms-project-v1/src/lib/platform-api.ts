@@ -23,8 +23,8 @@ platformApi.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("platform_token");
       localStorage.removeItem("platform_user");
-      if (!window.location.pathname.startsWith("/platform-admin/login")) {
-        window.location.href = "/platform-admin/login";
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);

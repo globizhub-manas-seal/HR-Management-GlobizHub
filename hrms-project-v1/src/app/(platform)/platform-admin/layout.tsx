@@ -21,7 +21,7 @@ function PlatformAdminShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (mounted && !isLoading && !isAuthenticated && !isLoginPage) {
-      router.replace("/platform-admin/login");
+      router.replace("/login");
     }
   }, [mounted, isLoading, isAuthenticated, isLoginPage, router]);
 
@@ -46,13 +46,13 @@ function PlatformAdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
-      {/* 01 to 09 Navigation Sidebar */}
-      <PlatformSidebar />
+      {/* Desktop 272px Navigation Sidebar */}
+      <PlatformSidebar className="hidden lg:flex" />
 
       {/* Main Content Area */}
       <div className="flex flex-col flex-1 h-full min-w-0 overflow-hidden">
         <PlatformHeader />
-        <main className="flex-1 overflow-y-auto bg-background p-6">
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6">
           {children}
         </main>
       </div>

@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -20,6 +21,8 @@ import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -106,7 +109,7 @@ export class AuthService {
             email: dto.adminEmail,
             phone: dto.adminPhone,
             password: hashedPassword, // <-- Changed from passwordHash to password
-            role: 'SUPER_ADMIN',
+            role: 'OWNER',
             employeeCode: generatedEmployeeCode,
           },
         },
@@ -226,6 +229,41 @@ export class AuthService {
     });
 
     const newAdmin = company.employees[0];
+
+    // 4b. Auto-provision Free Trial Platform Subscription
+    try {
+      let trialPlan = await this.prisma.platformPlan.findFirst({
+        where: {
+          OR: [{ code: 'PLAN_FREE' }, { name: 'Free Trial' }],
+          isActive: true,
+        },
+      });
+      if (!trialPlan) {
+        trialPlan = await this.prisma.platformPlan.findFirst({
+          where: { isActive: true },
+          orderBy: { monthlyPrice: 'asc' },
+        });
+      }
+      if (trialPlan) {
+        const trialDays = trialPlan.trialDays || 14;
+        const now = new Date();
+        const trialEndsAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+        await this.prisma.subscription.create({
+          data: {
+            companyId: company.id,
+            planId: trialPlan.id,
+            billingCycle: 'MONTHLY',
+            status: 'TRIAL',
+            startDate: now,
+            trialEndsAt,
+            currentPeriodEnd: trialEndsAt,
+          },
+        });
+        this.logger.log(`Auto-provisioned Free Trial subscription for company: ${company.name} (${company.id})`);
+      }
+    } catch (subErr: any) {
+      this.logger.error(`Failed to auto-provision trial subscription for company ${company.id}: ${subErr?.message}`);
+    }
 
     // 5. Process and Invite Additional Employees (from Bulk Excel/CSV upload or comma-separated emails)
     const employeesToInvite: Array<{
@@ -659,6 +697,25 @@ export class AuthService {
     });
 
     if (!profile) {
+      if (this.prisma.platformUser) {
+        const platformUser = await this.prisma.platformUser.findUnique({
+          where: { id: employeeId },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            isActive: true,
+          },
+        });
+        if (platformUser && platformUser.isActive) {
+          return {
+            ...platformUser,
+            isPlatform: true,
+          };
+        }
+      }
       throw new UnauthorizedException('User not found');
     }
 

@@ -9,17 +9,20 @@ import {
   Request,
   Delete,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { LeaveService } from './leave.service';
 import { AuthGuard } from '../auth/auth.guard';
-// S-04: PermissionsGuard was missing from this controller
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateLeaveDto } from './dto/create-leave.dto';
+import { CreateLeavePolicyDto } from './dto/create-leave-policy.dto';
+import { UpdateLeavePolicyDto } from './dto/update-leave-policy.dto';
+import { UpdateLeaveStatusDto } from './dto/update-leave-status.dto';
+import { AdjustLeaveBalanceDto } from './dto/adjust-leave-balance.dto';
 import { LeaveStatus } from '../../generated/prisma/client';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 
 @Controller('leaves')
-// S-04: Apply both guards consistently; PermissionsGuard respects @RequirePermissions
 @UseGuards(AuthGuard, PermissionsGuard)
 export class LeaveController {
   constructor(private readonly leaveService: LeaveService) {}
@@ -38,9 +41,37 @@ export class LeaveController {
     return this.leaveService.getMyLeaves(req.user.sub);
   }
 
+  // Alias for my leaves
+  @Get('my-leaves')
+  async getMyLeavesAlias(@Request() req) {
+    return this.leaveService.getMyLeaves(req.user.sub);
+  }
+
+  // Manager & HR pending approvals desk
+  @Get('approvals')
+  async getApprovals(@Request() req) {
+    return this.leaveService.getApprovals(req.user.companyId, req.user);
+  }
+
   @Get('company')
-  async getAllCompanyLeaves(@Request() req) {
-    return this.leaveService.getAllCompanyLeaves(req.user.companyId);
+  async getAllCompanyLeaves(
+    @Request() req,
+    @Query('status') status?: LeaveStatus,
+  ) {
+    return this.leaveService.getAllCompanyLeaves(req.user.companyId, {
+      status,
+    });
+  }
+
+  // Alias for company leaves (compatible with /leaves/admin/company)
+  @Get('admin/company')
+  async getAdminCompanyLeaves(
+    @Request() req,
+    @Query('status') status?: LeaveStatus,
+  ) {
+    return this.leaveService.getAllCompanyLeaves(req.user.companyId, {
+      status,
+    });
   }
 
   @Get('company-balances')
@@ -58,17 +89,40 @@ export class LeaveController {
     return this.leaveService.getMyAllocations(req.user.sub);
   }
 
+  // Employee withdraws / cancels pending or approved future leave
+  @Post(':id/withdraw')
+  async withdrawLeave(@Request() req, @Param('id') id: string) {
+    return this.leaveService.withdrawLeaveRequest(
+      req.user.companyId,
+      id,
+      req.user.sub,
+      req.user.role,
+    );
+  }
+
   @Patch(':id/status')
   async updateStatus(
     @Request() req,
     @Param('id') id: string,
-    @Body('status') status: LeaveStatus,
+    @Body() dto: UpdateLeaveStatusDto,
   ) {
     return this.leaveService.updateLeaveStatus(
       req.user.companyId,
       id,
-      status,
+      dto.status,
       req.user.role,
+      req.user.sub,
+      dto.rejectionReason,
+    );
+  }
+
+  // HR manual balance adjustment / comp-off credit
+  @Post('adjust-balance')
+  @RequirePermissions('leave.manage')
+  async adjustBalance(@Request() req, @Body() dto: AdjustLeaveBalanceDto) {
+    return this.leaveService.adjustLeaveBalance(
+      req.user.companyId,
+      dto,
       req.user.sub,
     );
   }
@@ -100,18 +154,6 @@ export class LeaveController {
     return this.leaveService.addHoliday(req.user.companyId, body, req.user.sub);
   }
 
-  // S-04: @RequirePermissions was commented out — restored
-  @Post('policy')
-  @RequirePermissions('leave.manage')
-  async createPolicy(@Request() req, @Body() body: any) {
-    return this.leaveService.createLeavePolicy(req.user.companyId, body);
-  }
-
-  @Get('policy')
-  async getPolicies(@Request() req) {
-    return this.leaveService.getCompanyPolicies(req.user.companyId);
-  }
-
   @Delete('holidays/:id')
   @RequirePermissions('leave.manage')
   async removeHoliday(@Request() req, @Param('id') id: string) {
@@ -120,5 +162,35 @@ export class LeaveController {
       id,
       req.user.sub,
     );
+  }
+
+  // ==========================================
+  // LEAVE POLICY MANAGEMENT
+  // ==========================================
+  @Post('policy')
+  @RequirePermissions('leave.manage')
+  async createPolicy(@Request() req, @Body() dto: CreateLeavePolicyDto) {
+    return this.leaveService.createLeavePolicy(req.user.companyId, dto);
+  }
+
+  @Get('policy')
+  async getPolicies(@Request() req) {
+    return this.leaveService.getCompanyPolicies(req.user.companyId);
+  }
+
+  @Patch('policy/:id')
+  @RequirePermissions('leave.manage')
+  async updatePolicy(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateLeavePolicyDto,
+  ) {
+    return this.leaveService.updateLeavePolicy(req.user.companyId, id, dto);
+  }
+
+  @Delete('policy/:id')
+  @RequirePermissions('leave.manage')
+  async deletePolicy(@Request() req, @Param('id') id: string) {
+    return this.leaveService.deleteLeavePolicy(req.user.companyId, id);
   }
 }

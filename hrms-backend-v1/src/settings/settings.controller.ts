@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
 
 @Controller('settings')
 @UseGuards(AuthGuard)
@@ -22,7 +23,7 @@ export class SettingsController {
 
   @Patch()
   @Put()
-  async updateSettings(@Request() req, @Body() dto: any) {
+  async updateSettings(@Request() req, @Body() dto: UpdateCompanySettingsDto) {
     return this.settingsService.updateSettings(
       req.user.companyId,
       dto,

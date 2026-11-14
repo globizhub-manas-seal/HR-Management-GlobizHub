@@ -30,5 +30,38 @@ export const attendanceApi = {
     const res = await api.patch(`/attendance/approvals/${id}`, data);
     return res.data;
   },
+
+  requestCorrection: async (data: {
+    date: string;
+    requestedCheckIn?: string;
+    requestedCheckOut?: string;
+    reason: string;
+  }) => {
+    const res = await api.post("/attendance/corrections", data);
+    return res.data;
+  },
+
+  getCompanyRecords: async (params?: {
+    date?: string;
+    departmentId?: string;
+    status?: string;
+    search?: string;
+  }) => {
+    const res = await api.get("/attendance/records", { params });
+    return res.data;
+  },
+
+  exportAttendanceCsv: async (params?: {
+    date?: string;
+    departmentId?: string;
+    status?: string;
+    search?: string;
+  }) => {
+    const res = await api.get("/attendance/export", {
+      params,
+      responseType: "blob",
+    });
+    return res.data;
+  },
 };
 

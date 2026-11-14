@@ -1,9 +1,8 @@
 "use client";
 
-import api, { API_BASE_URL } from "@/lib/api";
+import api, { settingsApi, organizationApi } from "@/lib/api";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,6 +31,8 @@ import {
   IdCard,
   Sparkles,
   Check,
+  Calendar,
+  CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,16 @@ import { SettingsSkeleton } from "@/components/skeletons";
 
 const HOURS = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0"));
 const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
+
+const WORKING_DAYS = [
+  { key: "MONDAY", label: "Monday" },
+  { key: "TUESDAY", label: "Tuesday" },
+  { key: "WEDNESDAY", label: "Wednesday" },
+  { key: "THURSDAY", label: "Thursday" },
+  { key: "FRIDAY", label: "Friday" },
+  { key: "SATURDAY", label: "Saturday" },
+  { key: "SUNDAY", label: "Sunday" },
+];
 
 function parse24hTo12h(timeStr: string) {
   if (!timeStr) return { hour: 9, minute: 0, period: "AM" };
@@ -60,42 +71,19 @@ function format12hTo24h(hour: number, minute: number, period: string) {
 }
 
 export default function SettingsPage() {
-  const API_URL = API_BASE_URL;
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("hrms_token") : "";
-  const headers = { Authorization: `Bearer ${token}` };
-
   const { data: branches } = useQuery({
     queryKey: ["branches"],
-    queryFn: async () =>
-      (
-        await axios.get(
-          `${API_BASE_URL}/organization/branches`,
-          { headers },
-        )
-      ).data,
+    queryFn: () => organizationApi.getBranches(),
   });
 
   const { data: departments } = useQuery({
     queryKey: ["departments"],
-    queryFn: async () =>
-      (
-        await axios.get(
-          `${API_BASE_URL}/organization/departments`,
-          { headers },
-        )
-      ).data,
+    queryFn: () => organizationApi.getDepartments(),
   });
 
   const { data: roles } = useQuery({
     queryKey: ["roles"],
-    queryFn: async () =>
-      (
-        await axios.get(
-          `${API_BASE_URL}/organization/roles`,
-          { headers },
-        )
-      ).data,
+    queryFn: () => organizationApi.getRoles(),
   });
 
   const queryClient = useQueryClient();
@@ -142,9 +130,7 @@ export default function SettingsPage() {
 
   // Branches mutations
   const addBranchMutation = useMutation({
-    mutationFn: async (name: string) => {
-      return (await axios.post(`${API_URL}/organization/branches`, { name }, { headers })).data;
-    },
+    mutationFn: (name: string) => organizationApi.createBranch({ name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
       setIsAddingBranch(false);
@@ -152,26 +138,22 @@ export default function SettingsPage() {
     },
     onError: (err: any) => {
       alert(err.response?.data?.message || "Failed to add branch");
-    }
+    },
   });
 
   const deleteBranchMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await axios.delete(`${API_URL}/organization/branches/${id}`, { headers });
-    },
+    mutationFn: (id: string) => organizationApi.deleteBranch(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
     },
     onError: (err: any) => {
       alert(err.response?.data?.message || "Failed to delete branch");
-    }
+    },
   });
 
   // Departments mutations
   const addDeptMutation = useMutation({
-    mutationFn: async (name: string) => {
-      return (await axios.post(`${API_URL}/organization/departments`, { name }, { headers })).data;
-    },
+    mutationFn: (name: string) => organizationApi.createDepartment({ name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments"] });
       setIsAddingDept(false);
@@ -179,26 +161,22 @@ export default function SettingsPage() {
     },
     onError: (err: any) => {
       alert(err.response?.data?.message || "Failed to add department");
-    }
+    },
   });
 
   const deleteDeptMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await axios.delete(`${API_URL}/organization/departments/${id}`, { headers });
-    },
+    mutationFn: (id: string) => organizationApi.deleteDepartment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments"] });
     },
     onError: (err: any) => {
       alert(err.response?.data?.message || "Failed to delete department");
-    }
+    },
   });
 
   // Roles mutations
   const addRoleMutation = useMutation({
-    mutationFn: async (name: string) => {
-      return (await axios.post(`${API_URL}/organization/roles`, { name }, { headers })).data;
-    },
+    mutationFn: (name: string) => organizationApi.createRole({ name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       setIsAddingRole(false);
@@ -206,33 +184,23 @@ export default function SettingsPage() {
     },
     onError: (err: any) => {
       alert(err.response?.data?.message || "Failed to add role");
-    }
+    },
   });
 
   const deleteRoleMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await axios.delete(`${API_URL}/organization/roles/${id}`, { headers });
-    },
+    mutationFn: (id: string) => organizationApi.deleteRole(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
     },
     onError: (err: any) => {
       alert(err.response?.data?.message || "Failed to delete role");
-    }
+    },
   });
 
   // 1. Fetch Current Settings
   const { data: settings, isLoading } = useQuery({
     queryKey: ["companySettings"],
-    queryFn: async () => {
-      const res = await axios.get(
-        `${API_BASE_URL}/settings`,
-        {
-          headers,
-        },
-      );
-      return res.data;
-    },
+    queryFn: () => settingsApi.getSettings(),
   });
 
   useEffect(() => {
@@ -241,18 +209,13 @@ export default function SettingsPage() {
 
   // 2. Mutation to Save Settings
   const saveMutation = useMutation({
-    mutationFn: async (updatedData: any) => {
-      await axios.patch(
-        `${API_BASE_URL}/settings`,
-        updatedData,
-        {
-          headers,
-        },
-      );
-    },
+    mutationFn: (updatedData: any) => settingsApi.updateSettings(updatedData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companySettings"] });
       alert("Settings saved successfully!");
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Failed to save settings");
     },
   });
 
@@ -268,12 +231,19 @@ export default function SettingsPage() {
   const handleSave = () => {
     const dataToSave = {
       ...formData,
-      allowedRadiusMeters: parseInt(formData.allowedRadiusMeters || 100),
-      gracePeriodMinutes: parseInt(formData.gracePeriodMinutes || 15),
-      defaultCasualLeaves: parseInt(formData.defaultCasualLeaves || 12),
-      defaultSickLeaves: parseInt(formData.defaultSickLeaves || 10),
-      defaultEarnedLeaves: parseInt(formData.defaultEarnedLeaves || 15),
-      sessionTimeoutHours: parseInt(formData.sessionTimeoutHours || 24),
+      allowedRadiusMeters: parseInt(formData.allowedRadiusMeters || 100, 10),
+      gracePeriodMinutes: parseInt(formData.gracePeriodMinutes || 15, 10),
+      minimumHoursForFullDay: formData.minimumHoursForFullDay !== undefined && formData.minimumHoursForFullDay !== null && formData.minimumHoursForFullDay !== ""
+        ? parseFloat(formData.minimumHoursForFullDay)
+        : 8.0,
+      halfDayMinHours: formData.halfDayMinHours !== undefined && formData.halfDayMinHours !== null && formData.halfDayMinHours !== ""
+        ? parseFloat(formData.halfDayMinHours)
+        : 4.0,
+      defaultCasualLeaves: parseInt(formData.defaultCasualLeaves || 12, 10),
+      defaultSickLeaves: parseInt(formData.defaultSickLeaves || 10, 10),
+      defaultEarnedLeaves: parseInt(formData.defaultEarnedLeaves || 15, 10),
+      noticePeriodDays: parseInt(formData.noticePeriodDays || 30, 10),
+      sessionTimeoutHours: parseInt(formData.sessionTimeoutHours || 24, 10),
       officeLatitude: formData.officeLatitude
         ? parseFloat(formData.officeLatitude)
         : null,
@@ -281,19 +251,25 @@ export default function SettingsPage() {
         ? parseFloat(formData.officeLongitude)
         : null,
       employeeIdDigits: parseInt(formData.employeeIdDigits || 3, 10),
+      payCycleStartDay: parseInt(formData.payCycleStartDay || 1, 10),
+      payCycleEndDay: parseInt(formData.payCycleEndDay || 0, 10),
+      nightShiftAllowanceRate: formData.nightShiftAllowanceRate !== undefined && formData.nightShiftAllowanceRate !== null && formData.nightShiftAllowanceRate !== ""
+        ? parseFloat(formData.nightShiftAllowanceRate)
+        : 0,
+      workingDays: Array.isArray(formData.workingDays)
+        ? formData.workingDays.map((d: string) => d.toUpperCase())
+        : undefined,
     };
     saveMutation.mutate(dataToSave);
   };
 
-  // Add this near your other state variables at the top of SettingsPage
   const [localPreview, setLocalPreview] = useState<string | null>(null);
 
-  // Update your handleHeaderUpload function
   const handleHeaderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // ✅ INSTANT LOCAL PREVIEW: Show the image immediately before it even finishes uploading
+    // ✅ INSTANT LOCAL PREVIEW
     const objectUrl = URL.createObjectURL(file);
     setLocalPreview(objectUrl);
     setIsUploading(true);
@@ -302,37 +278,25 @@ export default function SettingsPage() {
     uploadData.append("file", file);
 
     try {
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/documents/payslip-letterhead`,
-        uploadData,
-        {
-          headers: { ...headers, "Content-Type": "multipart/form-data" },
-        },
-      );
-
+      const res = await settingsApi.uploadPayslipHeader(uploadData);
       setFormData((prev: any) => ({
         ...prev,
-        payslipHeaderUrl: res.data.fileUrl,
+        payslipHeaderUrl: res.fileUrl,
       }));
       queryClient.invalidateQueries({ queryKey: ["companySettings"] });
     } catch (error: any) {
       alert(error.response?.data?.message || "Failed to upload header image.");
-      setLocalPreview(null); // Revert preview on failure
+      setLocalPreview(null);
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Update your removeHeader function
   const removeHeader = async () => {
     try {
-      // ✅ Call backend to physically delete the file
-      await axios.delete(
-        `${API_BASE_URL}/documents/payslip-letterhead`,
-        { headers },
-      );
+      await api.delete("/documents/payslip-letterhead");
       setFormData((prev: any) => ({ ...prev, payslipHeaderUrl: null }));
-      setLocalPreview(null); // ✅ Clear the local preview too
+      setLocalPreview(null);
       queryClient.invalidateQueries({ queryKey: ["companySettings"] });
     } catch (error) {
       alert("Failed to remove header image.");
@@ -362,10 +326,11 @@ export default function SettingsPage() {
 
   const handleAutoIP = async () => {
     try {
-      const res = await axios.get("https://api.ipify.org?format=json");
+      const res = await fetch("https://api.ipify.org?format=json");
+      const data = await res.json();
       setFormData((prev: any) => ({
         ...prev,
-        officeIpAddress: res.data.ip,
+        officeIpAddress: data.ip,
       }));
     } catch (error) {
       alert("Failed to fetch IP address.");
@@ -426,7 +391,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="flex flex-row overflow-x-auto max-w-full w-full justify-start gap-1 p-1.5 bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[14px] apple-shadow-card lg:grid lg:grid-cols-7 lg:h-auto whitespace-nowrap scrollbar-none flex-nowrap h-auto shrink-0">
+        <TabsList className="flex flex-row overflow-x-auto max-w-full w-full justify-start gap-1 p-1.5 bg-card border-0 dark:border dark:border-hairline dark:border-separator rounded-[14px] apple-shadow-card lg:grid lg:grid-cols-8 lg:h-auto whitespace-nowrap scrollbar-none flex-nowrap h-auto shrink-0">
           <TabsTrigger value="general" className="flex-none flex-shrink-0 min-w-0 px-4 py-2.5 text-xs sm:text-sm">
             <Building className="mr-1.5 h-4 w-4 shrink-0" /> General
           </TabsTrigger>
@@ -448,10 +413,33 @@ export default function SettingsPage() {
           <TabsTrigger value="security" className="flex-none flex-shrink-0 min-w-0 px-4 py-2.5 text-xs sm:text-sm">
             <Shield className="mr-1.5 h-4 w-4 shrink-0" /> Security
           </TabsTrigger>
+          <Link
+            href="/workspace/settings/billing"
+            className="flex-none flex-shrink-0 min-w-0 px-4 py-2.5 text-xs sm:text-sm inline-flex items-center justify-center font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <CreditCard className="mr-1.5 h-4 w-4 shrink-0 text-violet-500" /> Billing
+          </Link>
         </TabsList>
 
         {/* ... TAB 1: GENERAL ... */}
         <TabsContent value="general" className="mt-6 space-y-6">
+          {/* Quick link to Subscription & Billing */}
+          <div className="p-4 rounded-xl border border-border bg-gradient-to-r from-violet-500/5 via-violet-500/10 to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div>
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-violet-600" />
+                Subscription, Quotas & Invoices
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                View your active plan, employee capacity usage, cloud storage, and download official tax receipts.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 bg-background">
+              <Link href="/workspace/settings/billing">
+                Manage Subscription &rarr;
+              </Link>
+            </Button>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Corporate Identity</CardTitle>
@@ -658,6 +646,24 @@ export default function SettingsPage() {
 
         {/* ... TAB 2: ORGANIZATION ... */}
         <TabsContent value="organization" className="mt-6 space-y-6">
+          {/* Quick link to Designations & Permissions */}
+          <div className="p-4 rounded-xl border border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div>
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                Designations & Permission Matrix
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Configure job titles, customizable sidebar visibility, and granular module access control.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 bg-background">
+              <Link href="/workspace/settings/designations">
+                Manage Designations &rarr;
+              </Link>
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
             <Card className="col-span-1">
               <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
@@ -1279,37 +1285,74 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              {/* Full-Day & Half-Day Hour Thresholds */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-4 border-t">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Minimum Hours for Full Day
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    max="24"
+                    name="minimumHoursForFullDay"
+                    value={formData.minimumHoursForFullDay ?? 8.0}
+                    onChange={handleChange}
+                    placeholder="e.g. 8.0"
+                  />
+                  <p className="text-xs text-muted-foreground">Required working hours to be marked as PRESENT.</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Minimum Hours for Half Day
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="12"
+                    name="halfDayMinHours"
+                    value={formData.halfDayMinHours ?? 4.0}
+                    onChange={handleChange}
+                    placeholder="e.g. 4.0"
+                  />
+                  <p className="text-xs text-muted-foreground">Threshold required to qualify for HALF_DAY instead of ABSENT.</p>
+                </div>
+              </div>
+
               <div className="space-y-3 pt-4 border-t">
                 <label className="text-sm font-medium">Working Days</label>
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    "Monday",
-                    "Tuesday",
-                    "Wednesday",
-                    "Thursday",
-                    "Friday",
-                    "Saturday",
-                    "Sunday",
-                  ].map((day) => (
-                    <label
-                      key={day}
-                      className={`px-4 py-2 border rounded-full text-sm cursor-pointer transition-colors ${formData.workingDays?.includes(day) ? "bg-emerald-100 border-emerald-500 text-emerald-800" : "bg-slate-50 hover:bg-slate-100 text-slate-600"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={formData.workingDays?.includes(day) || false}
-                        onChange={(e) => {
-                          const currentDays = formData.workingDays || [];
-                          const newDays = e.target.checked
-                            ? [...currentDays, day]
-                            : currentDays.filter((d: string) => d !== day);
-                          setFormData({ ...formData, workingDays: newDays });
-                        }}
-                      />
-                      {day}
-                    </label>
-                  ))}
+                  {WORKING_DAYS.map((day) => {
+                    const isSelected = formData.workingDays?.some(
+                      (d: string) => d.toUpperCase() === day.key
+                    );
+                    return (
+                      <label
+                        key={day.key}
+                        className={`px-4 py-2 border rounded-full text-sm cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-emerald-100 border-emerald-500 text-emerald-800 dark:bg-emerald-950/50 dark:border-emerald-600 dark:text-emerald-300"
+                            : "bg-slate-50 hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={isSelected || false}
+                          onChange={(e) => {
+                            const current = (formData.workingDays || []).map((d: string) => d.toUpperCase());
+                            const next = e.target.checked
+                              ? [...current.filter((d: string) => d !== day.key), day.key]
+                              : current.filter((d: string) => d !== day.key);
+                            setFormData({ ...formData, workingDays: next });
+                          }}
+                        />
+                        {day.label}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>
@@ -1318,6 +1361,24 @@ export default function SettingsPage() {
 
         {/* ... TAB 5: LEAVES ... */}
         <TabsContent value="leaves" className="mt-6 space-y-6">
+          {/* Quick link to Holidays */}
+          <div className="p-4 rounded-xl border border-border bg-gradient-to-r from-emerald-500/5 via-emerald-500/10 to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div>
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-emerald-600" />
+                Public & Company Holidays
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Manage non-working public holidays, regional festival calendars, and declared company off-days.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 bg-background">
+              <Link href="/workspace/settings/holidays">
+                Holiday Calendar &rarr;
+              </Link>
+            </Button>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Default Leave Quotas</CardTitle>
@@ -1403,6 +1464,74 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* PAY CYCLE & ATTENDANCE CUTOFF RULES */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Pay Cycle & Attendance Cutoff Rules</CardTitle>
+              <CardDescription>
+                Configure monthly salary calculation periods, attendance cutoffs, and night shift allowances.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Pay Cycle Mode</label>
+                <select
+                  name="payCycleType"
+                  value={formData.payCycleType || "CALENDAR_MONTH"}
+                  onChange={handleChange}
+                  className="w-full border rounded-md p-2 text-sm bg-background border-input"
+                >
+                  <option value="CALENDAR_MONTH">Calendar Month (1st to Month End)</option>
+                  <option value="CUSTOM_CUTOFF">Custom Monthly Cutoff (e.g. 26th to 25th)</option>
+                </select>
+                <p className="text-xs text-muted-foreground">Determines the payroll cycle range and cutoff for automated processing.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Night Shift Allowance (₹ / shift)</label>
+                <Input
+                  type="number"
+                  step="any"
+                  name="nightShiftAllowanceRate"
+                  value={formData.nightShiftAllowanceRate ?? 0}
+                  onChange={handleChange}
+                  placeholder="e.g. 250"
+                />
+                <p className="text-xs text-muted-foreground">Standard bonus credited for each night shift completed by workers.</p>
+              </div>
+
+              {formData.payCycleType === "CUSTOM_CUTOFF" && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Cutoff Start Day (1 - 31)</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="31"
+                      name="payCycleStartDay"
+                      value={formData.payCycleStartDay || 26}
+                      onChange={handleChange}
+                    />
+                    <p className="text-xs text-muted-foreground">Start day of the pay period from the previous month.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Cutoff End Day (1 - 31)</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="31"
+                      name="payCycleEndDay"
+                      value={formData.payCycleEndDay || 25}
+                      onChange={handleChange}
+                    />
+                    <p className="text-xs text-muted-foreground">End day of the pay period in the current month.</p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* NEW UPLOAD CARD */}
           <Card>
             <CardHeader>
@@ -1476,6 +1605,24 @@ export default function SettingsPage() {
 
         {/* ... TAB 7: SECURITY ... */}
         <TabsContent value="security" className="mt-6 space-y-6">
+          {/* Quick link to Audit Logs */}
+          <div className="p-4 rounded-xl border border-border bg-gradient-to-r from-slate-500/5 via-slate-500/10 to-transparent flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div>
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Shield className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                Security & Audit Trail
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Inspect immutable system logs, employee changes, logins, and approvals across your workspace.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 bg-background">
+              <Link href="/workspace/settings/audit-logs">
+                View Audit Logs &rarr;
+              </Link>
+            </Button>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Security & Access</CardTitle>

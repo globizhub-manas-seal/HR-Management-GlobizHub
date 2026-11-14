@@ -151,6 +151,8 @@ model Company {
   taxDeclarations      EmployeeTaxDeclaration[]
   employeeLoans        EmployeeLoan[]
   credentials          ProfessionalCredential[]
+  payrollBatchRuns     PayrollBatchRun[]
+  salaryRevisions      SalaryRevisionHistory[]
 
   @@index([status, createdAt])
   @@index([subscription, status])
@@ -299,6 +301,7 @@ model Employee {
 
   // Platform Support
   createdSupportTickets      SupportTicket[]          @relation("TicketCreator")
+  salaryRevisions            SalaryRevisionHistory[]
 
   @@index([companyId, employmentStatus])
   @@index([companyId, role])
@@ -463,6 +466,12 @@ model CompanySettings {
   employeeIdPrefix  String?
   employeeIdDigits  Int     @default(3)
   employeeIdCounter Int     @default(1)
+
+  // --- Pay Cycle Configuration (SaaS Flexible Cycles) ---
+  payCycleType      String  @default("CALENDAR_MONTH") // "CALENDAR_MONTH", "CUSTOM_CUTOFF"
+  payCycleStartDay  Int     @default(1) // e.g. 1 for calendar month, 26 for 26th-to-25th
+  payCycleEndDay    Int     @default(0) // 0 for end of month, or 25
+  nightShiftAllowanceRate Float @default(0) // Rate per night shift worked
 }
 
 model Attendance {
@@ -904,6 +913,8 @@ model PayrollRecord {
   allowances Float
   deductions Float
   netSalary  Float
+  arrearsPay Float @default(0) // Retroactive salary revision arrears
+  nightShiftAllowance Float @default(0) // Premium for night / cross-midnight shifts
 
   status String @default("DRAFT") // DRAFT, APPROVED, PAID, HELD, CANCELLED
   isHeld Boolean @default(false)
@@ -934,6 +945,54 @@ model PayrollRecord {
 
   // Crucial: Prevent running payroll twice for the same employee in the same month
   @@unique([employeeId, month, year])
+}
+
+model PayrollBatchRun {
+  id             String    @id @default(uuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  month          Int
+  year           Int
+  status         String    @default("QUEUED") // QUEUED, PROCESSING, COMPLETED, FAILED
+  totalEmployees Int       @default(0)
+  processedCount Int       @default(0)
+  successCount   Int       @default(0)
+  failureCount   Int       @default(0)
+  skippedCount   Int       @default(0)
+  departmentId   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  errorLog       Json?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, month, year])
+  @@index([companyId, status])
+}
+
+model SalaryRevisionHistory {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId          String
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  previousBasicSalary Float
+  newBasicSalary      Float
+  previousCtc         Float
+  newCtc              Float
+  effectiveDate       DateTime
+  reason              String?
+  arrearsAmount       Float    @default(0)
+  arrearsPaidInMonth  Int?
+  arrearsPaidInYear   Int?
+  isSettled           Boolean  @default(false)
+  createdById         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([companyId, employeeId])
+  @@index([companyId, isSettled])
 }
 
 // Define the distinct categories you mentioned

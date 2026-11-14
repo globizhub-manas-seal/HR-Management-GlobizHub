@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { auditApi } from "@/lib/api";
 import { Shield, Activity, MonitorSmartphone, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,13 +18,7 @@ import { TableSkeleton } from "@/components/skeletons";
 export default function AuditLogsPage() {
   const { data: logs, isLoading } = useQuery({
     queryKey: ["auditLogs"],
-    queryFn: async () => {
-      const token = localStorage.getItem("hrms_token");
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/audit`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return res.data;
-    }
+    queryFn: () => auditApi.getLogs({ limit: 100 }),
   });
 
   const getActionColor = (action: string) => {

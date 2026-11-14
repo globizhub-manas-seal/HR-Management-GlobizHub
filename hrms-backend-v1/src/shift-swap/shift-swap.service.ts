@@ -278,6 +278,7 @@ export class ShiftSwapService {
     const isManager =
       request.managerId === userId ||
       userRole === 'SUPER_ADMIN' ||
+      userRole === 'OWNER' ||
       userRole === 'HR_HEAD';
 
     if (!isRequester && !isTarget && !isManager) {
@@ -416,6 +417,7 @@ export class ShiftSwapService {
     const isManager =
       request.managerId === managerId ||
       userRole === 'SUPER_ADMIN' ||
+      userRole === 'OWNER' ||
       userRole === 'HR_HEAD';
     if (!isManager) {
       throw new ForbiddenException(
@@ -463,7 +465,10 @@ export class ShiftSwapService {
   // 7. Get requests lists for the user
   async getMyRequests(userId: string, companyId: string, role: string) {
     const isManagerOrAdmin =
-      role === 'MANAGER' || role === 'SUPER_ADMIN' || role === 'HR_HEAD';
+      role === 'MANAGER' ||
+      role === 'SUPER_ADMIN' ||
+      role === 'OWNER' ||
+      role === 'HR_HEAD';
 
     const sent = await this.prisma.shiftSwapRequest.findMany({
       where: { requesterEmployeeId: userId, companyId },

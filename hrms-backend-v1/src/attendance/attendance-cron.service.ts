@@ -83,14 +83,91 @@ export class AttendanceCronService {
         continue; // Skip to next employee
       }
 
-      // 3. Mark ABSENT if no record exists
+      // 3. Handle employees with no attendance record today
       if (!record) {
+        // A. Check if employee has a scheduled day off for today
+        const schedule = await this.prisma.schedule.findFirst({
+          where: { employeeId: employee.id, date: { gte: today, lte: endOfDay } },
+        });
+        if (schedule && schedule.shiftId === null) {
+          this.logger.log(
+            `Skipping absent marking for employee ${employee.id}: Scheduled Day Off.`,
+          );
+          continue;
+        }
+
+        // B. Check Company Working Days (e.g. Weekends)
+        const dayNames = [
+          'SUNDAY',
+          'MONDAY',
+          'TUESDAY',
+          'WEDNESDAY',
+          'THURSDAY',
+          'FRIDAY',
+          'SATURDAY',
+        ];
+        const todayDayName = dayNames[today.getDay()];
+        const workingDays = employee.company.settings?.workingDays;
+        if (
+          Array.isArray(workingDays) &&
+          workingDays.length > 0 &&
+          !workingDays.includes(todayDayName)
+        ) {
+          this.logger.log(
+            `Skipping absent marking for employee ${employee.id}: Non-working day (${todayDayName}).`,
+          );
+          continue;
+        }
+
+        // C. Check Official Company / National Holiday
+        const holiday = await this.prisma.holiday.findFirst({
+          where: {
+            companyId: employee.companyId,
+            date: { gte: today, lte: endOfDay },
+          },
+        });
+        if (holiday) {
+          this.logger.log(
+            `Skipping absent marking for employee ${employee.id}: Public/Company Holiday (${holiday.name}).`,
+          );
+          continue;
+        }
+
+        // D. Check Approved Leave Request
+        const approvedLeave = await this.prisma.leaveRequest.findFirst({
+          where: {
+            employeeId: employee.id,
+            status: 'APPROVED',
+            startDate: { lte: endOfDay },
+            endDate: { gte: today },
+          },
+        });
+        if (approvedLeave) {
+          this.logger.log(
+            `Marking ON_LEAVE for employee ${employee.id}: Approved Leave (${approvedLeave.type}).`,
+          );
+          await this.prisma.attendance.create({
+            data: {
+              employeeId: employee.id,
+              companyId: employee.companyId,
+              date: today,
+              status: 'ON_LEAVE',
+              workingHours: 0,
+              overtimeHours: 0,
+            },
+          });
+          continue;
+        }
+
+        // E. True unexcused absence on a working day
         await this.prisma.attendance.create({
           data: {
             employeeId: employee.id,
             companyId: employee.companyId,
             date: today,
             status: 'ABSENT',
+            workingHours: 0,
+            overtimeHours: 0,
           },
         });
         continue; // Skip to next employee
@@ -165,6 +242,12 @@ export class AttendanceCronService {
         totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // Convert MS to Hours (e.g., 8.5)
       }
 
+      const minFullDay =
+        employee.company.settings?.minimumHoursForFullDay ?? 8.0;
+      const minHalfDay =
+        employee.company.settings?.halfDayMinHours ?? 4.0;
+      let isHalfDay = false;
+
       if (record.checkInTime) {
         // Calculate if late
         const shiftStartWithGrace = new Date(shiftStart);
@@ -176,11 +259,15 @@ export class AttendanceCronService {
           isLate = true;
         }
 
-        // Set status
+        // Set status based on hours worked and shift swap status
         if (record.shiftSwapRequestId) {
           finalStatus = 'PROXY_SHIFT_SWAP';
+        } else if (totalHours > 0 && totalHours < minFullDay) {
+          finalStatus = 'HALF_DAY';
+          isHalfDay = true;
         } else {
           finalStatus = isLate ? 'LATE' : 'PRESENT';
+          isHalfDay = false;
         }
 
         // Calculate overtime
@@ -209,6 +296,7 @@ export class AttendanceCronService {
           workingHours: totalHours,
           overtimeHours,
           isLate,
+          isHalfDay,
           checkOutTime: record.checkOutTime
             ? record.checkOutTime
             : checkOutTime, // Save the auto-checkout if they forgot

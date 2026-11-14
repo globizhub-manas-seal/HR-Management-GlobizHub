@@ -12,6 +12,9 @@ import {
 } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { CreateDesignationDto } from './dto/create-designation.dto';
+import { UpdateDesignationDto } from './dto/update-designation.dto';
+import { UpdateDesignationPermissionsDto } from './dto/update-designation-permissions.dto';
 
 @Controller('organization')
 @UseGuards(AuthGuard) // Protect all routes with JWT
@@ -20,7 +23,7 @@ export class OrganizationController {
 
   // Helper to ensure only Admins/HR can modify the organization structure
   private checkAdminAccess(role: string) {
-    if (role !== 'SUPER_ADMIN' && role !== 'HR_HEAD') {
+    if (role !== 'SUPER_ADMIN' && role !== 'HR_HEAD' && role !== 'OWNER') {
       throw new ForbiddenException(
         'Only Admins or HR can modify organizational structure.',
       );
@@ -108,8 +111,16 @@ export class OrganizationController {
     return this.organizationService.getDesignations(req.user.companyId);
   }
 
+  @Get('designations/:id')
+  async getDesignationById(@Request() req, @Param('id') id: string) {
+    return this.organizationService.getDesignationById(req.user.companyId, id);
+  }
+
   @Post('designations')
-  async createDesignation(@Request() req, @Body() body: any) {
+  async createDesignation(
+    @Request() req,
+    @Body() body: CreateDesignationDto,
+  ) {
     this.checkAdminAccess(req.user.role);
     return this.organizationService.createDesignation(req.user.companyId, body);
   }
@@ -118,7 +129,7 @@ export class OrganizationController {
   async updateDesignation(
     @Request() req,
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UpdateDesignationDto,
   ) {
     this.checkAdminAccess(req.user.role);
     return this.organizationService.updateDesignation(
@@ -132,7 +143,7 @@ export class OrganizationController {
   async updateDesignationPermissions(
     @Request() req,
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UpdateDesignationPermissionsDto,
   ) {
     this.checkAdminAccess(req.user.role);
     return this.organizationService.updateDesignationPermissions(
@@ -146,5 +157,21 @@ export class OrganizationController {
   async deleteDesignation(@Request() req, @Param('id') id: string) {
     this.checkAdminAccess(req.user.role);
     return this.organizationService.deleteDesignation(req.user.companyId, id);
+  }
+
+  // --- SUBSCRIPTION & BILLING (TENANT SELF-SERVICE) ---
+  @Get('subscription')
+  async getSubscription(@Request() req) {
+    return this.organizationService.getSubscriptionOverview(req.user.companyId);
+  }
+
+  @Get('billing/invoices')
+  async getBillingInvoices(@Request() req) {
+    return this.organizationService.getCompanyInvoices(req.user.companyId);
+  }
+
+  @Get('billing/invoices/:id')
+  async getBillingInvoiceById(@Request() req, @Param('id') id: string) {
+    return this.organizationService.getCompanyInvoiceById(req.user.companyId, id);
   }
 }

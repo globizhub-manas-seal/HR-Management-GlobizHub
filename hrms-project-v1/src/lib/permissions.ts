@@ -316,7 +316,7 @@ export interface Designation {
   id: string;
   name: string;
   description: string;
-  baseRole: "EMPLOYEE" | "MANAGER" | "HR_HEAD" | "SUPER_ADMIN";
+  baseRole: "EMPLOYEE" | "MANAGER" | "HR_HEAD" | "SUPER_ADMIN" | "OWNER";
   color: string;
   isDefault: boolean;
   sidebarModules: string[];

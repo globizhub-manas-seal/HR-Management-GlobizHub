@@ -4,17 +4,99 @@ import {
   ConflictException,
   BadRequestException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { RecordPaymentDto } from './dto/record-payment.dto';
 import { InvoiceStatus, PaymentStatus } from '../../../generated/prisma/enums';
 
+export interface PlatformCoupon {
+  id: string;
+  code: string;
+  name: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  validUntil: string;
+  usageCount: number;
+  maxUsage: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 @Injectable()
-export class PlatformBillingService {
+export class PlatformBillingService implements OnModuleInit {
   private readonly logger = new Logger(PlatformBillingService.name);
 
   constructor(private prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.seedDefaultCoupons();
+  }
+
+  /**
+   * Seed default platform coupons if none exist
+   */
+  async seedDefaultCoupons() {
+    try {
+      const existing = await this.prisma.platformFeatureFlag.count({
+        where: { key: { startsWith: 'coupon_' } },
+      });
+      if (existing > 0) return;
+
+      const defaultCoupons = [
+        {
+          code: 'LAUNCH50',
+          name: 'Early Adopter SaaS Special',
+          discountType: 'PERCENTAGE',
+          discountValue: 50,
+          validUntil: '2026-12-31',
+          maxUsage: 100,
+          isActive: true,
+        },
+        {
+          code: 'STARTUP_ANNUAL',
+          name: 'Annual Upfront Commitment',
+          discountType: 'PERCENTAGE',
+          discountValue: 20,
+          validUntil: '2027-06-30',
+          maxUsage: 50,
+          isActive: true,
+        },
+        {
+          code: 'ENTERPRISE_PILOT',
+          name: 'Dedicated Enterprise Pilot Credit',
+          discountType: 'FIXED',
+          discountValue: 5000,
+          validUntil: '2026-11-30',
+          maxUsage: 10,
+          isActive: false,
+        },
+      ];
+
+      for (const c of defaultCoupons) {
+        await this.prisma.platformFeatureFlag.create({
+          data: {
+            key: `coupon_${c.code.toUpperCase()}`,
+            name: c.name,
+            description: JSON.stringify({
+              code: c.code.toUpperCase(),
+              name: c.name,
+              discountType: c.discountType,
+              discountValue: c.discountValue,
+              validUntil: c.validUntil,
+              maxUsage: c.maxUsage,
+              usageCount: 0,
+            }),
+            isEnabled: c.isActive,
+          },
+        });
+      }
+      this.logger.log('Default platform discount coupons seeded.');
+    } catch (err: any) {
+      this.logger.warn(`Could not seed default coupons: ${err.message}`);
+    }
+  }
 
   /**
    * List invoices with metrics, filtering and pagination
@@ -123,7 +205,19 @@ export class PlatformBillingService {
       where: { id },
       include: {
         company: {
-          select: { id: true, name: true, email: true, phone: true, address: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+            gstin: true,
+            pan: true,
+            city: true,
+            state: true,
+            country: true,
+            pincode: true,
+          },
         },
         subscription: {
           include: { plan: true },
@@ -467,6 +561,161 @@ export class PlatformBillingService {
     });
 
     return { status: 'processed', paymentId: payment.id };
+  }
+
+  /**
+   * List all discount coupons
+   */
+  async getCoupons(): Promise<PlatformCoupon[]> {
+    const records = await this.prisma.platformFeatureFlag.findMany({
+      where: { key: { startsWith: 'coupon_' } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return records.map((r) => {
+      let meta: any = {};
+      try {
+        meta = r.description ? JSON.parse(r.description) : {};
+      } catch {
+        meta = {};
+      }
+
+      return {
+        id: r.id,
+        code: meta.code || r.key.replace('coupon_', ''),
+        name: r.name,
+        discountType: meta.discountType || 'PERCENTAGE',
+        discountValue: Number(meta.discountValue || 0),
+        validUntil: meta.validUntil || new Date(Date.now() + 30 * 86400000).toISOString(),
+        usageCount: Number(meta.usageCount || 0),
+        maxUsage: Number(meta.maxUsage || 100),
+        isActive: r.isEnabled,
+        createdAt: r.createdAt.toISOString(),
+      };
+    });
+  }
+
+  /**
+   * Create a new discount coupon
+   */
+  async createCoupon(dto: {
+    code: string;
+    name: string;
+    discountType: 'PERCENTAGE' | 'FIXED';
+    discountValue: number;
+    validUntil: string;
+    maxUsage: number;
+    isActive?: boolean;
+  }) {
+    const normalizedCode = dto.code.trim().toUpperCase();
+    const key = `coupon_${normalizedCode}`;
+
+    const existing = await this.prisma.platformFeatureFlag.findUnique({
+      where: { key },
+    });
+    if (existing) {
+      throw new ConflictException(`Coupon code "${normalizedCode}" already exists.`);
+    }
+
+    const record = await this.prisma.platformFeatureFlag.create({
+      data: {
+        key,
+        name: dto.name,
+        description: JSON.stringify({
+          code: normalizedCode,
+          name: dto.name,
+          discountType: dto.discountType,
+          discountValue: dto.discountValue,
+          validUntil: dto.validUntil,
+          maxUsage: dto.maxUsage,
+          usageCount: 0,
+        }),
+        isEnabled: dto.isActive !== false,
+      },
+    });
+
+    return {
+      id: record.id,
+      code: normalizedCode,
+      name: record.name,
+      discountType: dto.discountType,
+      discountValue: dto.discountValue,
+      validUntil: dto.validUntil,
+      usageCount: 0,
+      maxUsage: dto.maxUsage,
+      isActive: record.isEnabled,
+      createdAt: record.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Delete or archive a discount coupon
+   */
+  async deleteCoupon(code: string) {
+    const normalizedCode = code.trim().toUpperCase();
+    const key = `coupon_${normalizedCode}`;
+    const existing = await this.prisma.platformFeatureFlag.findUnique({
+      where: { key },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Coupon "${normalizedCode}" not found.`);
+    }
+
+    await this.prisma.platformFeatureFlag.delete({
+      where: { key },
+    });
+
+    return { success: true, message: `Coupon "${normalizedCode}" deleted successfully.` };
+  }
+
+  /**
+   * Validate coupon and calculate applied discount
+   */
+  async validateCoupon(code: string, amount: number) {
+    const normalizedCode = code.trim().toUpperCase();
+    const key = `coupon_${normalizedCode}`;
+    const record = await this.prisma.platformFeatureFlag.findUnique({
+      where: { key },
+    });
+
+    if (!record || !record.isEnabled) {
+      throw new BadRequestException('Invalid or inactive coupon code.');
+    }
+
+    let meta: any = {};
+    try {
+      meta = record.description ? JSON.parse(record.description) : {};
+    } catch {
+      meta = {};
+    }
+
+    if (meta.validUntil && new Date(meta.validUntil).getTime() < Date.now()) {
+      throw new BadRequestException('This coupon has expired.');
+    }
+
+    if (meta.maxUsage && (meta.usageCount || 0) >= meta.maxUsage) {
+      throw new BadRequestException('This coupon has reached its maximum usage limit.');
+    }
+
+    let discountAmount = 0;
+    if (meta.discountType === 'PERCENTAGE') {
+      discountAmount = (amount * Number(meta.discountValue)) / 100;
+    } else {
+      discountAmount = Number(meta.discountValue);
+    }
+
+    discountAmount = Math.min(amount, Math.max(0, discountAmount));
+    const finalAmount = Math.max(0, amount - discountAmount);
+
+    return {
+      code: normalizedCode,
+      name: record.name,
+      discountType: meta.discountType,
+      discountValue: Number(meta.discountValue),
+      discountAmount: Number(discountAmount.toFixed(2)),
+      originalAmount: amount,
+      finalAmount: Number(finalAmount.toFixed(2)),
+    };
   }
 }
 

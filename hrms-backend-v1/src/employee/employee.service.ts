@@ -6,9 +6,11 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { QueryEmployeesDto } from './dto/query-employees.dto';
+import { BulkImportEmployeeRowDto } from './dto/bulk-import-employee.dto';
 import * as bcrypt from 'bcrypt';
 import { Resend } from 'resend';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { S3Service } from '../s3/s3.service';
 import { encrypt, decrypt } from '../common/utils/encryption.util';
 import { AuditService } from '../audit/audit.service';
@@ -59,12 +61,37 @@ export class EmployeeService {
     );
   }
 
-  async findAllByCompany(companyId: string) {
+  async findAllByCompany(companyId: string, query?: QueryEmployeesDto) {
+    const where: any = { companyId };
+
+    // 1. Employment Status Filter (defaults to all if 'ALL' or empty, else filters by status)
+    if (query?.status && query.status.toUpperCase() !== 'ALL') {
+      where.employmentStatus = query.status.toUpperCase();
+    }
+
+    // 2. Department Filter
+    if (query?.departmentId && query.departmentId !== 'all') {
+      where.departmentId = query.departmentId;
+    }
+
+    // 3. Role Filter
+    if (query?.role && query.role !== 'all') {
+      where.role = query.role;
+    }
+
+    // 4. Search Filter (first name, last name, email, employee code)
+    if (query?.search && query.search.trim()) {
+      const term = query.search.trim();
+      where.OR = [
+        { firstName: { contains: term, mode: 'insensitive' } },
+        { lastName: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { employeeCode: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+
     return this.prisma.employee.findMany({
-      where: {
-        companyId,
-        employmentStatus: 'ACTIVE',
-      },
+      where,
       select: {
         id: true,
         firstName: true,
@@ -72,6 +99,7 @@ export class EmployeeService {
         email: true,
         phone: true,
         role: true,
+        employmentStatus: true, // ✅ Fetch status for card/list view badges
         profilePhoto: true, // ✅ Fetch profile photo for card/list view
         employeeCode: true, // ✅ Ensure the code is fetched for the frontend list
         gender: true, // ✅ Fetch gender for stats
@@ -117,7 +145,6 @@ export class EmployeeService {
     const tempPassword = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
     // S-14: Store a SHA-256 hash of the invite token; the raw token goes in the email
     const rawInviteToken = randomBytes(32).toString('hex');
-    const { createHash } = await import('crypto');
     const inviteToken = createHash('sha256').update(rawInviteToken).digest('hex');
 
     // Create employee in INVITED status without an Employee ID yet (assigned upon onboarding completion)
@@ -724,6 +751,9 @@ export class EmployeeService {
       include: {
         skills: true,
         emergencyContacts: true,
+        employmentHistory: { orderBy: { startDate: 'desc' } },
+        exitRecord: true,
+        credentials: true,
         designation: true,
         department: true,
         reportingManager: true,
@@ -747,6 +777,71 @@ export class EmployeeService {
     };
   }
 
+  async resendInvite(companyId: string, employeeId: string, actorId?: string) {
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+    });
+    if (!employee) {
+      throw new NotFoundException('Employee not found in your workspace.');
+    }
+    if (employee.employmentStatus !== 'INVITED') {
+      throw new ConflictException(
+        'Invitation can only be resent to employees with INVITED status.',
+      );
+    }
+
+    const rawInviteToken = randomBytes(32).toString('hex');
+    const inviteToken = createHash('sha256').update(rawInviteToken).digest('hex');
+
+    await this.prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        inviteToken,
+        resetPasswordExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/set-password?token=${rawInviteToken}`;
+    const fromEmail =
+      process.env.RESEND_FROM_EMAIL ||
+      process.env.SENDER_EMAIL ||
+      'TeamHub HRMS <onboarding@resend.dev>';
+
+    try {
+      await this.resend.emails.send({
+        from: fromEmail,
+        to: employee.email,
+        subject: 'Reminder: Welcome to the Team! Set your password',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #10b981;">Invitation Reminder for ${employee.firstName}!</h2>
+            <p>You have been invited to join your company's HRMS workspace.</p>
+            <p>Please click the link below to set your permanent password and start onboarding:</p>
+            <a href="${magicLink}" style="display: inline-block; padding: 12px 24px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Set Password & Start Onboarding</a>
+            <p style="margin-top: 30px; font-size: 12px; color: #888;">This invite link is valid for 7 days.</p>
+          </div>
+        `,
+      });
+    } catch (err) {
+      console.error('Failed to resend invite email:', err);
+    }
+
+    await this.auditService.logAction(
+      companyId,
+      actorId || null,
+      'UPDATE',
+      'Employee',
+      employeeId,
+      null,
+      { action: 'RESEND_INVITATION', email: employee.email },
+    );
+
+    return {
+      success: true,
+      message: `Invitation email resent successfully to ${employee.email}`,
+    };
+  }
+
   async removeSkill(employeeId: string, skillId: string) {
     const skill = await this.prisma.employeeSkill.findFirst({
       where: { id: skillId, employeeId },
@@ -764,6 +859,15 @@ export class EmployeeService {
     if (!contact) throw new NotFoundException('Emergency contact not found');
 
     return this.prisma.emergencyContact.delete({ where: { id: contactId } });
+  }
+
+  async removeEmploymentHistory(employeeId: string, historyId: string) {
+    const history = await this.prisma.employmentHistory.findFirst({
+      where: { id: historyId, employeeId },
+    });
+    if (!history) throw new NotFoundException('Employment history record not found');
+
+    return this.prisma.employmentHistory.delete({ where: { id: historyId } });
   }
 
   // ==========================================
@@ -884,7 +988,6 @@ export class EmployeeService {
     });
     if (!employee) throw new NotFoundException('Employee not found in your workspace');
 
-    const { createHash } = await import('crypto');
     const anonHash = createHash('sha256').update(employee.id + Date.now().toString()).digest('hex').substring(0, 10);
     const anonymizedEmail = "erased." + anonHash + "@anonymized.internal";
 
@@ -920,6 +1023,278 @@ export class EmployeeService {
     return {
       success: true,
       message: 'Employee personal data permanently anonymized in compliance with DPDP/GDPR.',
+    };
+  }
+
+  // ==========================================
+  // BULK EMPLOYEE CSV / EXCEL IMPORT
+  // ==========================================
+  async bulkImportEmployees(
+    companyId: string,
+    employees: BulkImportEmployeeRowDto[],
+    actorId?: string,
+  ) {
+    if (!employees || employees.length === 0) {
+      return {
+        success: true,
+        totalProcessed: 0,
+        importedCount: 0,
+        skippedCount: 0,
+        imported: [],
+        skipped: [],
+      };
+    }
+
+    // 1. Fetch tenant departments and designations for auto-matching
+    const companyDepts = await this.prisma.department.findMany({
+      where: { companyId },
+    });
+    const deptMap = new Map<string, string>();
+    companyDepts.forEach((d) => {
+      deptMap.set(d.name.trim().toLowerCase(), d.id);
+    });
+
+    const companyDesignations = await this.prisma.designation.findMany({
+      where: { companyId },
+    });
+    const desigMap = new Map<string, string>();
+    companyDesignations.forEach((d) => {
+      desigMap.set(d.name.trim().toLowerCase(), d.id);
+    });
+
+    // 2. Filter & normalize incoming rows
+    const seenEmailsInBatch = new Set<string>();
+    const candidates: BulkImportEmployeeRowDto[] = [];
+    const skipped: Array<{ email: string; reason: string }> = [];
+
+    for (const row of employees) {
+      const email = row.email?.trim().toLowerCase();
+      if (!email || !email.includes('@')) {
+        skipped.push({
+          email: row.email || 'N/A',
+          reason: 'Invalid or missing email address',
+        });
+        continue;
+      }
+      if (seenEmailsInBatch.has(email)) {
+        skipped.push({
+          email,
+          reason: 'Duplicate email within the same import file',
+        });
+        continue;
+      }
+      seenEmailsInBatch.add(email);
+      candidates.push({
+        ...row,
+        email,
+      });
+    }
+
+    // 3. Batch check for already existing employees in DB
+    const candidateEmails = candidates.map((c) => c.email);
+    const existingEmployees = await this.prisma.employee.findMany({
+      where: {
+        email: { in: candidateEmails },
+      },
+      select: { email: true },
+    });
+    const existingEmailSet = new Set(
+      existingEmployees.map((e) => e.email.toLowerCase()),
+    );
+
+    // 4. Process each non-duplicate employee
+    const imported: Array<{ id: string; email: string; name: string }> = [];
+    const tempPasswordHash = await bcrypt.hash(
+      randomBytes(32).toString('hex'),
+      10,
+    );
+
+    const defaultTasks = [
+      {
+        title: 'Complete Profile & Contact Details',
+        description:
+          'Provide your personal phone number, blood group, emergency contacts and address.',
+        requiredForActivation: true,
+      },
+      {
+        title: 'Digital Offer Letter Acceptance',
+        description:
+          'Read, acknowledge, and digitally accept the employment offer terms.',
+        requiredForActivation: true,
+      },
+      {
+        title: 'Upload KYC & Identity Documents',
+        description:
+          'Submit government-issued ID (Aadhaar / National ID / Passport) and PAN card.',
+        requiredForActivation: true,
+      },
+      {
+        title: 'Bank & Statutory Details Submission',
+        description:
+          'Provide bank account, IFSC, and PF/UAN details for automated payroll processing.',
+        requiredForActivation: true,
+      },
+      {
+        title: 'Company Policy & Security Orientation',
+        description:
+          'Review the Employee Handbook, code of conduct, and workplace guidelines.',
+        requiredForActivation: false,
+      },
+    ];
+
+    const fromEmail =
+      process.env.RESEND_FROM_EMAIL ||
+      process.env.SENDER_EMAIL ||
+      'TeamHub HRMS <onboarding@resend.dev>';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    for (const row of candidates) {
+      if (existingEmailSet.has(row.email)) {
+        skipped.push({
+          email: row.email,
+          reason: 'An employee with this email already exists in the system',
+        });
+        continue;
+      }
+
+      // Department & Designation matching
+      let departmentId: string | null = null;
+      if (row.department) {
+        departmentId = deptMap.get(row.department.trim().toLowerCase()) || null;
+      }
+
+      let designationId: string | null = null;
+      if (row.designation) {
+        designationId =
+          desigMap.get(row.designation.trim().toLowerCase()) || null;
+      }
+
+      // Role sanitization (super admins cannot be assigned via bulk import)
+      let assignedRole: any = 'EMPLOYEE';
+      if (row.role) {
+        const upper = row.role.toUpperCase().replace(/\s+/g, '_');
+        if (['HR_HEAD', 'MANAGER', 'EMPLOYEE'].includes(upper)) {
+          assignedRole = upper;
+        }
+      }
+
+      const rawInviteToken = randomBytes(32).toString('hex');
+      const inviteToken = createHash('sha256')
+        .update(rawInviteToken)
+        .digest('hex');
+
+      const firstName = row.firstName?.trim() || row.email.split('@')[0] || 'Team';
+      const lastName = row.lastName?.trim() || 'Member';
+
+      try {
+        const createdEmp = await this.prisma.employee.create({
+          data: {
+            companyId,
+            firstName,
+            lastName,
+            email: row.email,
+            phone: row.phone?.trim() || null,
+            password: tempPasswordHash,
+            role: assignedRole,
+            employeeCode: null,
+            employmentStatus: 'INVITED',
+            departmentId,
+            designationId,
+            inviteToken,
+            resetPasswordExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          },
+        });
+
+        // Initialize Onboarding Case & standard checklist tasks
+        try {
+          const newCase = await this.prisma.onboardingCase.create({
+            data: {
+              companyId,
+              employeeId: createdEmp.id,
+              status: 'INVITED',
+              offerSigned: false,
+              bgvStatus: 'PENDING',
+            },
+          });
+
+          for (const t of defaultTasks) {
+            await this.prisma.task.create({
+              data: {
+                companyId,
+                employeeId: createdEmp.id,
+                onboardingCaseId: newCase.id,
+                title: t.title,
+                description: t.description,
+                source: 'TEMPLATE',
+                requiredForActivation: t.requiredForActivation,
+                status: 'PENDING',
+              },
+            });
+          }
+        } catch (caseErr) {
+          console.error(
+            'Failed to initialize onboarding case for bulk import:',
+            caseErr,
+          );
+        }
+
+        // Send invite email asynchronously via Resend
+        const magicLink = `${frontendUrl}/set-password?token=${rawInviteToken}`;
+        try {
+          await this.resend.emails.send({
+            from: fromEmail,
+            to: row.email,
+            subject: 'Welcome to the Team! Set your password',
+            html: `
+              <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #10b981;">Welcome to TeamHub, ${firstName}!</h2>
+                <p>You have been invited to join your company's HRMS workspace.</p>
+                <p>Your official Employee ID will be generated upon completion and verification of your onboarding checklist.</p>
+                <p>Please click the secure link below to set your permanent password and complete your onboarding.</p>
+                <a href="${magicLink}" style="display: inline-block; padding: 12px 24px; margin-top: 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Set Password & Start Onboarding</a>
+                <p style="margin-top: 30px; font-size: 12px; color: #888;">If you didn't expect this invitation, you can safely ignore this email.</p>
+              </div>
+            `,
+          });
+        } catch (emailErr) {
+          console.error(
+            `Failed to send bulk invite email to ${row.email}:`,
+            emailErr,
+          );
+        }
+
+        // Audit log
+        await this.auditService.logAction(
+          companyId,
+          actorId || null,
+          'CREATE',
+          'Employee',
+          createdEmp.id,
+          null,
+          { action: 'BULK_IMPORT_INVITE', email: createdEmp.email },
+        );
+
+        imported.push({
+          id: createdEmp.id,
+          email: createdEmp.email,
+          name: `${firstName} ${lastName}`,
+        });
+      } catch (err: any) {
+        console.error(`Error importing employee ${row.email}:`, err);
+        skipped.push({
+          email: row.email,
+          reason: err.message || 'Database error during employee creation',
+        });
+      }
+    }
+
+    return {
+      success: true,
+      totalProcessed: employees.length,
+      importedCount: imported.length,
+      skippedCount: skipped.length,
+      imported,
+      skipped,
     };
   }
 }

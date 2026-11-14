@@ -21,6 +21,16 @@ export const employeesApi = {
     return res.data;
   },
 
+  bulkImport: async (employees: any[]) => {
+    const res = await api.post("/employees/bulk-import", { employees });
+    return res.data;
+  },
+
+  resendInvite: async (employeeId: string) => {
+    const res = await api.post(`/employees/${employeeId}/resend-invite`);
+    return res.data;
+  },
+
   delete: async (employeeId: string) => {
     const res = await api.delete(`/employees/${employeeId}`);
     return res.data;
@@ -64,8 +74,18 @@ export const employeesApi = {
     return res.data;
   },
 
+  removeHistory: async (employeeId: string, historyId: string) => {
+    const res = await api.delete(`/employees/${employeeId}/history/${historyId}`);
+    return res.data;
+  },
+
   processExit: async (employeeId: string, data: any) => {
     const res = await api.post(`/employees/${employeeId}/exit`, data);
+    return res.data;
+  },
+
+  getOrgChart: async () => {
+    const res = await api.get("/employees/org-chart");
     return res.data;
   },
 };

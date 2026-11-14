@@ -9,6 +9,7 @@ import { EmailService } from '../email/email.service';
 import { Form16GeneratorService } from './tax/form16-generator.service';
 import { PayrollJvService } from './journal/payroll-jv.service';
 import { StatutoryCalculatorService } from './statutory-compliance/common/statutory-calculator.service';
+import { PayrollBatchQueueService } from './batch/payroll-batch-queue.service';
 
 describe('PayrollService', () => {
   let service: PayrollService;
@@ -24,6 +25,7 @@ describe('PayrollService', () => {
     },
     payrollRecord: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
     leaveRequest: {
@@ -44,6 +46,11 @@ describe('PayrollService', () => {
     },
     employeeStatutoryProfile: {
       findFirst: jest.fn(),
+    },
+    salaryRevisionHistory: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn(),
+      update: jest.fn(),
     },
   };
   const s3Service = {
@@ -90,6 +97,14 @@ describe('PayrollService', () => {
         {
           provide: StatutoryCalculatorService,
           useValue: { calculateAndSnapshot: jest.fn() },
+        },
+        {
+          provide: PayrollBatchQueueService,
+          useValue: {
+            enqueueBatchRun: jest.fn(),
+            getBatchRunProgress: jest.fn(),
+            listBatchRuns: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -232,6 +247,107 @@ describe('PayrollService', () => {
           'processor-1',
         ),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('calculates night shift allowance when night shifts are worked', async () => {
+      prisma.company.findUnique.mockResolvedValue({
+        name: 'Test Company',
+        settings: {
+          payslipHeaderUrl: null,
+          nightShiftAllowanceRate: 250, // Rs. 250 per night shift
+        },
+      });
+
+      // 2 night shifts attended
+      prisma.attendance.findMany.mockResolvedValue([
+        { status: 'PRESENT', isHalfDay: false, overtimeHours: 0, shift: { isNightShift: true } },
+        { status: 'PRESENT', isHalfDay: false, overtimeHours: 0, shift: { isNightShift: true } },
+      ]);
+
+      await service.generateMonthlyPayroll(
+        'company-1',
+        'employee-1',
+        5,
+        2026,
+        'processor-1',
+      );
+
+      expect(prisma.payrollRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            nightShiftAllowance: 500, // 2 * 250 = 500
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('generateMonthlySalarySheetCsv', () => {
+    it('throws NotFoundException when no payroll records exist for the month', async () => {
+      prisma.payrollRecord.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.generateMonthlySalarySheetCsv('company-1', 5, 2026),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('generates comprehensive salary sheet CSV with exact EPFO ECR standard columns and UTF-8 BOM', async () => {
+      prisma.payrollRecord.findMany.mockResolvedValue([
+        {
+          id: 'pay-1',
+          month: 5,
+          year: 2026,
+          totalWorkingDays: 22,
+          presentDays: 20,
+          unpaidLeaves: 2,
+          basicPay: 25000,
+          allowances: 15000,
+          arrearsPay: 2000,
+          deductions: 3500,
+          netSalary: 38500,
+          tdsDeduction: 1200,
+          overtimeHours: 4,
+          employee: {
+            employeeCode: 'EMP-001',
+            firstName: 'Rahul',
+            lastName: 'Sharma',
+            uanNumber: '100123456789',
+            panNumber: null,
+            bankName: null,
+            accountNumber: null,
+            ifscCode: null,
+            department: { name: 'Engineering' },
+            designation: { name: 'Senior Developer' },
+            statutoryProfiles: [{ epfoUan: '100123456789', esicIpNumber: null }],
+          },
+        },
+      ]);
+
+      const csv = await service.generateMonthlySalarySheetCsv('company-1', 5, 2026);
+
+      // Verify UTF-8 BOM for Excel compatibility
+      expect(csv.startsWith('\uFEFF')).toBe(true);
+
+      // Verify EPFO ECR headers are present
+      expect(csv).toContain('UAN,Member Name,Gross Wages,EPF Wages,EPS Wages,EDLI Wages');
+      expect(csv).toContain('EE Share Remitted (12%),EPS Share Remitted (8.33%),ER EPF Difference (3.67%),NCP Days');
+      expect(csv).toContain('Scheduled Working Days,Days Present,Unpaid Days (LOP),Basic Pay,Allowances,Arrears');
+
+      // Verify calculated values
+      // Gross = 25000 + 15000 + 2000 = 42000
+      // EPF Wage capped at 15000
+      // EE 12% = 1800
+      // ER EPS 8.33% = 1250
+      // ER EPF diff = 1800 - 1250 = 550
+      // NCP days = 2
+      expect(csv).toContain('100123456789');
+      expect(csv).toContain('"Rahul Sharma"');
+      expect(csv).toContain('42000'); // Gross Wages
+      expect(csv).toContain('15000'); // EPF Wages
+      expect(csv).toContain('1800');  // EE 12%
+      expect(csv).toContain('1250');  // ER EPS
+      expect(csv).toContain('550');   // ER Diff
+      expect(csv).toContain('38500.00'); // Net Salary
     });
   });
 });

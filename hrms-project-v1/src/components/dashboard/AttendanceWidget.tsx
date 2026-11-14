@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { attendanceApi } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, MapPin, Loader2, LogIn, LogOut, AlertCircle, CheckCircle } from "lucide-react";
@@ -217,7 +218,7 @@ export function AttendanceWidget() {
         <div className="grid grid-cols-2 gap-3 w-full pt-2">
           <Button 
             onClick={handleClockIn} 
-            disabled={statsLoading || clockInMutation.isPending || clockOutMutation.isPending || isClockedIn || hasClockedOut}
+            disabled={statsLoading || clockInMutation.isPending || clockOutMutation.isPending || isClockedIn || (hasClockedOut && !(stats as any)?.allowMultiPunch)}
             className="w-full bg-primary hover:bg-primary/90 text-secondary font-bold shadow-sm h-12"
           >
             {clockInMutation.isPending ? (
@@ -243,6 +244,21 @@ export function AttendanceWidget() {
               </>
             )}
           </Button>
+        </div>
+
+        <div className="flex items-center justify-between w-full text-xs px-1">
+          <Link
+            href="/workspace/attendance"
+            className="text-primary hover:underline font-medium text-[11px]"
+          >
+            Muster Roll & History →
+          </Link>
+          <Link
+            href="/workspace/attendance"
+            className="text-muted-foreground hover:text-foreground text-[11px]"
+          >
+            Regularize
+          </Link>
         </div>
 
         <p className="text-[11px] text-muted-foreground/60 text-center">

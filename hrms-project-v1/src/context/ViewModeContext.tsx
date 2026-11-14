@@ -26,12 +26,17 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
     queryKey: ["userProfileBase"],
     queryFn: async () => {
       if (typeof window === "undefined") return null;
+      if (window.location.pathname.startsWith("/platform-admin")) return null;
       try {
         return await authApi.getMe();
       } catch {
         return null;
       }
     },
+    enabled:
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/platform-admin") &&
+      Boolean(localStorage.getItem("hrms_token")),
     retry: 1,
     staleTime: 5 * 60 * 1000,
   });

@@ -22,6 +22,7 @@ import {
   LogOut,
   GraduationCap,
   Sparkles,
+  Network,
   type LucideIcon,
 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
@@ -105,6 +106,12 @@ export default function Sidebar({
           name: "Employees",
           href: "/workspace/employees",
           icon: Users,
+        },
+        {
+          key: "org_chart",
+          name: "Org Chart",
+          href: "/workspace/employees/org-chart",
+          icon: Network,
         },
         {
           key: "designations",

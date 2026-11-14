@@ -26,6 +26,8 @@ import {
   IdCard,
   Phone,
   ExternalLink,
+  Send,
+  Clock,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,6 +91,15 @@ export default function EmployeeDetailsPage() {
     exitDate: "",
     reason: "RESIGNED",
     notes: "",
+  });
+  const [credentialForm, setCredentialForm] = useState({
+    title: "",
+    credentialType: "MEDICAL_COUNCIL_REGISTRATION",
+    registrationNumber: "",
+    issuingAuthority: "",
+    issueDate: "",
+    expiryDate: "",
+    doesNotExpire: false,
   });
 
   // State for dropdown options
@@ -274,6 +285,68 @@ export default function EmployeeDetailsPage() {
     },
   });
 
+  // Mutation: Delete Employment History
+  const deleteHistoryMutation = useMutation({
+    mutationFn: async (historyId: string) => {
+      await employeesApi.removeHistory(employeeId, historyId);
+    },
+    onSuccess: () => {
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["employeeDetails", employeeId] });
+      setFeedbackMessage({ type: "success", text: "Employment history record removed!" });
+      setTimeout(() => setFeedbackMessage(null), 3000);
+    },
+    onError: (error: any) => {
+      setFeedbackMessage({ type: "error", text: error.response?.data?.message || "Failed to remove history" });
+    },
+  });
+
+  // Mutation: Add Professional Credential
+  const addCredentialMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await api.post("/credentials", {
+        ...data,
+        employeeId,
+        issueDate: data.issueDate ? new Date(data.issueDate).toISOString() : undefined,
+        expiryDate: data.expiryDate && !data.doesNotExpire ? new Date(data.expiryDate).toISOString() : undefined,
+      });
+    },
+    onSuccess: () => {
+      refetch();
+      setCredentialForm({
+        title: "",
+        credentialType: "MEDICAL_COUNCIL_REGISTRATION",
+        registrationNumber: "",
+        issuingAuthority: "",
+        issueDate: "",
+        expiryDate: "",
+        doesNotExpire: false,
+      });
+      queryClient.invalidateQueries({ queryKey: ["employeeDetails", employeeId] });
+      setFeedbackMessage({ type: "success", text: "Professional credential added successfully!" });
+      setTimeout(() => setFeedbackMessage(null), 3000);
+    },
+    onError: (error: any) => {
+      setFeedbackMessage({ type: "error", text: error.response?.data?.message || "Failed to add credential" });
+    },
+  });
+
+  // Mutation: Delete Professional Credential
+  const deleteCredentialMutation = useMutation({
+    mutationFn: async (credentialId: string) => {
+      await api.delete(`/credentials/${credentialId}`);
+    },
+    onSuccess: () => {
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["employeeDetails", employeeId] });
+      setFeedbackMessage({ type: "success", text: "Credential removed successfully!" });
+      setTimeout(() => setFeedbackMessage(null), 3000);
+    },
+    onError: (error: any) => {
+      setFeedbackMessage({ type: "error", text: error.response?.data?.message || "Failed to remove credential" });
+    },
+  });
+
   // Mutation: Process Offboarding / Exit
   const exitMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -287,6 +360,27 @@ export default function EmployeeDetailsPage() {
     },
     onError: (error: any) => {
       setFeedbackMessage({ type: "error", text: error.response?.data?.message || "Failed to process exit" });
+    },
+  });
+
+  // Mutation: Resend Onboarding Invitation
+  const resendInviteMutation = useMutation({
+    mutationFn: async () => {
+      return employeesApi.resendInvite(employeeId);
+    },
+    onSuccess: (data: any) => {
+      setFeedbackMessage({
+        type: "success",
+        text: data?.message || `Invitation email resent successfully to ${employee.email}`,
+      });
+      setTimeout(() => setFeedbackMessage(null), 5000);
+    },
+    onError: (error: any) => {
+      setFeedbackMessage({
+        type: "error",
+        text: error.response?.data?.message || "Failed to resend invitation email",
+      });
+      setTimeout(() => setFeedbackMessage(null), 5000);
     },
   });
 
@@ -361,6 +455,22 @@ export default function EmployeeDetailsPage() {
         </Link>
 
         <div className="flex items-center gap-3">
+          {employee.employmentStatus === "INVITED" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 shadow-sm cursor-pointer"
+              onClick={() => resendInviteMutation.mutate()}
+              disabled={resendInviteMutation.isPending}
+            >
+              {resendInviteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+              ) : (
+                <Send className="h-4 w-4 text-amber-600" />
+              )}
+              Resend Invitation
+            </Button>
+          )}
           <Link href={`/workspace/employees/${employeeId}/documents`}>
             <Button variant="outline" size="sm" className="gap-2 border-border shadow-sm cursor-pointer">
               <FileText className="h-4 w-4 text-primary" />
@@ -447,6 +557,32 @@ export default function EmployeeDetailsPage() {
           </div>
         </div>
 
+        {/* Invited Onboarding Status Banner */}
+        {employee.employmentStatus === "INVITED" && (
+          <div className="mt-4 p-3.5 bg-amber-50/80 border border-amber-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
+            <div className="flex items-center gap-2.5">
+              <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+              <div>
+                <span className="font-bold">Onboarding Invitation Pending:</span> This employee has not completed their initial password setup and onboarding checklist.
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => resendInviteMutation.mutate()}
+              disabled={resendInviteMutation.isPending}
+              className="h-8 border-amber-300 text-amber-800 bg-white hover:bg-amber-50 font-semibold gap-1.5 shrink-0"
+            >
+              {resendInviteMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600" />
+              ) : (
+                <Send className="h-3.5 w-3.5 text-amber-600" />
+              )}
+              Resend Invite Link
+            </Button>
+          </div>
+        )}
+
         {/* Global Feedback Banner */}
         {feedbackMessage && (
           <div
@@ -468,12 +604,15 @@ export default function EmployeeDetailsPage() {
 
       {/* Main Tabs Container */}
       <Tabs defaultValue="details" className="w-full space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-12 bg-muted/40 p-1 rounded-xl border border-border">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 h-12 bg-muted/40 p-1 rounded-xl border border-border">
           <TabsTrigger value="details" className="rounded-lg font-medium text-xs sm:text-sm">
             <User className="h-4 w-4 mr-1.5" /> Details & Role
           </TabsTrigger>
           <TabsTrigger value="skills" className="rounded-lg font-medium text-xs sm:text-sm">
             <GraduationCap className="h-4 w-4 mr-1.5" /> Skills
+          </TabsTrigger>
+          <TabsTrigger value="credentials" className="rounded-lg font-medium text-xs sm:text-sm">
+            <IdCard className="h-4 w-4 mr-1.5" /> Credentials
           </TabsTrigger>
           <TabsTrigger value="contacts" className="rounded-lg font-medium text-xs sm:text-sm">
             <ShieldAlert className="h-4 w-4 mr-1.5" /> Emergency
@@ -924,6 +1063,182 @@ export default function EmployeeDetailsPage() {
         </TabsContent>
 
         {/* ========================================================================= */}
+        {/* TAB: CREDENTIALS & LICENSES */}
+        {/* ========================================================================= */}
+        <TabsContent value="credentials" className="space-y-6 focus-visible:outline-none">
+          <Card className="border-border shadow-sm rounded-2xl">
+            <CardHeader className="border-b border-border bg-muted/20">
+              <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                <IdCard className="h-5 w-5 text-primary" />
+                Specialized Licenses & Professional Credentials
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Medical council registrations, clinical certifications, and compliance license tracking.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {/* Existing Credentials List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Registered Licenses</h4>
+                {!employee?.credentials?.length ? (
+                  <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground text-sm">
+                    No professional credentials or specialized licenses registered yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {employee.credentials.map((cred: any) => (
+                      <div
+                        key={cred.id}
+                        className="flex flex-col justify-between p-4 rounded-xl border border-border bg-muted/30 shadow-xs hover:border-primary/40 transition-colors gap-3"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h5 className="font-semibold text-sm text-foreground">{cred.title}</h5>
+                              <p className="text-xs text-muted-foreground">{cred.issuingAuthority}</p>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] uppercase font-semibold ${
+                                cred.verificationStatus === "VERIFIED"
+                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                  : cred.verificationStatus === "REJECTED"
+                                  ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                                  : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                              }`}
+                            >
+                              {cred.verificationStatus || "PENDING"}
+                            </Badge>
+                          </div>
+                          <div className="text-xs font-mono bg-card px-2 py-1 rounded border border-border/80 inline-block">
+                            Reg #: {cred.registrationNumber}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground pt-1">
+                            <Clock className="h-3 w-3" />
+                            <span>
+                              {cred.doesNotExpire
+                                ? "Permanent (Does Not Expire)"
+                                : cred.expiryDate
+                                ? `Expires: ${new Date(cred.expiryDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
+                                : "No expiry date set"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-1 border-t border-border/60">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-lg"
+                            onClick={() => deleteCredentialMutation.mutate(cred.id)}
+                            disabled={deleteCredentialMutation.isPending}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add New Credential Form */}
+              <div className="bg-muted/40 p-5 rounded-xl border border-border space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Add Professional Credential</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Credential Title</label>
+                    <Input
+                      placeholder="e.g. State Medical Council Registration"
+                      className="h-10 rounded-lg bg-card border-border"
+                      value={credentialForm.title}
+                      onChange={(e) => setCredentialForm({ ...credentialForm, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Credential Type</label>
+                    <select
+                      className="w-full h-10 px-3 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      value={credentialForm.credentialType}
+                      onChange={(e) => setCredentialForm({ ...credentialForm, credentialType: e.target.value })}
+                    >
+                      <option value="MEDICAL_COUNCIL_REGISTRATION">Medical Council Registration</option>
+                      <option value="NURSING_COUNCIL_REGISTRATION">Nursing Council Registration</option>
+                      <option value="PHARMACY_COUNCIL_REGISTRATION">Pharmacy Council Registration</option>
+                      <option value="DENTAL_COUNCIL_REGISTRATION">Dental Council Registration</option>
+                      <option value="LIFE_SUPPORT_BLS">Basic Life Support (BLS)</option>
+                      <option value="LIFE_SUPPORT_ACLS">Advanced Life Support (ACLS)</option>
+                      <option value="OTHER">Other Professional License</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Registration / License #</label>
+                    <Input
+                      placeholder="e.g. DMC/R/10492"
+                      className="h-10 rounded-lg bg-card border-border"
+                      value={credentialForm.registrationNumber}
+                      onChange={(e) => setCredentialForm({ ...credentialForm, registrationNumber: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Issuing Authority</label>
+                    <Input
+                      placeholder="e.g. Delhi Medical Council"
+                      className="h-10 rounded-lg bg-card border-border"
+                      value={credentialForm.issuingAuthority}
+                      onChange={(e) => setCredentialForm({ ...credentialForm, issuingAuthority: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Issue Date (Optional)</label>
+                    <Input
+                      type="date"
+                      className="h-10 rounded-lg bg-card border-border"
+                      value={credentialForm.issueDate}
+                      onChange={(e) => setCredentialForm({ ...credentialForm, issueDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Expiry Date</label>
+                    <Input
+                      type="date"
+                      disabled={credentialForm.doesNotExpire}
+                      className="h-10 rounded-lg bg-card border-border disabled:opacity-50"
+                      value={credentialForm.expiryDate}
+                      onChange={(e) => setCredentialForm({ ...credentialForm, expiryDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="doesNotExpire"
+                    checked={credentialForm.doesNotExpire}
+                    onChange={(e) => setCredentialForm({ ...credentialForm, doesNotExpire: e.target.checked })}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="doesNotExpire" className="text-xs text-muted-foreground cursor-pointer">
+                    This credential / license is permanent and does not expire
+                  </label>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    onClick={() => addCredentialMutation.mutate(credentialForm)}
+                    disabled={!credentialForm.title || !credentialForm.registrationNumber || !credentialForm.issuingAuthority || addCredentialMutation.isPending}
+                    className="h-10 px-5 rounded-lg font-semibold gap-1.5 cursor-pointer"
+                  >
+                    {addCredentialMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Add Credential
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ========================================================================= */}
         {/* TAB 3: EMERGENCY CONTACTS */}
         {/* ========================================================================= */}
         <TabsContent value="contacts" className="space-y-6 focus-visible:outline-none">
@@ -1042,6 +1357,59 @@ export default function EmployeeDetailsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
+              {/* Existing History List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recorded Prior Positions</h4>
+                {!employee?.employmentHistory?.length ? (
+                  <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground text-sm">
+                    No prior employment history recorded yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {employee.employmentHistory.map((hist: any) => (
+                      <div
+                        key={hist.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-border bg-muted/30 shadow-xs hover:border-primary/40 transition-colors gap-3"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-foreground">{hist.jobTitle}</span>
+                            <span className="text-xs text-muted-foreground">at</span>
+                            <span className="font-medium text-sm text-foreground">{hist.companyName}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-muted-foreground/70" />
+                              {new Date(hist.startDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                              {" — "}
+                              {hist.endDate
+                                ? new Date(hist.endDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+                                : "Present"}
+                            </span>
+                            {hist.reasonForLeaving && (
+                              <>
+                                <span>•</span>
+                                <span className="italic">{hist.reasonForLeaving}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-lg shrink-0 self-end sm:self-center"
+                          onClick={() => deleteHistoryMutation.mutate(hist.id)}
+                          disabled={deleteHistoryMutation.isPending}
+                          title="Delete history entry"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Add History Form */}
               <div className="bg-muted/40 p-5 rounded-xl border border-border space-y-4">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Record Past Employment</h4>
@@ -1124,6 +1492,31 @@ export default function EmployeeDetailsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
+              {/* Recorded Exit Record */}
+              {employee?.exitRecord && (
+                <div className="p-5 rounded-xl border border-destructive/30 bg-destructive/5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive" className="uppercase font-semibold text-xs">
+                        Offboarded ({employee.exitRecord.reason})
+                      </Badge>
+                      <span className="text-xs font-medium text-foreground">
+                        Official Exit Date: {new Date(employee.exitRecord.exitDate).toLocaleDateString("en-US", { dateStyle: "long" })}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      Status: Offboarding Record Finalized
+                    </span>
+                  </div>
+                  {employee.exitRecord.exitInterviewNotes && (
+                    <div className="text-xs text-muted-foreground bg-card/80 p-3 rounded-lg border border-border">
+                      <strong className="text-foreground">Exit Notes: </strong>
+                      {employee.exitRecord.exitInterviewNotes}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">Official Exit Date</label>

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -94,6 +95,46 @@ export class PlatformBillingController {
     @Query('limit') limit?: number,
   ) {
     return this.billingService.getFailedPayments({ page, limit });
+  }
+
+  // Discount Coupons
+  @Get('coupons')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async getCoupons() {
+    return this.billingService.getCoupons();
+  }
+
+  @Post('coupons')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async createCoupon(
+    @Body()
+    body: {
+      code: string;
+      name: string;
+      discountType: 'PERCENTAGE' | 'FIXED';
+      discountValue: number;
+      validUntil: string;
+      maxUsage: number;
+      isActive?: boolean;
+    },
+  ) {
+    return this.billingService.createCoupon(body);
+  }
+
+  @Delete('coupons/:code')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async deleteCoupon(@Param('code') code: string) {
+    return this.billingService.deleteCoupon(code);
+  }
+
+  @Post('coupons/validate')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async validateCoupon(
+    @Body() body: { code: string; amount: number },
+  ) {
+    return this.billingService.validateCoupon(body.code, body.amount);
   }
 
   // Payment Webhook (Public with Idempotency)

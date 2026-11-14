@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsEnum, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsIn,
+} from 'class-validator';
 import { LeaveType } from '../../../generated/prisma/client';
 
 export class CreateLeaveDto {
@@ -15,4 +22,12 @@ export class CreateLeaveDto {
   @IsString()
   @IsNotEmpty()
   reason: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isHalfDay?: boolean;
+
+  @IsIn(['FIRST_HALF', 'SECOND_HALF'])
+  @IsOptional()
+  halfDaySession?: 'FIRST_HALF' | 'SECOND_HALF';
 }

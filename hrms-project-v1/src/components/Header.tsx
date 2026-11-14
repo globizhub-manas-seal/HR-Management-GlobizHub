@@ -243,7 +243,7 @@ export default function Header() {
                     {user?.firstName} {user?.lastName}
                   </span>
                   <span className="mt-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {user?.role === "SUPER_ADMIN"
+                    {user?.role === "OWNER" || user?.role === "SUPER_ADMIN"
                       ? "CEO / Admin"
                       : user?.role === "HR_HEAD"
                       ? "HR Manager"

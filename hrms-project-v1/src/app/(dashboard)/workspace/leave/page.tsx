@@ -35,7 +35,9 @@ export default function EmployeeLeavePage() {
     type: "CASUAL",
     startDate: "",
     endDate: "",
-    reason: ""
+    reason: "",
+    isHalfDay: false,
+    halfDaySession: "FIRST_HALF" as "FIRST_HALF" | "SECOND_HALF",
   });
 
   // Fetch Leave Balance
@@ -52,17 +54,45 @@ export default function EmployeeLeavePage() {
 
   // Apply for Leave Mutation
   const applyMutation = useMutation({
-    mutationFn: (formData: typeof leaveForm) => leavesApi.applyLeave(formData),
+    mutationFn: (formData: typeof leaveForm) =>
+      leavesApi.applyLeave({
+        type: formData.type,
+        startDate: formData.startDate,
+        endDate: formData.isHalfDay ? formData.startDate : formData.endDate,
+        reason: formData.reason,
+        isHalfDay: formData.isHalfDay,
+        halfDaySession: formData.isHalfDay ? formData.halfDaySession : undefined,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
       queryClient.invalidateQueries({ queryKey: ["myLeaveBalance"] });
       setIsApplyModalOpen(false);
-      setLeaveForm({ type: "CASUAL", startDate: "", endDate: "", reason: "" });
+      setLeaveForm({
+        type: "CASUAL",
+        startDate: "",
+        endDate: "",
+        reason: "",
+        isHalfDay: false,
+        halfDaySession: "FIRST_HALF",
+      });
       toast("Your leave request has been submitted.");
     },
     onError: (error: any) => {
       toast(error.response?.data?.message || "Failed to apply for leave", "error");
     }
+  });
+
+  // Withdraw Leave Mutation
+  const withdrawMutation = useMutation({
+    mutationFn: (id: string) => leavesApi.withdrawLeave(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myLeaves"] });
+      queryClient.invalidateQueries({ queryKey: ["myLeaveBalance"] });
+      toast("Leave request withdrawn successfully.");
+    },
+    onError: (err: any) => {
+      toast(err.response?.data?.message || "Failed to withdraw leave request", "error");
+    },
   });
 
   // Apple HIG Semantic Status Badges
@@ -74,8 +104,10 @@ export default function EmployeeLeavePage() {
         return <Badge variant="warning">Pending</Badge>;
       case "REJECTED":
         return <Badge variant="destructive">Rejected</Badge>;
+      case "WITHDRAWN":
+        return <Badge variant="secondary">Withdrawn</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -87,7 +119,9 @@ export default function EmployeeLeavePage() {
     return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
   };
 
-  const requestedDays = calculateDays(leaveForm.startDate, leaveForm.endDate);
+  const requestedDays = leaveForm.isHalfDay
+    ? 0.5
+    : calculateDays(leaveForm.startDate, leaveForm.endDate);
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
@@ -188,32 +222,68 @@ export default function EmployeeLeavePage() {
             />
           ) : (
             <div className="overflow-x-auto" tabIndex={0} aria-label="Leave history table. Scroll horizontally to view all columns.">
-              <Table className="min-w-[680px]">
+              <Table className="min-w-[750px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Type</TableHead>
                     <TableHead>Date Range</TableHead>
                     <TableHead>Days</TableHead>
                     <TableHead>Reason</TableHead>
-                    <TableHead className="text-right">Status</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {leaveHistory?.map((leave: any) => (
-                    <TableRow key={leave.id}>
-                      <TableCell className="font-medium text-foreground">{leave.type.replace("_", " ")}</TableCell>
-                      <TableCell className="text-label-secondary tabular-nums">
-                        {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-foreground font-medium tabular-nums">
-                        {calculateDays(leave.startDate, leave.endDate)}
-                      </TableCell>
-                      <TableCell className="text-label-secondary max-w-[240px] truncate">{leave.reason}</TableCell>
-                      <TableCell className="text-right">
-                        {getStatusBadge(leave.status)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {leaveHistory?.map((leave: any) => {
+                    const isWithdrawable =
+                      leave.status === "PENDING" ||
+                      (leave.status === "APPROVED" &&
+                        new Date(leave.endDate) >= new Date());
+
+                    return (
+                      <TableRow key={leave.id}>
+                        <TableCell className="font-medium text-foreground">
+                          {leave.type.replace("_", " ")}
+                        </TableCell>
+                        <TableCell className="text-label-secondary tabular-nums">
+                          {new Date(leave.startDate).toLocaleDateString()} -{" "}
+                          {new Date(leave.endDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-foreground font-medium tabular-nums">
+                          {leave.totalDays !== undefined
+                            ? `${leave.totalDays} day${leave.totalDays !== 1 ? "s" : ""}`
+                            : calculateDays(leave.startDate, leave.endDate)}
+                        </TableCell>
+                        <TableCell className="max-w-[240px]">
+                          <p className="text-label-secondary truncate">
+                            {leave.reason}
+                          </p>
+                          {leave.rejectionReason && (
+                            <p
+                              className="text-xs text-rose-600 font-medium mt-0.5 truncate"
+                              title={leave.rejectionReason}
+                            >
+                              Rejected: {leave.rejectionReason}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(leave.status)}</TableCell>
+                        <TableCell className="text-right">
+                          {isWithdrawable && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => withdrawMutation.mutate(leave.id)}
+                              disabled={withdrawMutation.isPending}
+                              className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 h-8 px-2.5 font-medium"
+                            >
+                              {leave.status === "PENDING" ? "Withdraw" : "Cancel"}
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -247,31 +317,87 @@ export default function EmployeeLeavePage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label htmlFor="leave-start-date" className="type-subhead text-label-secondary font-medium">Start Date</label>
-                <Input 
-                  type="date" 
-                  id="leave-start-date"
-                  value={leaveForm.startDate} 
-                  onChange={(e) => setLeaveForm({...leaveForm, startDate: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="leave-end-date" className="type-subhead text-label-secondary font-medium">End Date</label>
-                <Input 
-                  type="date" 
-                  id="leave-end-date"
-                  value={leaveForm.endDate} 
-                  onChange={(e) => setLeaveForm({...leaveForm, endDate: e.target.value})}
-                />
-              </div>
+            {/* Half Day Checkbox */}
+            <div className="flex items-center gap-2 pt-1 pb-1">
+              <input
+                type="checkbox"
+                id="half-day-toggle"
+                checked={leaveForm.isHalfDay}
+                onChange={(e) =>
+                  setLeaveForm({
+                    ...leaveForm,
+                    isHalfDay: e.target.checked,
+                    endDate: e.target.checked ? leaveForm.startDate : leaveForm.endDate,
+                  })
+                }
+                className="rounded border-input text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+              />
+              <label
+                htmlFor="half-day-toggle"
+                className="text-sm font-medium text-foreground cursor-pointer select-none"
+              >
+                Apply for Half Day (0.5 working day)
+              </label>
             </div>
+
+            {leaveForm.isHalfDay ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="leave-date" className="type-subhead text-label-secondary font-medium">Date</label>
+                  <Input 
+                    type="date" 
+                    id="leave-date"
+                    value={leaveForm.startDate} 
+                    onChange={(e) => setLeaveForm({...leaveForm, startDate: e.target.value, endDate: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="leave-session" className="type-subhead text-label-secondary font-medium">Half Day Session</label>
+                  <Select
+                    value={leaveForm.halfDaySession}
+                    onValueChange={(val: any) =>
+                      setLeaveForm({ ...leaveForm, halfDaySession: val })
+                    }
+                  >
+                    <SelectTrigger id="leave-session">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIRST_HALF">First Half (Morning)</SelectItem>
+                      <SelectItem value="SECOND_HALF">Second Half (Afternoon)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="leave-start-date" className="type-subhead text-label-secondary font-medium">Start Date</label>
+                  <Input 
+                    type="date" 
+                    id="leave-start-date"
+                    value={leaveForm.startDate} 
+                    onChange={(e) => setLeaveForm({...leaveForm, startDate: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="leave-end-date" className="type-subhead text-label-secondary font-medium">End Date</label>
+                  <Input 
+                    type="date" 
+                    id="leave-end-date"
+                    value={leaveForm.endDate} 
+                    onChange={(e) => setLeaveForm({...leaveForm, endDate: e.target.value})}
+                  />
+                </div>
+              </div>
+            )}
 
             {requestedDays > 0 && (
               <div className="p-3 bg-primary/10 rounded-[10px] flex items-center justify-between border border-hairline border-primary/20">
                 <span className="type-subhead text-primary font-medium">Total requested days:</span>
-                <span className="type-headline font-bold text-primary tabular-nums">{requestedDays}</span>
+                <span className="type-headline font-bold text-primary tabular-nums">
+                  {requestedDays} {requestedDays === 1 ? "day" : "days"}
+                </span>
               </div>
             )}
 
@@ -293,7 +419,7 @@ export default function EmployeeLeavePage() {
               variant="default"
               size="default"
               onClick={() => applyMutation.mutate(leaveForm)}
-              disabled={!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason || applyMutation.isPending || requestedDays <= 0}
+              disabled={!leaveForm.startDate || (!leaveForm.isHalfDay && !leaveForm.endDate) || !leaveForm.reason || applyMutation.isPending || requestedDays <= 0}
             >
               {applyMutation.isPending ? "Submitting..." : "Submit Request"}
             </Button>
