@@ -5,6 +5,7 @@ import {
   Logger,
   Inject,
   forwardRef,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PayrollService } from '../payroll.service';
@@ -27,7 +28,7 @@ export interface BatchRunProgressResponse {
 }
 
 @Injectable()
-export class PayrollBatchQueueService {
+export class PayrollBatchQueueService implements OnModuleInit {
   private readonly logger = new Logger(PayrollBatchQueueService.name);
 
   constructor(
@@ -35,6 +36,41 @@ export class PayrollBatchQueueService {
     @Inject(forwardRef(() => PayrollService))
     private readonly payrollService: PayrollService,
   ) {}
+
+  /**
+   * Boot-time reconciliation: Recovers zombie batch runs stuck in PROCESSING on server restart
+   */
+  async onModuleInit() {
+    try {
+      const staleThreshold = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
+      const zombieRuns = await this.prisma.payrollBatchRun.updateMany({
+        where: {
+          status: { in: ['QUEUED', 'PROCESSING'] },
+          updatedAt: { lt: staleThreshold },
+        },
+        data: {
+          status: 'FAILED',
+          errorLog: JSON.stringify([
+            {
+              reason: 'Execution interrupted: Server restarted or terminated while batch was active. Please trigger a new run.',
+              timestamp: new Date().toISOString(),
+            },
+          ]),
+          completedAt: new Date(),
+        },
+      });
+
+      if (zombieRuns.count > 0) {
+        this.logger.warn(
+          `Boot-time reconciliation: Marked ${zombieRuns.count} abandoned payroll batch runs as FAILED`,
+        );
+      }
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to reconcile abandoned payroll batch runs on startup: ${err?.message}`,
+      );
+    }
+  }
 
   /**
    * Enqueues a batch payroll run and immediately returns a job ticket.

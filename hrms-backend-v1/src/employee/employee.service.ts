@@ -686,6 +686,13 @@ export class EmployeeService {
   // EMPLOYEE LIFECYCLE & DETAILS
   // ==========================================
 
+  async getEmergencyContacts(employeeId: string) {
+    return this.prisma.emergencyContact.findMany({
+      where: { employeeId },
+      orderBy: { isPrimary: 'desc' },
+    });
+  }
+
   async addEmergencyContact(
     employeeId: string,
     data: {
@@ -701,12 +708,26 @@ export class EmployeeService {
     });
   }
 
+  async getSkills(employeeId: string) {
+    return this.prisma.employeeSkill.findMany({
+      where: { employeeId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async addSkill(
     employeeId: string,
     data: { name: string; proficiencyLevel: string },
   ) {
     return this.prisma.employeeSkill.create({
       data: { ...data, employeeId },
+    });
+  }
+
+  async getEmploymentHistory(employeeId: string) {
+    return this.prisma.employmentHistory.findMany({
+      where: { employeeId },
+      orderBy: { startDate: 'desc' },
     });
   }
 

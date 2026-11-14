@@ -37,6 +37,62 @@ export class AttendanceService {
     return R * c;
   }
 
+  /**
+   * Calculates the exact UTC date range for a calendar day in the tenant's configured timezone.
+   */
+  getTenantDayBounds(
+    timeZone: string = 'UTC',
+    refDate: Date = new Date(),
+  ): { startOfDay: Date; endOfDay: Date } {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timeZone || 'UTC',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const dateStr = formatter.format(refDate);
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const utcMidnight = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timeZone || 'UTC',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).formatToParts(utcMidnight);
+
+      const tzH = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+      const tzM = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+
+      let offsetHours = tzH;
+      if (offsetHours > 12) offsetHours -= 24;
+      const offsetMs = (offsetHours * 60 + tzM) * 60 * 1000;
+
+      const startOfDay = new Date(utcMidnight.getTime() - offsetMs);
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+      return { startOfDay, endOfDay };
+    } catch {
+      const startOfDay = new Date(refDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setHours(23, 59, 59, 999);
+      return { startOfDay, endOfDay };
+    }
+  }
+
+  async getCompanyTimeZone(companyId: string): Promise<string> {
+    try {
+      const settings = await this.prisma.companySettings.findUnique({
+        where: { companyId },
+        select: { timeZone: true },
+      });
+      return settings?.timeZone || 'UTC';
+    } catch {
+      return 'UTC';
+    }
+  }
+
   async clockIn(
     employeeId: string,
     companyId: string,
@@ -44,13 +100,22 @@ export class AttendanceService {
     userIp: string,
   ) {
     const now = new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    // 1. Fetch Company Settings & Tenant Timezone
+    const settings = await this.prisma.companySettings.findUnique({
+      where: { companyId },
+    });
 
-    // 1. Check for any unclosed clock-in session across the last 28 hours (including cross-midnight shifts)
+    if (!settings) {
+      throw new BadRequestException('Company settings not configured.');
+    }
+
+    const { startOfDay: today, endOfDay } = this.getTenantDayBounds(
+      settings.timeZone || 'UTC',
+      now,
+    );
+
+    // 1b. Check for any unclosed clock-in session across the last 28 hours (including cross-midnight shifts)
     const twentyEightHoursAgo = new Date(Date.now() - 28 * 60 * 60 * 1000);
     const unclosedRecord = await this.prisma.attendance.findFirst({
       where: {
@@ -65,15 +130,6 @@ export class AttendanceService {
       throw new BadRequestException(
         'You are already clocked in. Please clock out first before starting a new session.',
       );
-    }
-
-    // 2. Fetch Company Settings
-    const settings = await this.prisma.companySettings.findUnique({
-      where: { companyId },
-    });
-
-    if (!settings) {
-      throw new BadRequestException('Company settings not configured.');
     }
 
     let isVerified = false;
@@ -426,11 +482,11 @@ export class AttendanceService {
   }
 
   async getAdminTodayStats(companyId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    const timeZone = await this.getCompanyTimeZone(companyId);
+    const { startOfDay: today, endOfDay } = this.getTenantDayBounds(
+      timeZone,
+      new Date(),
+    );
 
     const totalEmployees = await this.prisma.employee.count({
       where: { companyId },
@@ -465,11 +521,11 @@ export class AttendanceService {
   }
 
   async getMyDashboardStats(employeeId: string, companyId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    const timeZone = await this.getCompanyTimeZone(companyId);
+    const { startOfDay: today, endOfDay } = this.getTenantDayBounds(
+      timeZone,
+      new Date(),
+    );
 
     const todayRecord = await this.prisma.attendance.findFirst({
       where: {
@@ -532,12 +588,19 @@ export class AttendanceService {
       reason: string;
     },
   ) {
-    // Find existing attendance record
-    const startOfDay = new Date(data.date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(data.date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const employee = this.prisma.employee?.findUnique
+      ? await this.prisma.employee.findUnique({
+          where: { id: employeeId },
+          select: { companyId: true },
+        })
+      : null;
+    const timeZone = employee?.companyId
+      ? await this.getCompanyTimeZone(employee.companyId)
+      : 'UTC';
+    const { startOfDay, endOfDay } = this.getTenantDayBounds(
+      timeZone,
+      new Date(data.date),
+    );
 
     const existingAttendance = await this.prisma.attendance.findFirst({
       where: {
@@ -717,11 +780,12 @@ export class AttendanceService {
       search?: string;
     },
   ) {
-    const targetDate = query.date ? new Date(query.date) : new Date();
-    targetDate.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const timeZone = await this.getCompanyTimeZone(companyId);
+    const targetRef = query.date ? new Date(query.date) : new Date();
+    const { startOfDay: targetDate, endOfDay } = this.getTenantDayBounds(
+      timeZone,
+      targetRef,
+    );
 
     // Fetch active employees
     const employees = await this.prisma.employee.findMany({

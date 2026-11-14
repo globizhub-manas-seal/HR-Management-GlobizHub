@@ -66,17 +66,17 @@ export const leavesApi = {
   },
 
   getHolidays: async () => {
-    const res = await api.get("/leave/holidays");
+    const res = await api.get("/leaves/holidays");
     return res.data;
   },
 
   addHoliday: async (data: { name: string; date: string; type?: string }) => {
-    const res = await api.post("/leave/holidays", data);
+    const res = await api.post("/leaves/holidays", data);
     return res.data;
   },
 
   deleteHoliday: async (id: string) => {
-    const res = await api.delete(`/leave/holidays/${id}`);
+    const res = await api.delete(`/leaves/holidays/${id}`);
     return res.data;
   },
 };

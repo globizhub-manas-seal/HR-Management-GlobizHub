@@ -8,5 +8,13 @@ export class ReviewCorrectionDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @IsOptional()
+  @IsString()
+  reviewerNote?: string;
+
+  @IsOptional()
+  @IsString()
+  reviewNote?: string;
 }
 

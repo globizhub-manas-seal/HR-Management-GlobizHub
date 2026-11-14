@@ -38,6 +38,19 @@ export class JobRequisitionController {
     return this.service.createDirectJob(req.user.companyId, req.user, dto);
   }
 
+  // Standard Post Endpoint (Routes dynamically based on whether manpowerRequisitionId is present)
+  @Post()
+  async createJob(@Request() req, @Body() dto: CreateJobRequisitionDto) {
+    if (dto.manpowerRequisitionId) {
+      return this.service.createFromManpowerRequisition(
+        req.user.companyId,
+        req.user,
+        dto,
+      );
+    }
+    return this.service.createDirectJob(req.user.companyId, req.user, dto);
+  }
+
   // 3. List Jobs
   @Get()
   async findAll(

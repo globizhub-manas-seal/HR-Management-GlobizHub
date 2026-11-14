@@ -320,29 +320,74 @@ export class AuthService {
     );
 
     if (uniqueInvites.length > 0) {
-      // Fetch departments for mapping
+      // S-04 / P0: Asynchronously dispatch bulk onboarding and email invitations so HTTP registration returns instantly
+      setImmediate(() => {
+        this.processBulkInvitesBackground(company.id, newAdmin.id, uniqueInvites).catch((err) => {
+          this.logger.error(
+            `Failed background bulk invites for company ${company.id}: ${err?.message}`,
+            err?.stack,
+          );
+        });
+      });
+    }
+
+    // 6. Generate their JWT token to log them in automatically
+    const payload = {
+      sub: newAdmin.id,
+      email: newAdmin.email,
+      companyId: company.id,
+      role: newAdmin.role,
+    };
+    return {
+      access_token: await this.jwtService.signAsync(payload),
+      message: 'Workspace successfully configured!',
+      invitedCount: uniqueInvites.length,
+    };
+  }
+
+  /**
+   * Background processor for bulk employee creation, onboarding case initialization, and invitation emails
+   */
+  private async processBulkInvitesBackground(
+    companyId: string,
+    adminId: string,
+    uniqueInvites: Array<{
+      firstName?: string;
+      lastName?: string;
+      email: string;
+      phone?: string;
+      department?: string;
+      designation?: string;
+      role?: string;
+    }>,
+  ) {
+    this.logger.log(
+      `Starting background bulk invite processing for company ${companyId} (${uniqueInvites.length} employees)`,
+    );
+    try {
       const companyDepts = await this.prisma.department.findMany({
-        where: { companyId: company.id },
+        where: { companyId },
       });
       const deptMap = new Map<string, { id: string; name: string }>();
       companyDepts.forEach((d) => {
         deptMap.set(d.name.trim().toLowerCase(), d);
       });
 
-      // S-03: Unusable temporary password for wizard-invited employees
-      const tempPasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+      // S-03: Hash temporary password once for the entire batch
+      const tempPasswordHash = await bcrypt.hash(
+        crypto.randomBytes(32).toString('hex'),
+        10,
+      );
 
       for (let i = 0; i < uniqueInvites.length; i++) {
         const inv = uniqueInvites[i];
         try {
-          // Check if employee with this email already exists globally
           const alreadyExists = await this.prisma.employee.findUnique({
             where: { email: inv.email },
           });
           if (alreadyExists) continue;
 
           let deptId: string | null = null;
-
           if (inv.department) {
             const matchedDept = deptMap.get(inv.department.toLowerCase());
             if (matchedDept) {
@@ -350,17 +395,16 @@ export class AuthService {
             }
           }
 
-          // S-14: store SHA-256 hash; raw token goes in the email link
           const rawInviteToken = crypto.randomBytes(32).toString('hex');
-          const inviteToken = crypto.createHash('sha256').update(rawInviteToken).digest('hex');
+          const inviteToken = crypto
+            .createHash('sha256')
+            .update(rawInviteToken)
+            .digest('hex');
 
           let assignedRole: any = 'EMPLOYEE';
           if (inv.role) {
             const upperRole = inv.role.toUpperCase().replace(/\s+/g, '_');
-            // S-03: SUPER_ADMIN cannot be assigned via bulk invite
-            if (
-              ['HR_HEAD', 'MANAGER', 'EMPLOYEE'].includes(upperRole)
-            ) {
+            if (['HR_HEAD', 'MANAGER', 'EMPLOYEE'].includes(upperRole)) {
               assignedRole = upperRole;
             }
           }
@@ -370,26 +414,28 @@ export class AuthService {
 
           const createdEmp = await this.prisma.employee.create({
             data: {
-              companyId: company.id,
+              companyId,
               firstName: fName,
               lastName: lName,
               email: inv.email,
               phone: inv.phone || null,
               password: tempPasswordHash,
               role: assignedRole,
-              employeeCode: null, // Defer ID generation until onboarding completion
+              employeeCode: null,
               employmentStatus: 'INVITED',
               departmentId: deptId,
               inviteToken: inviteToken,
-              resetPasswordExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+              resetPasswordExpires: new Date(
+                Date.now() + 7 * 24 * 60 * 60 * 1000,
+              ),
             },
           });
 
-          // Initialize Onboarding Case & standard checklist tasks
+          // Initialize Onboarding Case & standard checklist tasks in bulk
           try {
             const newCase = await this.prisma.onboardingCase.create({
               data: {
-                companyId: company.id,
+                companyId,
                 employeeId: createdEmp.id,
                 status: 'INVITED',
                 offerSigned: false,
@@ -430,24 +476,22 @@ export class AuthService {
               },
             ];
 
-            for (const t of defaultTasks) {
-              await this.prisma.task.create({
-                data: {
-                  companyId: company.id,
-                  employeeId: createdEmp.id,
-                  onboardingCaseId: newCase.id,
-                  title: t.title,
-                  description: t.description,
-                  source: 'TEMPLATE',
-                  requiredForActivation: t.requiredForActivation,
-                  status: 'PENDING',
-                },
-              });
-            }
-          } catch (caseErr) {
-            console.error(
-              'Failed to initialize onboarding case for wizard invite:',
-              caseErr,
+            await this.prisma.task.createMany({
+              data: defaultTasks.map((t) => ({
+                companyId,
+                employeeId: createdEmp.id,
+                onboardingCaseId: newCase.id,
+                title: t.title,
+                description: t.description,
+                source: 'TEMPLATE' as any,
+                requiredForActivation: t.requiredForActivation,
+                status: 'PENDING',
+              })),
+            });
+          } catch (caseErr: any) {
+            this.logger.error(
+              `Failed to initialize onboarding case for wizard invite: ${inv.email}`,
+              caseErr?.message,
             );
           }
 
@@ -456,12 +500,12 @@ export class AuthService {
             inv.email,
             fName,
             null,
-            rawInviteToken, // S-14: send raw token in email; DB stores hash
+            rawInviteToken,
           );
 
           await this.auditService.logAction(
-            company.id,
-            newAdmin.id,
+            companyId,
+            adminId,
             'CREATE',
             'Employee',
             createdEmp.id,
@@ -472,27 +516,21 @@ export class AuthService {
               employeeCode: createdEmp.employeeCode,
             },
           );
-        } catch (inviteErr) {
-          console.error(
-            `Failed to onboard invited employee (${inv.email}):`,
-            inviteErr,
+        } catch (inviteErr: any) {
+          this.logger.error(
+            `Failed to onboard invited employee (${inv.email}): ${inviteErr?.message}`,
           );
         }
       }
+      this.logger.log(
+        `Completed background bulk invite processing for company ${companyId}`,
+      );
+    } catch (err: any) {
+      this.logger.error(
+        `Background bulk invite worker error for company ${companyId}: ${err?.message}`,
+        err?.stack,
+      );
     }
-
-    // 6. Generate their JWT token to log them in automatically
-    const payload = {
-      sub: newAdmin.id,
-      email: newAdmin.email,
-      companyId: company.id,
-      role: newAdmin.role,
-    };
-    return {
-      access_token: await this.jwtService.signAsync(payload),
-      message: 'Workspace successfully configured!',
-      invitedCount: uniqueInvites.length,
-    };
   }
 
   // ... KEEP YOUR EXISTING login() FUNCTION EXACTLY AS IT IS BELOW ...

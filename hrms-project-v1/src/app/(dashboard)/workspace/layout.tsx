@@ -7,9 +7,10 @@ import Header from "@/components/Header";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { CopilotWidget } from "@/components/copilot/CopilotWidget";
 import { Loader2 } from "lucide-react";
-import { useViewMode } from "@/context/ViewModeContext";
+import { ViewModeProvider, useViewMode } from "@/context/ViewModeContext";
+import { PermissionProvider } from "@/context/PermissionContext";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, activeRole, isLoading } = useViewMode();
   const [mounted, setMounted] = useState(false);
@@ -52,5 +53,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Gpilot AI Assistant for User Guidance */}
       <CopilotWidget />
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ViewModeProvider>
+      <PermissionProvider>
+        <WorkspaceShell>{children}</WorkspaceShell>
+      </PermissionProvider>
+    </ViewModeProvider>
   );
 }

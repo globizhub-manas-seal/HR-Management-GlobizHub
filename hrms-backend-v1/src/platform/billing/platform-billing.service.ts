@@ -6,6 +6,7 @@ import {
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { RecordPaymentDto } from './dto/record-payment.dto';
@@ -525,6 +526,46 @@ export class PlatformBillingService implements OnModuleInit {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Cryptographically verify webhook signature against configured secret
+   */
+  verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
+    try {
+      if (signature.includes('t=') && signature.includes('v1=')) {
+        const parts = signature.split(',').reduce((acc, curr) => {
+          const [k, v] = curr.split('=');
+          if (k && v) acc[k.trim()] = v.trim();
+          return acc;
+        }, {} as Record<string, string>);
+
+        const timestamp = parts['t'];
+        const v1 = parts['v1'];
+        if (!timestamp || !v1) return false;
+
+        const signedPayload = `${timestamp}.${payload}`;
+        const expectedSignature = crypto
+          .createHmac('sha256', secret)
+          .update(signedPayload)
+          .digest('hex');
+
+        const v1Buf = Buffer.from(v1, 'utf8');
+        const expBuf = Buffer.from(expectedSignature, 'utf8');
+        return v1Buf.length === expBuf.length && crypto.timingSafeEqual(v1Buf, expBuf);
+      }
+
+      const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex');
+
+      const sigBuf = Buffer.from(signature, 'utf8');
+      const expBuf = Buffer.from(expectedSignature, 'utf8');
+      return sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+    } catch {
+      return false;
+    }
   }
 
   /**

@@ -643,6 +643,64 @@ export class DocumentService {
       throw new ForbiddenException('You are not authorized to sign this document.');
     }
 
+    // P0 Multi-Tenant / Multi-Employee Safety:
+    // If this is a shared company policy with no specific employeeId, record an individual acknowledgement
+    // instead of mutating the shared template row for the entire company.
+    if (isCompanyPolicy && !document.employeeId) {
+      const existingAck = await this.prisma.document.findFirst({
+        where: {
+          companyId,
+          employeeId: userId,
+          category: DocumentCategory.COMPANY,
+          name: document.name,
+          isSigned: true,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+            },
+          },
+        },
+      });
+
+      if (existingAck) {
+        const docs = await this.attachSecureUrls([existingAck]);
+        return docs[0];
+      }
+
+      const ackDoc = await this.prisma.document.create({
+        data: {
+          name: document.name,
+          category: DocumentCategory.COMPANY,
+          status: DocumentStatus.VERIFIED,
+          fileUrl: document.fileUrl,
+          requiresSign: true,
+          isSigned: true,
+          signedAt: new Date(),
+          employeeId: userId,
+          companyId,
+          uploadedById: document.uploadedById,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+            },
+          },
+        },
+      });
+
+      const docs = await this.attachSecureUrls([ackDoc]);
+      return docs[0];
+    }
+
     const updated = await this.prisma.document.update({
       where: { id: documentId },
       data: {

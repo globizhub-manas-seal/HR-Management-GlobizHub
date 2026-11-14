@@ -33,6 +33,21 @@ export class JobOfferController {
     }
   }
 
+  @Post('offers')
+  async createOfferDirect(
+    @Request() req,
+    @Body() body: any,
+  ) {
+    this.ensureCanManageOffers(req.user.role);
+    const applicationId = body.applicationId || body.candidateApplicationId;
+    return this.jobOfferService.createOffer(
+      applicationId,
+      req.user.companyId,
+      req.user.sub,
+      body,
+    );
+  }
+
   @Post('applications/:applicationId/offer')
   async createOffer(
     @Request() req,

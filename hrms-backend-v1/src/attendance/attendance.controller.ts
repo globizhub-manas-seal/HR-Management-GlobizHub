@@ -106,7 +106,7 @@ export class AttendanceController {
       req.user.sub,
       req.user.companyId,
       dto.status,
-      dto.note,
+      dto.note || dto.reviewerNote || dto.reviewNote,
     );
   }
 
@@ -122,7 +122,7 @@ export class AttendanceController {
       req.user.sub,
       req.user.companyId,
       dto.status,
-      dto.note,
+      dto.note || dto.reviewerNote || dto.reviewNote,
     );
   }
 

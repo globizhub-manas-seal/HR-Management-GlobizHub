@@ -22,7 +22,7 @@ import { AdjustLeaveBalanceDto } from './dto/adjust-leave-balance.dto';
 import { LeaveStatus } from '../../generated/prisma/client';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 
-@Controller('leaves')
+@Controller(['leaves', 'leave'])
 @UseGuards(AuthGuard, PermissionsGuard)
 export class LeaveController {
   constructor(private readonly leaveService: LeaveService) {}

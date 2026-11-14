@@ -128,14 +128,29 @@ export class EmployeeController {
 
   // --- LIFECYCLE & DETAILS ENDPOINTS (Admin/HR feature) ---
 
+  @Get(':id/emergency-contacts')
+  async getEmergencyContacts(@Param('id') id: string) {
+    return this.employeeService.getEmergencyContacts(id);
+  }
+
   @Post(':id/emergency-contacts')
   async addEmergencyContact(@Param('id') id: string, @Body() body: any) {
     return this.employeeService.addEmergencyContact(id, body);
   }
 
+  @Get(':id/skills')
+  async getSkills(@Param('id') id: string) {
+    return this.employeeService.getSkills(id);
+  }
+
   @Post(':id/skills')
   async addSkill(@Param('id') id: string, @Body() body: any) {
     return this.employeeService.addSkill(id, body);
+  }
+
+  @Get(':id/history')
+  async getEmploymentHistory(@Param('id') id: string) {
+    return this.employeeService.getEmploymentHistory(id);
   }
 
   @Post(':id/history')

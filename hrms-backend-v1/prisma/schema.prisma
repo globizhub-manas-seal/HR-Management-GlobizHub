@@ -95,6 +95,8 @@ model Company {
   holidays         Holiday[]
   payrollRecords   PayrollRecord[]
   leaveBalances    LeaveBalance[]
+  salaryTemplates  SalaryTemplate[]
+  documents        Document[]
   announcements Announcement[]
   tasks         Task[]
   designations  Designation[]
@@ -492,7 +494,7 @@ model Attendance {
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   companyId String
-  company   Company @relation(fields: [companyId], references: [id])
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -525,7 +527,9 @@ model LeaveBalance {
   medical    Int      @default(10)
   earned     Int      @default(15)
   companyId  String
-  company    Company  @relation(fields: [companyId], references: [id])
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 // --- NEW ENUMS ---
@@ -764,10 +768,10 @@ model ResignationRequest {
 model AttendanceCorrection {
   id           String      @id @default(uuid())
   attendanceId String? // Optional: Might be null if they forgot to clock in entirely
-  attendance   Attendance? @relation(fields: [attendanceId], references: [id])
+  attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
 
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   date              DateTime // The date they are trying to fix
   requestedCheckIn  DateTime?
@@ -782,6 +786,9 @@ model AttendanceCorrection {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([employeeId, status])
+  @@index([attendanceId])
 }
 
 // ==========================================
@@ -804,6 +811,9 @@ model Notification {
   isRead Boolean @default(false)
 
   createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([companyId, createdAt])
 }
 
 // ==========================================
@@ -942,9 +952,12 @@ model PayrollRecord {
   updatedAt DateTime @updatedAt
 
   statutoryContributions StatutoryContribution[]
+  loanRepayments         LoanRepayment[]
 
   // Crucial: Prevent running payroll twice for the same employee in the same month
   @@unique([employeeId, month, year])
+  @@index([companyId, month, year])
+  @@index([companyId, status])
 }
 
 model PayrollBatchRun {
@@ -1029,10 +1042,11 @@ model Document {
 
   // Relations
   employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   // Scoping for company-wide documents (e.g. policies)
   companyId  String?
+  company    Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Who uploaded it? (HR Admin or the Employee?)
   uploadedById String
@@ -1050,7 +1064,8 @@ model Document {
   onboardingCaseId String?
   onboardingCase OnboardingCase? @relation(fields: [onboardingCaseId], references: [id], onDelete: Cascade)
 
-
+  @@index([companyId, category])
+  @@index([employeeId, status])
 }
 
 // ==========================================
@@ -1183,6 +1198,10 @@ model LeaveRequest {
   // (Optional but recommended) Map the managerId to the Employee table:
   managerId String?
   manager   Employee? @relation("ManagerApprovals", fields: [managerId], references: [id]) // ✅ ADD THIS LINE
+
+  @@index([companyId, status, createdAt])
+  @@index([employeeId, status])
+  @@index([companyId, startDate, endDate])
 }
 
 // ==========================================
@@ -1191,6 +1210,7 @@ model LeaveRequest {
 model SalaryTemplate {
   id                  String   @id @default(uuid())
   companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name                String   // e.g., "Software Engineer - Grade A"
   description         String?
 
@@ -1214,6 +1234,8 @@ model SalaryTemplate {
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 
@@ -1245,6 +1267,10 @@ model Task {
 
   source TaskSource @default(MANUAL)
   requiredForActivation Boolean @default(false)
+
+  @@index([companyId, status])
+  @@index([employeeId, status])
+  @@index([onboardingCaseId])
 }
 
 enum ShiftSwapStatus {
@@ -2713,7 +2739,7 @@ model SupportTicket {
   companyId    String
   company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   creatorId    String
-  creator      Employee       @relation("TicketCreator", fields: [creatorId], references: [id])
+  creator      Employee       @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   assigneeId   String?
   assignee     PlatformUser?  @relation("PlatformTicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   subject      String
@@ -2796,7 +2822,7 @@ model StatutoryEstablishment {
   esicEmployerCode      String?
   registrationDate      DateTime?
 
-  company          Company                    @relation(fields: [companyId], references: [id])
+  company          Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   configurations   StatutoryConfiguration[]
   rules            StatutoryRule[]
   employeeProfiles EmployeeStatutoryProfile[]
@@ -2812,7 +2838,7 @@ model StatutoryConfiguration {
   exemptionCategory String?
   registrationType  String?
 
-  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id])
+  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 
   @@unique([establishmentId])
 }
@@ -2825,7 +2851,7 @@ model StatutoryRule {
   effectiveFrom   DateTime
   effectiveTo     DateTime?
 
-  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id])
+  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 
   @@unique([establishmentId, category, effectiveFrom])
 }
@@ -2839,8 +2865,8 @@ model EmployeeStatutoryProfile {
   effectiveFrom   DateTime  @default(now())
   effectiveTo     DateTime?
 
-  employee      Employee               @relation(fields: [employeeId], references: [id])
-  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id])
+  employee      Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, establishmentId, effectiveFrom])
 }
@@ -2857,10 +2883,10 @@ model StatutoryContribution {
   month           DateTime // first day of month
   version         Int // immutable calculation version
 
-  company       Company                @relation(fields: [companyId], references: [id])
-  payrollRun    PayrollRecord          @relation(fields: [payrollRunId], references: [id])
-  employee      Employee               @relation(fields: [employeeId], references: [id])
-  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id])
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollRun    PayrollRecord          @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee      Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  establishment StatutoryEstablishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, payrollRunId, employeeId, category, month, version])
 }
@@ -2876,8 +2902,8 @@ model StatutoryReturn {
   filePath        String // private storage location
   status          String   @default("draft") // draft, uploaded, portal_accepted, rejected, etc.
 
-  company         Company                   @relation(fields: [companyId], references: [id])
-  establishment   StatutoryEstablishment    @relation(fields: [establishmentId], references: [id])
+  company         Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  establishment   StatutoryEstablishment    @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
   submissions     StatutorySubmission[]
   challans        StatutoryChallan[]
   reconciliations StatutoryReconciliation[]
@@ -2891,7 +2917,7 @@ model StatutorySubmission {
   documentPath    String // receipt or acknowledgment PDF (private)
   status          String   @default("pending") // pending, accepted, rejected
 
-  return StatutoryReturn @relation(fields: [returnId], references: [id])
+  return StatutoryReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
 }
 
 model StatutoryChallan {
@@ -2904,7 +2930,7 @@ model StatutoryChallan {
   status        String   @default("generated") // generated, awaiting_payment, paid, rejected
   receiptPath   String?
 
-  return   StatutoryReturn    @relation(fields: [returnId], references: [id])
+  return   StatutoryReturn    @relation(fields: [returnId], references: [id], onDelete: Cascade)
   payments StatutoryPayment[]
 }
 
@@ -2918,7 +2944,7 @@ model StatutoryPayment {
   method           String // NET_BANKING, UPI, etc.
   status           String   @default("recorded") // recorded, verified, failed
 
-  challan StatutoryChallan @relation(fields: [challanId], references: [id])
+  challan StatutoryChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
 }
 
 // Reconciliation records linking returns with computed discrepancies
@@ -2931,7 +2957,7 @@ model StatutoryReconciliation {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  return StatutoryReturn @relation(fields: [returnId], references: [id])
+  return StatutoryReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
 }
 
 // ---------- Income Tax & IT Declaration Models ----------
@@ -2998,7 +3024,7 @@ model EmployeeLoan {
 }
 
 model LoanRepayment {
-  id              String        @id @default(uuid())
+  id              String         @id @default(uuid())
   loanId          String
   payrollRecordId String?
   amount          Float
@@ -3006,10 +3032,14 @@ model LoanRepayment {
   interestPaid    Float
   month           Int
   year            Int
-  repaymentDate   DateTime      @default(now())
-  status          String        @default("PAID") // PAID, WAIVED
+  repaymentDate   DateTime       @default(now())
+  status          String         @default("PAID") // PAID, WAIVED
 
-  loan EmployeeLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  loan          EmployeeLoan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  payrollRecord PayrollRecord? @relation(fields: [payrollRecordId], references: [id], onDelete: SetNull)
+
+  @@index([loanId])
+  @@index([payrollRecordId])
 }
 
 // ==========================================
