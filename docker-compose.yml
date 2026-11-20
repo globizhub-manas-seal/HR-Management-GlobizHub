@@ -3,22 +3,30 @@ version: '3.8'
 services:
   backend:
     build:
-      context: ./hrms-backend-v1
+      context: ./hrms-backend
       dockerfile: Dockerfile
     ports:
       - '5000:5000'
     env_file:
-      - ./hrms-backend-v1/.env
+      - ./hrms-backend/.env
     environment:
       - NODE_ENV=production
       - PORT=5000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-hrms_user}:${POSTGRES_PASSWORD:-change_me_db_pass_123}@db:5432/${POSTGRES_DB:-hrms_db}?schema=public
+      - DB_POOL_MAX=${DB_POOL_MAX:-10}
       - JWT_SECRET=${JWT_SECRET}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
       - FRONTEND_URL=${FRONTEND_URL}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - AWS_S3_MOCK=${AWS_S3_MOCK:-false}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-}
+      - SANDBOX_PAYMENTS=${SANDBOX_PAYMENTS:-false}
+      - CORS_ALLOW_ALL=${CORS_ALLOW_ALL:-false}
+      - PLATFORM_SUPER_ADMIN_EMAIL=${PLATFORM_SUPER_ADMIN_EMAIL:-superadmin@globizhr.com}
+      - PLATFORM_SUPER_ADMIN_PASSWORD=${PLATFORM_SUPER_ADMIN_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
