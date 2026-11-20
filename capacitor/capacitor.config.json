@@ -1,9 +1,0 @@
-{
-  "appId": "com.teamhub.hrms",
-  "appName": "GlobizHR",
-  "webDir": "www",
-  "server": {
-    "url": "https://hr.globizhub.com",
-    "cleartext": true
-  }
-}
