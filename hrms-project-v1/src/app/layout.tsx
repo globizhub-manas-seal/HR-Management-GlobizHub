@@ -14,29 +14,50 @@ const poppins = Poppins({
 // Professional SEO & OpenGraph Metadata
 export const metadata: Metadata = {
   title: {
-    default: "TeamHub HRMS — Modern Workforce & Payroll Engine",
-    template: "%s | TeamHub HRMS",
+    default: "GlobizHR – HRMS, Payroll & Attendance Software for India",
+    template: "%s | GlobizHR",
   },
-  description: "Enterprise human resource management system featuring automated payroll, smart attendance tracking, leave policies, and secure employee directories.",
-  keywords: ["HRMS", "Payroll Software", "Attendance Tracking", "HR Management", "Next.js HRMS"],
-  authors: [{ name: "TeamHub Engineering" }],
+  description:
+    "All-in-one HR software for Indian businesses: attendance, leave, shifts, EPF/ESI/PT/TDS payroll and payslips. Start free for up to 5 users.",
+  keywords: [
+    "HRMS",
+    "payroll software India",
+    "attendance software",
+    "leave management",
+    "Payroll Software",
+    "Attendance Tracking",
+    "HR Management",
+    "GlobizHR",
+  ],
+  authors: [{ name: "GlobizHub India Pvt Ltd" }],
   openGraph: {
     type: "website",
-    locale: "en_US",
-    url: "https://teamhub-hrms.com",
-    title: "TeamHub HRMS — Modern Workforce & Payroll Engine",
-    description: "Manage your people, not just your paperwork. Unified payroll, attendance, and team success.",
-    siteName: "TeamHub HRMS",
+    locale: "en_IN",
+    url: "https://hr.globizhub.com",
+    title: "GlobizHR – HRMS, Payroll & Attendance Software for India",
+    description:
+      "All-in-one HR software for Indian businesses: attendance, leave, shifts, EPF/ESI/PT/TDS payroll and payslips. Start free for up to 5 users.",
+    siteName: "GlobizHR",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TeamHub HRMS",
-    description: "Enterprise human resource management system.",
+    title: "GlobizHR – HRMS, Payroll & Attendance Software for India",
+    description:
+      "All-in-one HR software for Indian businesses: attendance, leave, shifts, EPF/ESI/PT/TDS payroll and payslips.",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "256x256" },
+      { url: "/globizhr-logo.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FDCD56", // Matches your warm golden brand color
+  themeColor: "#F97316", // GlobizHR brand orange
   width: "device-width",
   initialScale: 1,
 };

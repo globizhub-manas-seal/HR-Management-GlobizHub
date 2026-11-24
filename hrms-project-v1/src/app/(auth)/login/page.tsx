@@ -4,6 +4,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -80,13 +82,20 @@ export default function LoginPage() {
       <div className="max-w-[420px] w-full bg-card rounded-[24px] apple-shadow-card border-0 dark:border dark:border-hairline dark:border-separator p-6 sm:p-8">
         
         <div className="flex flex-col items-center mb-8">
-          <div className="size-14 bg-primary/12 text-primary rounded-[14px] flex items-center justify-center mb-4 transition-transform active:scale-95">
-            <Building2 className="size-7 stroke-[1.5]" />
-          </div>
-          <h1 className="type-title-2 font-bold text-foreground text-center tracking-tight">
-            Sign in to TeamHub
+          <Link href="/" className="relative h-12 w-[72px] mb-3 bg-white p-1 rounded-xl shadow-xs border border-slate-200/80 hover:border-orange-300 transition-colors">
+            <Image
+              src="/globizhr-logo.png"
+              alt="GlobizHR Official Logo"
+              fill
+              className="object-contain object-center"
+              sizes="72px"
+              priority
+            />
+          </Link>
+          <h1 className="text-2xl font-black text-slate-900 text-center tracking-tight">
+            Sign in to Globiz<span className="text-[#F97316]">HR</span>
           </h1>
-          <p className="type-subhead text-label-secondary text-center mt-1">
+          <p className="text-sm text-slate-500 text-center mt-1">
             Access your workspace or administrator dashboard.
           </p>
         </div>
