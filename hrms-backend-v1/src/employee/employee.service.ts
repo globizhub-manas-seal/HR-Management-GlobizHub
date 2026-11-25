@@ -145,7 +145,9 @@ export class EmployeeService {
     const tempPassword = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
     // S-14: Store a SHA-256 hash of the invite token; the raw token goes in the email
     const rawInviteToken = randomBytes(32).toString('hex');
-    const inviteToken = createHash('sha256').update(rawInviteToken).digest('hex');
+    const inviteToken = createHash('sha256')
+      .update(rawInviteToken)
+      .digest('hex');
 
     // Create employee in INVITED status without an Employee ID yet (assigned upon onboarding completion)
     const newEmployee = await this.prisma.employee.create({
@@ -201,7 +203,10 @@ export class EmployeeService {
           });
         }
       } catch (statutoryError) {
-        console.error('Failed to auto-create statutory profile:', statutoryError);
+        console.error(
+          'Failed to auto-create statutory profile:',
+          statutoryError,
+        );
       }
     }
 
@@ -209,14 +214,16 @@ export class EmployeeService {
 
     try {
       const fromEmail =
-        process.env.RESEND_FROM_EMAIL || process.env.SENDER_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+        process.env.RESEND_FROM_EMAIL ||
+        process.env.SENDER_EMAIL ||
+        'GlobizHR <onboarding@resend.dev>';
       const { data, error } = await this.resend.emails.send({
         from: fromEmail,
         to: dto.email,
         subject: 'Welcome to the Team! Set your password',
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #10b981;">Welcome to TeamHub, ${dto.firstName}!</h2>
+            <h2 style="color: #10b981;">Welcome to GlobizHR, ${dto.firstName}!</h2>
             <p>You have been invited to join your company's HRMS workspace.</p>
             <p>Your official Employee ID will be generated upon completion and verification of your onboarding checklist.</p>
             <p>Please click the secure link below to set your permanent password and complete your onboarding.</p>
@@ -226,9 +233,14 @@ export class EmployeeService {
         `,
       });
       if (error) {
-        console.error('❌ Resend API returned error for employee invitation:', error);
+        console.error(
+          '❌ Resend API returned error for employee invitation:',
+          error,
+        );
       } else {
-        console.log(`✅ Onboarding invitation email sent to ${dto.email} (Message ID: ${data?.id})`);
+        console.log(
+          `✅ Onboarding invitation email sent to ${dto.email} (Message ID: ${data?.id})`,
+        );
       }
     } catch (emailError) {
       console.error(
@@ -418,7 +430,11 @@ export class EmployeeService {
       );
     }
 
-    if (establishmentId !== undefined || esicIpNumber !== undefined || dto.uanNumber !== undefined) {
+    if (
+      establishmentId !== undefined ||
+      esicIpNumber !== undefined ||
+      dto.uanNumber !== undefined
+    ) {
       try {
         let targetEstId = establishmentId;
         if (!targetEstId) {
@@ -439,17 +455,24 @@ export class EmployeeService {
         }
 
         if (targetEstId) {
-          const existingProfile = await this.prisma.employeeStatutoryProfile.findFirst({
-            where: { employeeId },
-          });
+          const existingProfile =
+            await this.prisma.employeeStatutoryProfile.findFirst({
+              where: { employeeId },
+            });
 
           if (existingProfile) {
             await this.prisma.employeeStatutoryProfile.update({
               where: { id: existingProfile.id },
               data: {
                 ...(establishmentId ? { establishmentId: targetEstId } : {}),
-                epfoUan: dto.uanNumber !== undefined ? dto.uanNumber : existingProfile.epfoUan,
-                esicIpNumber: esicIpNumber !== undefined ? esicIpNumber : existingProfile.esicIpNumber,
+                epfoUan:
+                  dto.uanNumber !== undefined
+                    ? dto.uanNumber
+                    : existingProfile.epfoUan,
+                esicIpNumber:
+                  esicIpNumber !== undefined
+                    ? esicIpNumber
+                    : existingProfile.esicIpNumber,
               },
             });
           } else {
@@ -534,13 +557,24 @@ export class EmployeeService {
   ) {
     // Defense-in-depth: explicitly remove any privilege-escalation fields
     // even though the DTO should have already prevented them.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const data: any = { ...rawData };
     const FORBIDDEN = [
-      'id', 'companyId', 'departmentId', 'roleId', 'role',
-      'email', 'employeeId', 'joiningDate', 'employmentStatus',
-      'designationId', 'reportingManagerId', 'password',
-      'inviteToken', 'resetPasswordToken', 'resetPasswordExpires',
+      'id',
+      'companyId',
+      'departmentId',
+      'roleId',
+      'role',
+      'email',
+      'employeeId',
+      'joiningDate',
+      'employmentStatus',
+      'designationId',
+      'reportingManagerId',
+      'password',
+      'inviteToken',
+      'resetPasswordToken',
+      'resetPasswordExpires',
     ] as const;
     for (const field of FORBIDDEN) delete data[field as string];
 
@@ -597,16 +631,23 @@ export class EmployeeService {
           });
         }
         if (firstEst) {
-          const existingProfile = await this.prisma.employeeStatutoryProfile.findFirst({
-            where: { employeeId },
-          });
+          const existingProfile =
+            await this.prisma.employeeStatutoryProfile.findFirst({
+              where: { employeeId },
+            });
 
           if (existingProfile) {
             await this.prisma.employeeStatutoryProfile.update({
               where: { id: existingProfile.id },
               data: {
-                epfoUan: data.uanNumber !== undefined ? data.uanNumber : existingProfile.epfoUan,
-                esicIpNumber: esicIpNumber !== undefined ? esicIpNumber : existingProfile.esicIpNumber,
+                epfoUan:
+                  data.uanNumber !== undefined
+                    ? data.uanNumber
+                    : existingProfile.epfoUan,
+                esicIpNumber:
+                  esicIpNumber !== undefined
+                    ? esicIpNumber
+                    : existingProfile.esicIpNumber,
               },
             });
           } else {
@@ -812,7 +853,9 @@ export class EmployeeService {
     }
 
     const rawInviteToken = randomBytes(32).toString('hex');
-    const inviteToken = createHash('sha256').update(rawInviteToken).digest('hex');
+    const inviteToken = createHash('sha256')
+      .update(rawInviteToken)
+      .digest('hex');
 
     await this.prisma.employee.update({
       where: { id: employeeId },
@@ -826,7 +869,7 @@ export class EmployeeService {
     const fromEmail =
       process.env.RESEND_FROM_EMAIL ||
       process.env.SENDER_EMAIL ||
-      'TeamHub HRMS <onboarding@resend.dev>';
+      'GlobizHR <onboarding@resend.dev>';
 
     try {
       await this.resend.emails.send({
@@ -886,7 +929,8 @@ export class EmployeeService {
     const history = await this.prisma.employmentHistory.findFirst({
       where: { id: historyId, employeeId },
     });
-    if (!history) throw new NotFoundException('Employment history record not found');
+    if (!history)
+      throw new NotFoundException('Employment history record not found');
 
     return this.prisma.employmentHistory.delete({ where: { id: historyId } });
   }
@@ -943,7 +987,7 @@ export class EmployeeService {
       return {
         id: emp.id,
         employeeCode: emp.employeeCode,
-        name: (emp.firstName + " " + emp.lastName).trim(),
+        name: (emp.firstName + ' ' + emp.lastName).trim(),
         email: emp.email,
         role: emp.role,
         profilePhoto: emp.profilePhoto,
@@ -986,7 +1030,8 @@ export class EmployeeService {
       },
     });
 
-    if (!employee) throw new NotFoundException('Employee not found in your workspace');
+    if (!employee)
+      throw new NotFoundException('Employee not found in your workspace');
 
     const decrypted = decryptEmployee(employee);
     delete (decrypted as any).password;
@@ -1003,14 +1048,22 @@ export class EmployeeService {
   // ==========================================
   // COMPLIANCE: RIGHT TO ERASURE (ANONYMIZATION)
   // ==========================================
-  async anonymizeEmployee(companyId: string, employeeId: string, actorId: string) {
+  async anonymizeEmployee(
+    companyId: string,
+    employeeId: string,
+    actorId: string,
+  ) {
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, companyId },
     });
-    if (!employee) throw new NotFoundException('Employee not found in your workspace');
+    if (!employee)
+      throw new NotFoundException('Employee not found in your workspace');
 
-    const anonHash = createHash('sha256').update(employee.id + Date.now().toString()).digest('hex').substring(0, 10);
-    const anonymizedEmail = "erased." + anonHash + "@anonymized.internal";
+    const anonHash = createHash('sha256')
+      .update(employee.id + Date.now().toString())
+      .digest('hex')
+      .substring(0, 10);
+    const anonymizedEmail = 'erased.' + anonHash + '@anonymized.internal';
 
     await this.prisma.employee.update({
       where: { id: employeeId },
@@ -1043,7 +1096,8 @@ export class EmployeeService {
 
     return {
       success: true,
-      message: 'Employee personal data permanently anonymized in compliance with DPDP/GDPR.',
+      message:
+        'Employee personal data permanently anonymized in compliance with DPDP/GDPR.',
     };
   }
 
@@ -1166,7 +1220,7 @@ export class EmployeeService {
     const fromEmail =
       process.env.RESEND_FROM_EMAIL ||
       process.env.SENDER_EMAIL ||
-      'TeamHub HRMS <onboarding@resend.dev>';
+      'GlobizHR <onboarding@resend.dev>';
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
     for (const row of candidates) {
@@ -1204,7 +1258,8 @@ export class EmployeeService {
         .update(rawInviteToken)
         .digest('hex');
 
-      const firstName = row.firstName?.trim() || row.email.split('@')[0] || 'Team';
+      const firstName =
+        row.firstName?.trim() || row.email.split('@')[0] || 'Team';
       const lastName = row.lastName?.trim() || 'Member';
 
       try {
@@ -1222,7 +1277,9 @@ export class EmployeeService {
             departmentId,
             designationId,
             inviteToken,
-            resetPasswordExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            resetPasswordExpires: new Date(
+              Date.now() + 7 * 24 * 60 * 60 * 1000,
+            ),
           },
         });
 
@@ -1268,7 +1325,7 @@ export class EmployeeService {
             subject: 'Welcome to the Team! Set your password',
             html: `
               <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #10b981;">Welcome to TeamHub, ${firstName}!</h2>
+                <h2 style="color: #10b981;">Welcome to GlobizHR, ${firstName}!</h2>
                 <p>You have been invited to join your company's HRMS workspace.</p>
                 <p>Your official Employee ID will be generated upon completion and verification of your onboarding checklist.</p>
                 <p>Please click the secure link below to set your permanent password and complete your onboarding.</p>

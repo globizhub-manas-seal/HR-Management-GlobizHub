@@ -33,10 +33,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Logo from "@/components/brand/Logo";
 
 const API_URL = API_BASE_URL;
 
-export default function GlobizhubCareersMarketplace() {
+export default function GlobizHRCareersMarketplace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCompanySlug, setSelectedCompanySlug] = useState("ALL");
   const [selectedWorkplace, setSelectedWorkplace] = useState("ALL");
@@ -71,14 +72,15 @@ export default function GlobizhubCareersMarketplace() {
       <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/careers" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-primary-foreground shadow-sm group-hover:scale-105 transition-transform">
-              <Compass className="w-5 h-5" />
+            <div className="size-9 rounded-xl bg-white dark:bg-slate-900 border border-border/80 flex items-center justify-center p-1 shadow-sm group-hover:scale-105 transition-transform shrink-0">
+              <Logo variant="emblem" size="sm" />
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-lg tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Globizhub Careers
+              <span className="font-black text-lg tracking-tight">
+                <span className="text-[#0066B2] dark:text-[#38BDF8]">Globiz</span><span className="text-[#F7941D]">Hr</span>{" "}
+                <span className="text-foreground font-semibold">Careers</span>
               </span>
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider -mt-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider -mt-0.5">
                 Verified Talent Marketplace
               </span>
             </div>
@@ -107,7 +109,7 @@ export default function GlobizhubCareersMarketplace() {
           </h1>
 
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Explore verified job opportunities published directly by trusted companies on the Globizhub platform. No middleman, direct application.
+            Explore verified job opportunities published directly by trusted companies on the GlobizHR platform. No middleman, direct application.
           </p>
 
           {/* Search & Filter Bar */}
@@ -165,7 +167,7 @@ export default function GlobizhubCareersMarketplace() {
             <div>
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-primary" />
-                Verified Employers on Globizhub
+                Verified Employers on GlobizHR
               </h2>
               <p className="text-xs text-muted-foreground">
                 Browse companies actively hiring and click to view their dedicated career page.
@@ -368,7 +370,7 @@ export default function GlobizhubCareersMarketplace() {
       <footer className="border-t py-8 px-4 bg-muted/20 text-center text-xs text-muted-foreground">
         <div className="container mx-auto max-w-4xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="font-medium">
-            &copy; {new Date().getFullYear()} Globizhub Careers. Verified Corporate Recruitment Marketplace.
+            &copy; {new Date().getFullYear()} GlobizHR Careers. Verified Corporate Recruitment Marketplace.
           </span>
           <div className="flex items-center gap-4 text-muted-foreground">
             <Link href="/careers" className="hover:text-foreground">Browse Jobs</Link>

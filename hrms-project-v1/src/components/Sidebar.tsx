@@ -23,11 +23,13 @@ import {
   GraduationCap,
   Sparkles,
   Network,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
 import { usePermissions } from "@/context/PermissionContext";
 import { cn } from "@/lib/utils";
+import Logo from "@/components/brand/Logo";
 
 interface NavItem {
   key: string;
@@ -211,6 +213,13 @@ export default function Sidebar({
           icon: CheckSquare,
         },
         {
+          key: "billing",
+          name: "Subscription & Billing",
+          href: "/workspace/settings/billing",
+          icon: CreditCard,
+          adminOnly: true,
+        },
+        {
           key: "settings",
           name: "Settings",
           href: "/workspace/settings",
@@ -230,6 +239,9 @@ export default function Sidebar({
     }
 
     // Direct access check via permissions
+    if (item.key === "billing") {
+      return isAdminOrHR;
+    }
     if (sidebarModuleKeys.includes(item.key)) return true;
 
     // Admin has access to standard modules
@@ -288,14 +300,9 @@ export default function Sidebar({
         {/* Brand Header */}
         <div className="h-16 flex flex-col justify-center px-4 border-b border-hairline border-separator shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-[10px] bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-xs border border-primary/20">
-                <Sparkles className="size-4 text-primary" />
-              </div>
-              <span className="text-[15px] font-semibold tracking-tight text-foreground">
-                TeamHub HRMS
-              </span>
-            </div>
+            <Link href="/workspace/dashboard" className="flex items-center gap-2.5">
+              <Logo variant="text-lockup" size="sm" />
+            </Link>
 
             {/* Role Badge */}
             {isManagerMode && (

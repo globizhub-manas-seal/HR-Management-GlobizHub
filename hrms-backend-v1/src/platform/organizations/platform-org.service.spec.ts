@@ -76,7 +76,9 @@ describe('PlatformOrgService', () => {
   describe('findOne', () => {
     it('should throw NotFoundException if organization does not exist', async () => {
       prisma.company.findUnique.mockResolvedValue(null);
-      await expect(service.findOne('invalid-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should aggregate 9-tab inspection data', async () => {
@@ -133,7 +135,7 @@ describe('PlatformOrgService', () => {
         'org-1',
         { status: 'SUSPENDED', reason: 'Non-payment' },
         'admin-1',
-        'superadmin@teamhub.saas',
+        'superadmin@globizhr.com',
       );
 
       expect(updated.status).toBe('SUSPENDED');
@@ -159,7 +161,7 @@ describe('PlatformOrgService', () => {
         'org-1',
         { reason: 'Customer ticket #102 payroll error', durationMinutes: 30 },
         'admin-1',
-        'superadmin@teamhub.saas',
+        'superadmin@globizhr.com',
       );
 
       expect(session.diagnosticToken).toBe('mock_diagnostic_session_token');
@@ -176,4 +178,3 @@ describe('PlatformOrgService', () => {
     });
   });
 });
-

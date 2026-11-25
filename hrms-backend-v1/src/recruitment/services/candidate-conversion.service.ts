@@ -172,8 +172,7 @@ export class CandidateConversionService {
     const conversionResult = await this.prisma.$transaction(async (tx) => {
       // 2.1 Generate sequential employee code following Company Settings format
       const targetDeptId =
-        acceptedVersion.departmentId ||
-        application.jobRequisition.departmentId;
+        acceptedVersion.departmentId || application.jobRequisition.departmentId;
 
       const employeeCode = await this.sequenceService.generateEmployeeCode(
         companyId,
@@ -383,7 +382,7 @@ export class CandidateConversionService {
 
     try {
       const fromEmail =
-        process.env.RESEND_FROM_EMAIL || 'TeamHub HRMS <onboarding@resend.dev>';
+        process.env.RESEND_FROM_EMAIL || 'GlobizHR <onboarding@resend.dev>';
       await this.resend.emails.send({
         from: fromEmail,
         to: application.candidate.email,
