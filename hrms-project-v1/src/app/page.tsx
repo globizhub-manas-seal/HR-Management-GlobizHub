@@ -1,60 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ArrowUp } from "lucide-react";
-
 import LandingNavbar from "@/components/landing/LandingNavbar";
-import HeroSection from "@/components/landing/HeroSection";
-import CoreHRSection from "@/components/landing/CoreHRSection";
-import AttendanceSection from "@/components/landing/AttendanceSection";
-import PayrollSection from "@/components/landing/PayrollSection";
-import OperationsSection from "@/components/landing/OperationsSection";
-import MobileSection from "@/components/landing/MobileSection";
-import SecurityBanner from "@/components/landing/SecurityBanner";
-import FAQSection from "@/components/landing/FAQSection";
-import CTASection from "@/components/landing/CTASection";
+import LandingHero from "@/components/landing/LandingHero";
+import LandingHowItWorks from "@/components/landing/LandingHowItWorks";
+import LandingCoreHR from "@/components/landing/LandingCoreHR";
+import LandingAttendance from "@/components/landing/LandingAttendance";
+import LandingPayroll from "@/components/landing/LandingPayroll";
+import LandingBuiltForIndia from "@/components/landing/LandingBuiltForIndia";
+import LandingOperations from "@/components/landing/LandingOperations";
+import LandingMobileApp from "@/components/landing/LandingMobileApp";
+import LandingSecurity from "@/components/landing/LandingSecurity";
+import LandingPricing from "@/components/landing/LandingPricing";
+import LandingFaq from "@/components/landing/LandingFaq";
+import LandingCta from "@/components/landing/LandingCta";
 import LandingFooter from "@/components/landing/LandingFooter";
 
 export default function LandingPage() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 24);
-    };
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   return (
-    <main className="min-h-screen bg-background font-sans selection:bg-primary/30 selection:text-foreground text-foreground antialiased">
+    <main className="min-h-screen bg-white font-sans text-slate-900 antialiased selection:bg-orange-500/20 selection:text-orange-900">
+      {/* 1. Header & Navigation */}
       <LandingNavbar />
-      <HeroSection />
-      <CoreHRSection />
-      <AttendanceSection />
-      <PayrollSection />
-      <OperationsSection />
-      <MobileSection />
-      <SecurityBanner />
-      <FAQSection />
-      <CTASection />
-      <LandingFooter />
 
-      {/* Floating Scroll to Top Button */}
-      {scrolled && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-40 p-3 rounded-full bg-card/90 dark:bg-slate-900/90 text-foreground border border-border shadow-xl backdrop-blur-md hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer animate-in fade-in-50 zoom-in-90"
-          aria-label="Scroll to top"
-        >
-          <ArrowUp className="w-5 h-5 text-primary" />
-        </button>
-      )}
+      {/* 2. Hero Section + Interactive Window Mockup + 5 Feature Tiles */}
+      <LandingHero />
+
+      {/* 3. Up and running in 3 simple steps */}
+      <LandingHowItWorks />
+
+      {/* 4. One place for every employee record (Employee Directory / Core HR) */}
+      <LandingCoreHR />
+
+      {/* 5. Accurate attendance, overtime and leave approvals (Attendance and Leave) */}
+      <LandingAttendance />
+
+      {/* 6. Payroll in one click, payslips in seconds (Payroll & Payslips) */}
+      <LandingPayroll />
+
+      {/* 7. Payroll that understands Indian compliance (Built for India) */}
+      <LandingBuiltForIndia />
+
+      {/* 8. Shifts, tasks and announcements, together (Operations Hub) */}
+      <LandingOperations />
+
+      {/* 9. HR in every employee's pocket (Mobile Self-Service + Indian Metric Stat Strip) */}
+      <LandingMobileApp />
+
+      {/* 10. Your people's data stays protected (Security & Trust) */}
+      <LandingSecurity />
+
+      {/* 11. Simple pricing: ₹49 per user per month (Free Plan & Business Plan) */}
+      <LandingPricing />
+
+      {/* 12. Frequently Asked Questions */}
+      <LandingFaq />
+
+      {/* 13. Final Call to Action Banner */}
+      <LandingCta />
+
+      {/* 14. Official GlobizHR Footer by GlobizHub India Pvt Ltd */}
+      <LandingFooter />
     </main>
   );
 }

@@ -4,6 +4,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,7 +22,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Loader2, Building2 } from "lucide-react";
-import Logo from "@/components/brand/Logo";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -81,14 +82,21 @@ export default function LoginPage() {
       <div className="max-w-[420px] w-full bg-card rounded-[24px] apple-shadow-card border-0 dark:border dark:border-hairline dark:border-separator p-6 sm:p-8">
         
         <div className="flex flex-col items-center mb-8">
-          <div className="p-3 bg-white dark:bg-slate-900 rounded-[18px] border border-border/80 shadow-sm flex items-center justify-center mb-3">
-            <Logo variant="emblem" size="lg" />
-          </div>
-          <h1 className="type-title-2 font-black text-foreground text-center tracking-tight">
-            Sign in to <span className="text-[#0066B2] dark:text-[#38BDF8]">Globiz</span><span className="text-[#F7941D]">Hr</span>
+          <Link href="/" className="relative h-12 w-[72px] mb-3 bg-white p-1 rounded-xl shadow-xs border border-slate-200/80 hover:border-orange-300 transition-colors">
+            <Image
+              src="/globizhr-logo.png"
+              alt="GlobizHR Official Logo"
+              fill
+              className="object-contain object-center"
+              sizes="72px"
+              priority
+            />
+          </Link>
+          <h1 className="text-2xl font-black text-slate-900 text-center tracking-tight">
+            Sign in to Globiz<span className="text-[#F97316]">HR</span>
           </h1>
-          <p className="type-subhead text-label-secondary text-center mt-1">
-            A complete HR management solution
+          <p className="text-sm text-slate-500 text-center mt-1">
+            Access your workspace or administrator dashboard.
           </p>
         </div>
 
