@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ShieldCheck, Lock, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Mail, Lock, CheckCircle2 } from "lucide-react";
 
 export const metadata = {
   title: "Privacy Policy | GlobizHR - GlobizHub India Pvt Ltd",
-  description: "GlobizHR Privacy & Security Policy. Learn how we safeguard employee records, payroll, and personal data under Indian IT and DPDP regulations.",
+  description: "Plain-language privacy policy explaining what data GlobizHR handles, why, and how we safeguard it.",
 };
 
 export default function PrivacyPage() {
@@ -13,19 +13,25 @@ export default function PrivacyPage() {
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 focus:outline-none">
-            <div className="relative h-10 w-16 shrink-0">
+          <Link href="/" className="flex items-center gap-2.5 focus:outline-none group">
+            <div className="relative h-10 w-16 shrink-0 transition-transform group-hover:scale-105 duration-200">
               <Image
                 src="/globizhr-logo.png"
                 alt="GlobizHR Logo"
                 fill
                 className="object-contain"
                 sizes="64px"
+                priority
               />
             </div>
-            <span className="text-xl font-black text-slate-900 tracking-tight">
-              Globiz<span className="text-[#F97316]">HR</span>
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                Globiz<span className="text-[#F97316]">HR</span>
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500 mt-0.5">
+                Privacy Policy
+              </span>
+            </div>
           </Link>
           <Link
             href="/"
@@ -45,76 +51,165 @@ export default function PrivacyPage() {
           <div className="border-b border-slate-100 pb-6 mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 text-[#F97316] text-xs font-bold rounded-full mb-3">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>DATA PROTECTION & PRIVACY</span>
+              <span>PLAIN-LANGUAGE PRIVACY POLICY</span>
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
               Privacy Policy
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              Last updated: November 2026 • GlobizHub India Pvt Ltd
+              Last updated: 25-11-2026 • GlobizHub India Pvt Ltd
             </p>
           </div>
 
           <div className="space-y-8 text-sm sm:text-base leading-relaxed text-slate-600 font-normal">
-            <section className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Lock className="w-5 h-5 text-[#F97316]" />
-                1. Commitment to Data Privacy
+            
+            <p className="text-base sm:text-lg text-slate-700 leading-relaxed font-medium">
+              GlobizHR is built and run by <strong>GlobizHub India Pvt Ltd</strong> (&quot;we&quot;, &quot;us&quot;). This page explains, in plain words, what information we handle, why, and what you can do about it.
+            </p>
+
+            {/* Who is who */}
+            <section className="space-y-3 pt-2">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                Who is who
               </h2>
               <p>
-                At GlobizHR (a software product developed and maintained by <strong>GlobizHub India Pvt Ltd</strong>), we treat the security and confidentiality of your enterprise workforce data with paramount importance. This Privacy Policy details our practices concerning the collection, storage, encryption, and processing of customer, employee, and business data.
+                In most cases, your company (the one that signed up for GlobizHR) decides what employee information goes into the platform. We store and process it on the company&apos;s behalf to run HR, attendance, leave, shifts and payroll. For information about people who visit our website or sign up for an account, we decide how it is used.
               </p>
             </section>
 
+            {/* What we collect */}
             <section className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#F97316]" />
-                2. Data We Collect & Process
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                What we collect
               </h2>
-              <p>
-                GlobizHR acts primarily as a Data Processor on behalf of employers who subscribe to the platform. Information managed through the software includes:
-              </p>
-              <ul className="space-y-2 pl-4 list-disc text-slate-700">
-                <li><strong>Identity & Profile Records:</strong> Full name, employee ID, contact details, emergency contacts, job designation, and department.</li>
-                <li><strong>Statutory & Payroll Data:</strong> Salary structures, bank account numbers, PAN, UAN / EPF details, ESIC numbers, and professional tax slabs.</li>
-                <li><strong>Attendance & Work Records:</strong> Clock-in/out timestamps, IP/device logs, leave requests, and shift schedules.</li>
-                <li><strong>Encrypted Documents:</strong> Official identification documents, educational certificates, and employment offer letters uploaded to the Document Vault.</li>
+              <ul className="space-y-2.5 pl-5 list-disc text-slate-700">
+                <li>
+                  <strong>Account details:</strong> name, work email, phone number, company name.
+                </li>
+                <li>
+                  <strong>Employee records your company adds:</strong> contact details, ID details, job role, department, emergency contacts.
+                </li>
+                <li>
+                  <strong>Work records:</strong> clock-in and clock-out times, breaks, overtime, leave requests, location data captured at clock-in, shift rosters and swaps.
+                </li>
+                <li>
+                  <strong>Payroll details:</strong> salary structure, deductions, payslips and bank account details used to run payroll.
+                </li>
+                <li>
+                  <strong>Documents:</strong> files and IDs uploaded to the document vault.
+                </li>
+                <li>
+                  <strong>Technical data:</strong> device, browser, IP address and activity logs, used for security and to keep the service running.
+                </li>
               </ul>
             </section>
 
+            {/* Why we use it */}
             <section className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-[#F97316]" />
-                3. Security Measures & Encryption
-              </h2>
-              <p>
-                All data transmitted to and from GlobizHR is secured using industry-standard TLS 1.3 cryptographic protocols. Sensitive employee documents and database volumes are encrypted at rest using AES-256 encryption. Access is strictly partitioned with Role-Based Access Control (RBAC) ensuring only authorized administrators view designated records.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-[#F97316]" />
-                4. Indian Statutory & Regulatory Compliance
-              </h2>
-              <p>
-                GlobizHR adheres to applicable Indian data protection frameworks, including the Digital Personal Data Protection (DPDP) Act and Information Technology (IT) Act guidelines. We do not sell, rent, or monetize your employee data to any third parties or advertisers.
-              </p>
-            </section>
-
-            <section className="space-y-3 pt-4 border-t border-slate-100">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-                5. Contact & Privacy Inquiries
+                Why we use it
               </h2>
               <p>
-                If you have questions regarding this Privacy Policy, data access requests, or wish to report a security inquiry, please contact our Data Protection Team:
+                To run the service you signed up for, to process payroll and statutory compliance (EPF, ESI, PT, TDS), to keep accounts secure, to send billing and support messages, and to improve the product. That&apos;s it.
               </p>
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-sm text-slate-700">
-                <p><strong>GlobizHub India Pvt Ltd</strong></p>
-                <p>Email: <a href="mailto:support@globizhub.com" className="text-[#F97316] font-semibold hover:underline">support@globizhub.com</a></p>
-                <p>Support / WhatsApp Hotline: <a href="https://wa.me/918402010207" target="_blank" rel="noopener noreferrer" className="text-[#F97316] font-semibold hover:underline">+91 8402010207</a></p>
+            </section>
+
+            {/* What we never do */}
+            <section className="space-y-3 p-4 bg-orange-50/60 border border-orange-200/80 rounded-xl">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-[#F97316]" />
+                What we never do
+              </h2>
+              <p className="text-slate-700 font-medium">
+                We do not sell or rent employee data, and we do not share it with data brokers.
+              </p>
+            </section>
+
+            {/* Who we share it with */}
+            <section className="space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                Who we share it with
+              </h2>
+              <p>
+                Only with trusted providers who help us run GlobizHR, for example payment processing (Razorpay) and cloud hosting provided by Hostinger, and with authorities when the law requires it. These providers can use the data only to do their job for us.
+              </p>
+            </section>
+
+            {/* How we protect it */}
+            <section className="space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-[#F97316]" />
+                How we protect it
+              </h2>
+              <p>
+                Each company&apos;s data is kept separate from every other company&apos;s. Data is encrypted when stored (AES-256) and while it travels (TLS). Access inside the platform is controlled by roles (Admin, HR Manager, Staff), and administrative actions are recorded in audit logs. No system is perfectly safe, but we take this seriously. If a breach affects your data, we will tell the affected company and the authorities as the law requires.
+              </p>
+            </section>
+
+            {/* How long we keep it */}
+            <section className="space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                How long we keep it
+              </h2>
+              <p>
+                While your account is active, and after that for 45 days so you can export your data. Some records, such as invoices and payroll data, may be kept longer where Indian law requires it. After that, we delete or anonymise it.
+              </p>
+            </section>
+
+            {/* Your rights */}
+            <section className="space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                Your rights
+              </h2>
+              <p>
+                You can ask to see, correct, download or delete your personal data, and to withdraw consent where we rely on it. If you are an employee, please first contact your company&apos;s HR admin, since they control your records. You can also write to us and we will help. We will reply within 7 days.
+              </p>
+            </section>
+
+            {/* Cookies & Children */}
+            <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <h3 className="font-bold text-slate-900">Cookies</h3>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  We use only the cookies needed to keep you signed in and the site working.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <h3 className="font-bold text-slate-900">Children</h3>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  GlobizHR is for workplaces and is not meant for anyone under 18.
+                </p>
               </div>
             </section>
+
+            {/* Changes */}
+            <section className="space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                Changes
+              </h2>
+              <p>
+                If we change this policy in a meaningful way, we will update the date above and notify account owners by email.
+              </p>
+            </section>
+
+            {/* Contact */}
+            <section className="space-y-3 pt-4 border-t border-slate-100">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                Contact & Grievances
+              </h2>
+              <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-sm text-slate-700">
+                <p className="font-bold text-slate-900">GlobizHub India Pvt Ltd</p>
+                <p>No. 42, 3rd Floor, 100 Feet Road, Indiranagar</p>
+                <p>Bengaluru, Karnataka – 560038, India</p>
+                <p className="pt-2">
+                  <strong>Privacy and grievance contact:</strong>{" "}
+                  <a href="mailto:admin@globizhub.com" className="text-[#F97316] font-bold hover:underline">
+                    admin@globizhub.com
+                  </a>
+                </p>
+              </div>
+            </section>
+
           </div>
 
         </div>
