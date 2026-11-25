@@ -51,19 +51,12 @@ export default function LandingFooter() {
               All-in-one HR software for Indian businesses: attendance, leave, shifts, EPF/ESI/PT/TDS payroll and automated payslips.
             </p>
 
-            <a
-              href="https://globizhub.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50/90 hover:bg-orange-100/90 border border-orange-200 text-xs font-bold text-[#F97316] rounded-lg transition-all w-fit shadow-2xs group"
-            >
-              <span>A product of GlobizHub India Pvt Ltd.</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 opacity-80 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </a>
+            {/* Headquarters Address */}
+            <div className="text-xs text-slate-500 leading-relaxed pt-1 space-y-0.5">
+              <p className="font-bold text-slate-700">Headquarters:</p>
+              <p>NO 594/4/2, First Floor, Opp. to BDS Nagar, RK Nagar 2,</p>
+              <p>Kothanur Main Road, Bengaluru – 560077, Karnataka</p>
+            </div>
 
             <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
               <ShieldCheck className="w-4 h-4 shrink-0" />
@@ -211,9 +204,14 @@ export default function LandingFooter() {
                 </Link>
               </li>
               <li>
-                <a href="mailto:support@globizhub.com" className="hover:text-orange-600 transition-colors">
+                <Link href="/contact" className="hover:text-orange-600 transition-colors">
                   Contact Us
-                </a>
+                </Link>
+              </li>
+              <li>
+                <Link href="#faq" className="hover:text-orange-600 transition-colors">
+                  FAQ
+                </Link>
               </li>
               <li>
                 <Link href="#faq" className="hover:text-orange-600 transition-colors">
