@@ -69,8 +69,7 @@ export default function LandingHowItWorks() {
           })}
         </div>
 
-        {/* Button */}
-       i
+      
 
       </div>
     </section>
