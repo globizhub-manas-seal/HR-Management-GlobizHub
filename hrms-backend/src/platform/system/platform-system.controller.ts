@@ -50,6 +50,38 @@ export class CreateAnnouncementDto {
 export class PlatformSystemController {
   constructor(private prisma: PrismaService) {}
 
+  // ============ PAYMENT GATEWAY (Razorpay easy-connect) ============
+  /**
+   * Live gateway connection status for the super admin console. Key secret
+   * is NEVER returned — only a masked hint so the admin can tell which key
+   * is configured without exposing it.
+   */
+  @Get('system/payment-gateway')
+  @PlatformRoles('SUPER_ADMIN', 'BILLING_ADMIN')
+  async getPaymentGatewayStatus() {
+    const keyId = process.env.RAZORPAY_KEY_ID ?? '';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET ?? '';
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET ?? '';
+    return {
+      gateway: 'RAZORPAY',
+      configured: Boolean(keyId && keySecret),
+      keyIdMasked: keyId
+        ? `${keyId.slice(0, 6)}...${keyId.slice(-4)}`
+        : null,
+      keyIdPreview: keyId || null,
+      keySecretConfigured: Boolean(keySecret),
+      webhookSecretConfigured: Boolean(webhookSecret),
+      sandboxPayments:
+        process.env.SANDBOX_PAYMENTS === 'true' &&
+        process.env.NODE_ENV !== 'production',
+      connectInstructions: {
+        envKeys: ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'],
+        webhookUrl: `${process.env.FRONTEND_URL ?? 'https://your-domain'}/api/platform/billing/webhook`,
+        docs: 'Razorpay Dashboard → Settings → API Keys → generate keys → set env vars → restart backend. Webhook events: payment.captured, invoice.paid (HMAC secret required).',
+      },
+    };
+  }
+
   // ============ FEATURE FLAGS ============
   @Get('feature-flags')
   @PlatformRoles('SUPER_ADMIN', 'PLATFORM_ADMIN')

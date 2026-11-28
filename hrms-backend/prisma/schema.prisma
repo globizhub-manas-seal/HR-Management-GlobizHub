@@ -26,6 +26,12 @@ enum EmployeeRole {
   EMPLOYEE
 }
 
+// Unified identity scope for the cross-platform User hub
+enum UserScope {
+  PLATFORM
+  COMPANY
+}
+
 enum WorkerType {
   SALARIED
   CONSULTANT
@@ -305,6 +311,10 @@ model Employee {
   createdSupportTickets      SupportTicket[]          @relation("TicketCreator")
   salaryRevisions            SalaryRevisionHistory[]
 
+  // Unified identity hub (one row per person in the platform-wide User table)
+  userId String? @unique
+  user   User?   @relation("UserProfileEmployee", fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([companyId, employmentStatus])
   @@index([companyId, role])
 }
@@ -477,6 +487,15 @@ model CompanySettings {
   payCycleStartDay  Int     @default(1) // e.g. 1 for calendar month, 26 for 26th-to-25th
   payCycleEndDay    Int     @default(0) // 0 for end of month, or 25
   nightShiftAllowanceRate Float @default(0) // Rate per night shift worked
+
+  // --- Loans & Advances policy (business-owner controlled) ---
+  loanAllowSalaryAdvance  Boolean @default(true)
+  loanAllowPersonalLoan   Boolean @default(true)
+  loanAllowEmergencyLoan  Boolean @default(true)
+  loanMaxAmount           Float?  // null = no cap
+  loanMaxTenureMonths     Int     @default(12)
+  loanDefaultInterestRate Float   @default(0) // annual %
+  loanAutoDeductFromPayroll Boolean @default(true)
 }
 
 model Attendance {
@@ -2599,7 +2618,43 @@ model PlatformUser {
   assignedTickets SupportTicket[]    @relation("PlatformTicketAssignee")
   auditActions    PlatformAuditLog[] @relation("PlatformAuditActor")
 
+  // Unified identity hub
+  userId String? @unique
+  user   User?   @relation("UserProfilePlatformUser", fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([role, isActive])
+}
+
+// ============================================================
+// UNIFIED USER HUB — every person on the platform (super admins,
+// platform staff, company owners/admins, managers, employees)
+// resolves to exactly one User row. Domain profiles (Employee,
+// PlatformUser) keep their domain data and link back here.
+// ============================================================
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String // Hashed — canonical credential store (kept in sync)
+  scope       UserScope @default(COMPANY)
+  role        String // SUPER_ADMIN | PLATFORM_ADMIN | BILLING_ADMIN | SUPPORT_ADMIN | PLATFORM_ANALYST | OWNER | HR_HEAD | MANAGER | EMPLOYEE
+  displayName String
+  companyId   String?
+  isActive    Boolean   @default(true)
+
+  // 1:1 links to the domain profiles
+  employeeId     String?  @unique
+  platformUserId String?  @unique
+
+  lastLoginAt DateTime?
+  lastLoginIp String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employee     Employee?     @relation("UserProfileEmployee")
+  platformUser PlatformUser? @relation("UserProfilePlatformUser")
+
+  @@index([companyId, role])
+  @@index([scope, isActive])
 }
 
 enum BillingCycle {
@@ -2658,7 +2713,7 @@ model Subscription {
   startDate        DateTime           @default(now())
   currentPeriodEnd DateTime
   cancelledAt      DateTime?
-  trialEndsAt      DateTime?
+  freemiumEndsAt   DateTime?
   contractStartsAt DateTime?
   contractEndsAt   DateTime?
   createdAt        DateTime           @default(now())
@@ -2669,7 +2724,7 @@ model Subscription {
   @@index([status, currentPeriodEnd])
   @@index([companyId, status])
 
-  @@index([status, trialEndsAt])
+  @@index([status, freemiumEndsAt])
 }
 
 enum InvoiceStatus {
@@ -2699,6 +2754,23 @@ model Invoice {
   periodEnd      DateTime?
   perUserPrice   Decimal?      @db.Decimal(12, 2)
   userCount      Int?
+
+  // ---- GST / Tax invoice design (values snapshot at issue time) ----
+  taxableAmount Decimal? @db.Decimal(12, 2)
+  taxLabel      String?  // "CGST+SGST" or "IGST"
+  taxRate       Decimal? @db.Decimal(5, 2)
+  taxAmount     Decimal? @db.Decimal(12, 2)
+  cgstAmount    Decimal? @db.Decimal(12, 2)
+  sgstAmount    Decimal? @db.Decimal(12, 2)
+  igstAmount    Decimal? @db.Decimal(12, 2)
+  placeOfSupply String?
+  sellerName    String?
+  sellerAddress String?
+  sellerGstin   String?
+  buyerGstin    String?
+  sacCode       String?
+  notes         String?
+
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -3065,6 +3137,7 @@ model EmployeeLoan {
   employee   Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   repayments LoanRepayment[]
+  activities LoanActivity[]
 
   @@index([employeeId])
   @@index([companyId, status])
@@ -3081,12 +3154,30 @@ model LoanRepayment {
   year            Int
   repaymentDate   DateTime       @default(now())
   status          String         @default("PAID") // PAID, WAIVED
+  method          String         @default("PAYROLL") // PAYROLL | MANUAL | RAZORPAY
+  paidAt          DateTime?
+  reference       String?        // Razorpay payment id / cheque no / note
 
   loan          EmployeeLoan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
   payrollRecord PayrollRecord? @relation(fields: [payrollRecordId], references: [id], onDelete: SetNull)
 
   @@index([loanId])
   @@index([payrollRecordId])
+}
+
+// Immutable audit trail of every action taken on a loan
+model LoanActivity {
+  id        String   @id @default(uuid())
+  loanId    String
+  actorId   String?
+  actorName String?
+  action    String   // CREATED | APPROVED | REJECTED | DISBURSED | REPAYMENT | WAIVED | CLOSED | UPDATED | SETTINGS_CHANGED
+  details   String?
+  createdAt DateTime @default(now())
+
+  loan EmployeeLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([loanId, createdAt])
 }
 
 // ==========================================
@@ -3163,11 +3254,24 @@ model SystemConfig {
   requireBusinessEmail    Boolean  @default(true)
   freeEmailDomains        String   @default("gmail.com,yahoo.com,yahoo.co.in,yahoo.in,hotmail.com,outlook.com,outlook.in,live.com,icloud.com,me.com,rediffmail.com,rediff.com,proton.me,protonmail.com,aol.com,ymail.com,gmx.com,mail.com,zoho.com")
 
-  // ---- Trial ----
-  trialDays               Int      @default(7)
+  // ---- Freemium duration (free account valid for N months) ----
+  freemiumMonths          Int      @default(3)
+
+  // ---- Annual contract ----
+  contractMonths          Int      @default(12)
+  renewalLeadDays         Int      @default(30)
 
   // ---- Limits ----
   maxUsersHardCap         Int      @default(10000)
+
+  // ---- GST / Tax invoice identity (seller = the platform) ----
+  gstEnabled      Boolean @default(true)
+  sellerLegalName String  @default("GlobizHR Technologies")
+  sellerAddress   String  @default("HSR Layout, Bengaluru, Karnataka 560102, India")
+  sellerGstin     String? // e.g. 29ABCDE1234F1Z5
+  sellerState     String  @default("Karnataka")
+  invoiceSacCode  String  @default("998314") // IT & software services SAC
+  invoiceNotes    String? @default("This is a computer-generated tax invoice.")
 
   // ---- Access toggles ----
   selfSignupEnabled       Boolean  @default(true)

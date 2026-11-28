@@ -21,10 +21,15 @@ A modern, production-ready full-stack application for managing human resources. 
 
 ## 🌟 Key Features
 
+- **Unified User hub:** every person on the platform — super admins, platform staff, company owners, managers and employees — resolves to a single `User` identity row linked to their domain profile.
 - **Employee Management:** Complete CRUD for employee records and organizational structure.
 - **Attendance & Leave Tracking:** Track daily attendance, clock-ins, clock-outs, and manage employee leave requests.
 - **Shift Scheduling & Swapping:** Dynamic shift assignments and a robust engine for employees to request and approve shift swaps.
 - **Payroll Processing:** Automated payroll calculations based on attendance and salary bands.
+- **Loans & Advances:** Full loan lifecycle — company policy settings, request → approve → disburse → repayments (payroll auto-deduction, manual recording or Razorpay online repayment), amortization schedule and immutable activity history.
+- **Reports console:** business owners get period-based reports (today / yesterday / last 7 / last 30 / this month / last month / this year / custom) on employees, attendance, leave, payroll and loans — exportable as CSV, Excel and PDF on the company letterhead (logo, legal name, address, GSTIN). Super admins get the same global report system at organization and platform level.
+- **GST Tax Invoices:** invoices compute CGST/SGST (intra-state) or IGST (inter-state) from super-admin configuration and render a compliant tax-invoice PDF with SAC code, place of supply and amount in words.
+- **Plan-wise module restrictions:** every module (payroll, recruitment, training, credentials, statutory…) is gated by the plan entitlement matrix that super admins edit per plan — enforced globally by the API guard and reflected in the UI sidebar/pages with upgrade prompts.
 - **Document Management:** Secure upload and storage of employee documents using AWS S3.
 - **Announcements & Tasks:** Company-wide announcements and individual task assignments.
 
@@ -36,9 +41,11 @@ A modern, production-ready full-stack application for managing human resources. 
 
 | Item | Default | Where to change |
 |---|---|---|
-| Price per user / month | **Rs.49** (annual contract, invoiced monthly) | Platform Admin -> System Config Console |
+| Price per user / month | **Rs.49** | Platform Admin -> System Config Console |
+| Contract term | **12 months, billed annually upfront** (Rs.588/user/yr) | Platform Admin -> System Config Console |
 | Freemium user cap | **5 users** | Platform Admin -> System Config Console |
-| Free trial length | **7 days** (full features, auto-downgrades to freemium) | Platform Admin -> System Config Console |
+| Free period length | **3 months** (there is no separate trial — free IS the trial) | Platform Admin -> System Config Console |
+| Renewal lead time | 30 days before contract end | Platform Admin -> System Config Console |
 | Invoice due days / grace period | 7 / 3 days | Platform Admin -> System Config Console |
 | GST on invoices | 18% | Platform Admin -> System Config Console |
 | Blocked personal email domains | gmail/yahoo/outlook/... | Platform Admin -> System Config Console |
@@ -48,18 +55,23 @@ A modern, production-ready full-stack application for managing human resources. 
 
 1. **Signup** - organization registers through `/register/wizard` with a **verified business email**
    (OTP-verified; personal domains like gmail.com are rejected - list is configurable). The admin
-   account is auto-verified, a **7-day full trial** starts immediately.
-2. **Trial end** - a background job downgrades the workspace to **Freemium**
-   (5-user cap, business-email requirement on new invites). Nobody is locked out.
+   account starts on the **Free plan immediately: 5 users for 3 months** (both configurable).
+2. **Free period end** - the workspace locks to billing endpoints (HTTP 402 with an upgrade message)
+   until the organization upgrades. Nobody loses their data.
 3. **Upgrade** - tenant admins open **Settings -> Subscription & Billing** and pay
-   `activeUsers x pricePerUserPerMonth` via **Razorpay Checkout**. The amount is always computed
-   **server-side** from the SystemConfig + live employee count - the browser can never set it.
-4. **Metered monthly invoices** - while on an annual contract, an invoice is generated every month
-   for the actual active user count (x per-user price). Pay from the billing page or the platform
-   can record manual bank settlements.
-5. **Enforcement** - unpaid invoices flip the subscription to `PAST_DUE` after the grace period:
-   the workspace is then locked to billing endpoints only (HTTP 402 with invoice details) until
-   the payment is verified.
+   `activeUsers x pricePerUserPerMonth x contractMonths` (e.g. 5 users = Rs.2,940/year) via
+   **Razorpay Checkout**. The amount is always computed **server-side** from the SystemConfig +
+   live employee count - the browser can never set it.
+4. **Seats added mid-term** - every new user (invite, bulk import, candidate conversion) is invoiced
+   **annually from the day they are added, prorated until the contract ends** (per-seat =
+   price x 12 x remainingDays / termDays). Unpaid seat invoices follow the same grace/past-due rules.
+5. **Annual renewal** - `renewalLeadDays` before contract end the cron issues ONE renewal invoice
+   for the next term; paying it extends the contract automatically. Overdue invoices flip the
+   subscription to `PAST_DUE` after the grace period: the workspace is locked to billing endpoints
+   until the payment is verified.
+6. **Landing page pricing** - the public site reads live numbers from
+   `GET /platform/public/config` (price, contract term, freemium cap, free-period length, GST):
+   change them in the super-admin console and the marketing page updates instantly.
 
 ### Anti-bypass guarantees
 
@@ -82,11 +94,61 @@ RAZORPAY_KEY_ID="rzp_live_xxx"
 RAZORPAY_KEY_SECRET="xxx"
 RAZORPAY_WEBHOOK_SECRET="xxx"   # webhook URL: https://<backend>/platform/billing/webhook
 SANDBOX_PAYMENTS="false"        # dev-only simulator; NEVER true in production
+DB_POOL_MAX="10"                # pg connection pool per API process
 ```
 
 Without keys the checkout falls back to manual settlement: the invoice is issued, the subscription
 stays active during the due window, and platform billing admins can record bank-transfer payments
 (full ledger + audit trail).
+
+### Seeding & creating the Super Admin
+
+```bash
+cd hrms-backend
+cp .env.example .env            # set DATABASE_URL + JWT_SECRET + ENCRYPTION_KEY + Razorpay keys
+npm install                     # (or bun install) — generates the Prisma client
+npx prisma db push              # create/update the schema
+npm run seed                    # super admin + plans + SystemConfig + coupons + feature flags
+npm run seed:demo               # same + demo tenant "Globiz Demo Co" (paid annual, 5 users)
+```
+
+The seed is **idempotent** — re-running never duplicates or overwrites existing records.
+It prints the resulting credentials. Defaults: `superadmin@globizhr.com / SuperAdmin@GlobizHR2026!`
+(override via `PLATFORM_SUPER_ADMIN_EMAIL` / `PLATFORM_SUPER_ADMIN_PASSWORD` in .env).
+
+Manage additional super admins any time:
+
+```bash
+node scripts/manage-superadmin.js list                                   # list platform + workspace admins
+node scripts/manage-superadmin.js create <email> <password> First Last   # add a super admin
+```
+
+A super admin is ALSO auto-created at backend boot if none exists (`PLATFORM_ADMIN_EMAIL` /
+`PLATFORM_ADMIN_PASSWORD` env vars, same defaults). Every super admin and tenant user is
+mirrored into the unified `User` hub (one identity row per person — see the Key Features list).
+
+### Seeding details (plans & module matrix)
+
+The seed provisions the plan entitlement matrix used for plan-wise module restrictions:
+
+- `PLAN_FREE` (freemium): core modules only — employees, attendance, leave, schedules,
+  shift-swaps, documents, tasks, announcements, onboarding, organization, resignation,
+  settings, support, **reports, loans, audit**.
+- Paid plans (`PLAN_STARTER` / `PLAN_PRO` / `PLAN_ENTERPRISE`): every module enabled.
+- Existing entitlement rows are never overwritten by re-running the seed — the matrix belongs
+  to the super admin after provisioning (edit it from Platform Console → Modules → Plan
+  Entitlements; changes go live within 15 seconds).
+
+### New in this release (loans, reports, GST, gating)
+
+| System | Where |
+| --- | --- |
+| Loans & advances console | `/workspace/loans` (owner: policy, approvals, repayments, history; employee: self-service + Razorpay repayment). API under `/loans`. Payroll auto-deducts the EMI of `ACTIVE` loans and records `PAYROLL` repayments. |
+| Tenant reports | `/workspace/reports` + `GET /reports/summary|data/:dataset|export/:dataset?format=csv|excel|pdf` |
+| Global platform reports | Platform Console → Global Reports (`/platform-admin/reports`) + `GET /platform/reports/*` |
+| Tax invoice PDF | Tenant billing page → "PDF" button (`GET /organization/billing/invoices/:id/pdf`), super admin: `GET /platform/billing/invoices/:id/pdf` |
+| GST configuration | Platform Console → Settings → "GST & Invoicing" tab (enable, rate, seller identity, SAC, notes) |
+| Razorpay connect status | Platform Console → Settings → Pricing & Billing → connection card (`GET /platform/system/payment-gateway`) |
 
 ---
 

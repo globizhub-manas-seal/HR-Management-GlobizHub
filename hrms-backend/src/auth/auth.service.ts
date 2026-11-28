@@ -20,6 +20,8 @@ import { EmailService } from '../email/email.service';
 import { decrypt } from '../common/utils/encryption.util';
 import { PlatformSettingsService } from '../platform/settings/platform-settings.service';
 import { SubscriptionLimitsService } from '../platform/subscriptions/subscription-limits.service';
+import { addMonths } from '../common/time';
+import { UserService } from '../user/user.service';
 
 import { AuditService } from '../audit/audit.service';
 
@@ -34,6 +36,7 @@ export class AuthService {
     private auditService: AuditService,
     private settings: PlatformSettingsService,
     private limits: SubscriptionLimitsService,
+    private userHub: UserService,
   ) {}
 
   async checkRegistrationEmail(email: string) {
@@ -422,42 +425,43 @@ export class AuthService {
 
     const newAdmin = company.employees[0];
 
-    // 4b. Auto-provision the Free Trial subscription (duration from SystemConfig)
+    // 4b. Auto-provision the Freemium subscription (5 users, N months — all
+    // from SystemConfig; there is no separate trial). New companies start on
+    // the FREE plan immediately and upgrade to the paid annual contract when
+    // they are ready.
     try {
       const config = await this.settings.getConfig();
-      let trialPlan = await this.prisma.platformPlan.findFirst({
-        where: { code: 'PLAN_TRIAL', isActive: true },
+      let freePlan = await this.prisma.platformPlan.findFirst({
+        where: { code: 'PLAN_FREE', isActive: true },
       });
-      if (!trialPlan) {
-        trialPlan = await this.prisma.platformPlan.findFirst({
+      if (!freePlan) {
+        freePlan = await this.prisma.platformPlan.findFirst({
           where: { isActive: true },
           orderBy: { monthlyPrice: 'asc' },
         });
       }
-      if (trialPlan) {
-        const trialDays = config.trialDays || 7;
+      if (freePlan) {
+        const freemiumMonths = config.freemiumMonths || 3;
         const now = new Date();
-        const trialEndsAt = new Date(
-          now.getTime() + trialDays * 24 * 60 * 60 * 1000,
-        );
+        const freemiumEndsAt = addMonths(now, freemiumMonths);
         await this.prisma.subscription.create({
           data: {
             companyId: company.id,
-            planId: trialPlan.id,
-            billingCycle: 'MONTHLY',
-            status: 'TRIAL',
+            planId: freePlan.id,
+            billingCycle: 'ANNUAL',
+            status: 'ACTIVE',
             startDate: now,
-            trialEndsAt,
-            currentPeriodEnd: trialEndsAt,
+            freemiumEndsAt,
+            currentPeriodEnd: freemiumEndsAt,
           },
         });
         this.logger.log(
-          `Auto-provisioned ${trialDays}-day trial subscription for company: ${company.name} (${company.id})`,
+          `Auto-provisioned freemium subscription (${config.freemiumMaxUsers} users, ${freemiumMonths} months) for company: ${company.name} (${company.id})`,
         );
       }
     } catch (subErr: any) {
       this.logger.error(
-        `Failed to auto-provision trial subscription for company ${company.id}: ${subErr?.message}`,
+        `Failed to auto-provision freemium subscription for company ${company.id}: ${subErr?.message}`,
       );
     }
 
@@ -551,6 +555,9 @@ export class AuthService {
       });
     }
 
+    // Register the workspace owner in the unified User hub
+    await this.userHub.syncForEmployee(dto.adminEmail).catch(() => {});
+
     return {
       access_token: await this.jwtService.signAsync(payload),
       message: 'Workspace successfully configured!',
@@ -591,6 +598,8 @@ export class AuthService {
         crypto.randomBytes(32).toString('hex'),
         10,
       );
+
+      let createdCount = 0;
 
       for (let i = 0; i < uniqueInvites.length; i++) {
         const inv = uniqueInvites[i];
@@ -643,8 +652,9 @@ export class AuthService {
               ),
             },
           });
-
-          // Initialize Onboarding Case & standard checklist tasks in bulk
+          createdCount += 1;
+          // Mirror every invited employee into the unified User hub
+          await this.userHub.syncForEmployee(inv.email).catch(() => {});
           try {
             const newCase = await this.prisma.onboardingCase.create({
               data: {
@@ -738,6 +748,12 @@ export class AuthService {
       this.logger.log(
         `Completed background bulk invite processing for company ${companyId}`,
       );
+
+      // Annual seat billing: bill the seats actually created (prorated until
+      // contract end; no-op for freemium/expired orgs)
+      if (createdCount > 0) {
+        await this.limits.chargeNewSeats(companyId, createdCount);
+      }
     } catch (err: any) {
       this.logger.error(
         `Background bulk invite worker error for company ${companyId}: ${err?.message}`,
@@ -768,6 +784,12 @@ export class AuthService {
               where: { id: platformUser.id },
               data: { lastLoginAt: new Date() },
             });
+
+            // Keep the unified User hub (credentials + last login) in sync
+            await this.userHub.syncForPlatformUser(normalizedEmail).catch(() => {});
+            await this.prisma.user
+              .updateMany({ where: { email: normalizedEmail }, data: { lastLoginAt: new Date() } })
+              .catch(() => {});
 
             // Record audit event asynchronously
             if (this.prisma.platformAuditLog) {
@@ -829,8 +851,30 @@ export class AuthService {
       },
     });
     if (!user) throw new UnauthorizedException('Invalid credentials');
-    const isMatch = await bcrypt.compare(pass, user.password);
+    let isMatch = await bcrypt.compare(pass, user.password);
+    if (!isMatch) {
+      // Unified-User-hub drift self-heal: a password write path outside the
+      // instrumented ones may have changed Employee.password only. Re-sync
+      // the hub and retry once before rejecting.
+      const hubUser = await this.prisma.user
+        .findUnique({ where: { email: normalizedEmail }, select: { id: true, password: true } })
+        .catch(() => null);
+      if (hubUser && hubUser.password && hubUser.password !== user.password) {
+        isMatch = await bcrypt.compare(pass, hubUser.password);
+        if (isMatch) {
+          await this.userHub.healPasswordDrift(normalizedEmail);
+          await this.prisma.employee
+            .update({ where: { id: user.id }, data: { password: hubUser.password } })
+            .catch(() => {});
+        }
+      }
+    }
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+
+    // Record hub login timestamp (fire-and-forget)
+    await this.prisma.user
+      .updateMany({ where: { email: normalizedEmail }, data: { lastLoginAt: new Date() } })
+      .catch(() => {});
 
     // SaaS Multi-tenancy Isolation: Enforce company operational status
     if (user.company) {
@@ -1043,6 +1087,8 @@ export class AuthService {
       companyId: updatedEmployee.companyId,
       role: updatedEmployee.role,
     };
+    // Sync the unified User hub with the new credential
+    await this.userHub.syncForEmployee(updatedEmployee.email).catch(() => {});
     return {
       access_token: await this.jwtService.signAsync(payload),
       message: 'Password set successfully!',
@@ -1071,6 +1117,8 @@ export class AuthService {
       where: { id: employeeId },
       data: { password: hashedPassword },
     });
+    // Sync the unified User hub with the new credential
+    await this.userHub.syncForEmployee(employee.email).catch(() => {});
 
     return { message: 'Password updated successfully' };
   }
@@ -1163,6 +1211,8 @@ export class AuthService {
             : employee.employmentStatus,
       },
     });
+    // Sync the unified User hub with the new credential
+    await this.userHub.syncForEmployee(employee.email).catch(() => {});
 
     // 4. Record audit log
     await this.auditService.logAction(

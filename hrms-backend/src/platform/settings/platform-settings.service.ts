@@ -12,7 +12,15 @@ export interface PublicSystemConfig {
   currency: string;
   pricePerUserPerMonth: number;
   freemiumMaxUsers: number;
-  trialDays: number;
+  /** Free-account duration in months (super-admin controlled) */
+  freemiumMonths: number;
+  /** Paid contract term in months (annual billing = 12) */
+  contractMonths: number;
+  gstPercent: number;
+  /** Is GST tax computed on invoices? */
+  gstEnabled: boolean;
+  /** Invoice seller legal name (shown on tax invoices) */
+  sellerLegalName: string;
   requireBusinessEmail: boolean;
   paymentGateway: string;
   selfSignupEnabled: boolean;
@@ -24,10 +32,17 @@ export interface FullSystemConfig extends PublicSystemConfig {
   invoiceDueDays: number;
   gracePeriodDays: number;
   minUsersPerInvoice: number;
-  gstPercent: number;
   invoicePrefix: string;
   freeEmailDomains: string;
   maxUsersHardCap: number;
+  /** Days before contract end when the renewal invoice is generated */
+  renewalLeadDays: number;
+  // Tax invoice identity
+  sellerAddress: string;
+  sellerGstin: string | null;
+  sellerState: string;
+  invoiceSacCode: string;
+  invoiceNotes: string | null;
   updatedAt: Date;
   updatedBy: string | null;
 }
@@ -70,12 +85,21 @@ export class PlatformSettingsService implements OnModuleInit {
       invoicePrefix: row.invoicePrefix,
       paymentGateway: row.paymentGateway,
       freemiumMaxUsers: row.freemiumMaxUsers,
+      freemiumMonths: row.freemiumMonths,
+      contractMonths: row.contractMonths,
+      renewalLeadDays: row.renewalLeadDays,
       requireBusinessEmail: row.requireBusinessEmail,
       freeEmailDomains: row.freeEmailDomains,
-      trialDays: row.trialDays,
       maxUsersHardCap: row.maxUsersHardCap,
       selfSignupEnabled: row.selfSignupEnabled,
       publicCareersPage: row.publicCareersPage,
+      gstEnabled: row.gstEnabled,
+      sellerLegalName: row.sellerLegalName,
+      sellerAddress: row.sellerAddress,
+      sellerGstin: row.sellerGstin ?? null,
+      sellerState: row.sellerState,
+      invoiceSacCode: row.invoiceSacCode,
+      invoiceNotes: row.invoiceNotes ?? null,
       updatedAt: row.updatedAt,
       updatedBy: row.updatedBy,
     };
@@ -120,7 +144,11 @@ export class PlatformSettingsService implements OnModuleInit {
       currency: c.currency,
       pricePerUserPerMonth: c.pricePerUserPerMonth,
       freemiumMaxUsers: c.freemiumMaxUsers,
-      trialDays: c.trialDays,
+      freemiumMonths: c.freemiumMonths,
+      contractMonths: c.contractMonths,
+      gstPercent: c.gstPercent,
+      gstEnabled: c.gstEnabled,
+      sellerLegalName: c.sellerLegalName,
       requireBusinessEmail: c.requireBusinessEmail,
       paymentGateway: c.paymentGateway,
       selfSignupEnabled: c.selfSignupEnabled,
@@ -142,12 +170,21 @@ export class PlatformSettingsService implements OnModuleInit {
       invoicePrefix: string;
       paymentGateway: string;
       freemiumMaxUsers: number;
+      freemiumMonths: number;
+      contractMonths: number;
+      renewalLeadDays: number;
       requireBusinessEmail: boolean;
       freeEmailDomains: string;
-      trialDays: number;
       maxUsersHardCap: number;
       selfSignupEnabled: boolean;
       publicCareersPage: boolean;
+      gstEnabled: boolean;
+      sellerLegalName: string;
+      sellerAddress: string;
+      sellerGstin: string | null;
+      sellerState: string;
+      invoiceSacCode: string;
+      invoiceNotes: string | null;
     }>,
     actorEmail?: string,
   ): Promise<FullSystemConfig> {
@@ -164,12 +201,21 @@ export class PlatformSettingsService implements OnModuleInit {
         invoicePrefix: dto.invoicePrefix?.trim().toUpperCase(),
         paymentGateway: dto.paymentGateway?.trim().toUpperCase(),
         freemiumMaxUsers: dto.freemiumMaxUsers,
+        freemiumMonths: dto.freemiumMonths,
+        contractMonths: dto.contractMonths,
+        renewalLeadDays: dto.renewalLeadDays,
         requireBusinessEmail: dto.requireBusinessEmail,
         freeEmailDomains: dto.freeEmailDomains,
-        trialDays: dto.trialDays,
         maxUsersHardCap: dto.maxUsersHardCap,
         selfSignupEnabled: dto.selfSignupEnabled,
         publicCareersPage: dto.publicCareersPage,
+        gstEnabled: dto.gstEnabled,
+        sellerLegalName: dto.sellerLegalName?.trim() || undefined,
+        sellerAddress: dto.sellerAddress?.trim() || undefined,
+        sellerGstin: dto.sellerGstin?.trim().toUpperCase() ?? null,
+        sellerState: dto.sellerState?.trim() || undefined,
+        invoiceSacCode: dto.invoiceSacCode?.trim() || undefined,
+        invoiceNotes: dto.invoiceNotes ?? null,
         updatedBy: actorEmail || null,
       },
     });

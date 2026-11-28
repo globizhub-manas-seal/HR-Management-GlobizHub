@@ -112,7 +112,16 @@ export class RazorpayService {
     paymentId: string,
     signature: string,
   ): boolean {
-    const secret = process.env.RAZORPAY_KEY_SECRET;
+    let secret = process.env.RAZORPAY_KEY_SECRET;
+    // Sandbox mode (non-production only) signs/verifies with a fixed dev
+    // secret so the same HMAC path is exercised without live gateway keys.
+    if (
+      !secret &&
+      process.env.SANDBOX_PAYMENTS === 'true' &&
+      process.env.NODE_ENV !== 'production'
+    ) {
+      secret = 'sandbox-dev-secret';
+    }
     if (!secret || !orderId || !paymentId || !signature) return false;
     const expected = crypto
       .createHmac('sha256', secret)

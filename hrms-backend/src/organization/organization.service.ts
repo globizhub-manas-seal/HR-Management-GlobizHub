@@ -9,6 +9,7 @@ import { CreateDesignationDto } from './dto/create-designation.dto';
 import { UpdateDesignationDto } from './dto/update-designation.dto';
 import { UpdateDesignationPermissionsDto } from './dto/update-designation-permissions.dto';
 import { PlatformSettingsService } from '../platform/settings/platform-settings.service';
+import { addMonths } from '../common/time';
 
 @Injectable()
 export class OrganizationService {
@@ -364,28 +365,26 @@ export class OrganizationService {
       },
     });
 
-    // If subscription is missing, auto-create the Free Trial fallback
+    // If subscription is missing, auto-create the Freemium fallback
     if (!subscription) {
-      const trialPlan = await this.prisma.platformPlan.findFirst({
-        where: { code: 'PLAN_TRIAL' },
+      const freePlan = await this.prisma.platformPlan.findFirst({
+        where: { code: 'PLAN_FREE' },
         include: { entitlements: true },
       });
 
-      if (trialPlan) {
+      if (freePlan) {
         const config = await this.settings.getConfig();
         const now = new Date();
-        const trialEndsAt = new Date(
-          now.getTime() + (config.trialDays || 7) * 24 * 60 * 60 * 1000,
-        );
+        const freemiumEndsAt = addMonths(now, config.freemiumMonths || 3);
         subscription = await this.prisma.subscription.create({
           data: {
             companyId,
-            planId: trialPlan.id,
-            billingCycle: 'MONTHLY',
-            status: 'TRIAL',
+            planId: freePlan.id,
+            billingCycle: 'ANNUAL',
+            status: 'ACTIVE',
             startDate: now,
-            trialEndsAt,
-            currentPeriodEnd: trialEndsAt,
+            freemiumEndsAt,
+            currentPeriodEnd: freemiumEndsAt,
           },
           include: {
             plan: {
@@ -447,7 +446,10 @@ export class OrganizationService {
             billingCycle: subscription.billingCycle,
             startDate: subscription.startDate,
             currentPeriodEnd: subscription.currentPeriodEnd,
-            trialEndsAt: subscription.trialEndsAt,
+            trialEndsAt: (subscription as any).freemiumEndsAt,
+            freemiumEndsAt: (subscription as any).freemiumEndsAt,
+            contractStartsAt: (subscription as any).contractStartsAt,
+            contractEndsAt: (subscription as any).contractEndsAt,
             daysRemaining,
             plan: {
               id: subscription.plan.id,

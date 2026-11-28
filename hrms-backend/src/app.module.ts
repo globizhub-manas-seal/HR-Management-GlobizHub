@@ -27,6 +27,8 @@ import { TrainingModule } from './training/training.module';
 import { PlatformModule } from './platform/platform.module';
 import { SupportModule } from './support/support.module';
 import { CredentialModule } from './credential/credential.module';
+import { LoanModule } from './loan/loan.module';
+import { ReportsModule } from './reports/reports.module';
 
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -36,6 +38,8 @@ import * as Joi from 'joi';
 import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
 import { BillingCoreModule } from './platform/billing-core/billing-core.module';
 import { SubscriptionGuard } from './platform/subscriptions/guards/subscription.guard';
+import { ModuleEntitlementGuard } from './platform/subscriptions/guards/module-entitlement.guard';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -85,6 +89,7 @@ import { SubscriptionGuard } from './platform/subscriptions/guards/subscription.
     CronModule.forRoot(), // Initializes the background cron job timer
     ScheduleModule, // Initializes your custom employee shift schedule module
     BillingCoreModule, // Global: SystemConfig, Razorpay, subscription limits & guard
+    UserModule, // Global: unified User identity hub (super admin + platform staff + company users)
     PrismaModule,
     AuthModule,
     EmployeeModule,
@@ -107,6 +112,8 @@ import { SubscriptionGuard } from './platform/subscriptions/guards/subscription.
     PlatformModule,
     SupportModule,
     CredentialModule,
+    LoanModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -120,6 +127,13 @@ import { SubscriptionGuard } from './platform/subscriptions/guards/subscription.
       // lock the tenant to billing endpoints until settled.
       provide: APP_GUARD,
       useClass: SubscriptionGuard,
+    },
+    {
+      // Global plan-module enforcement: every tenant route is checked
+      // against the company's plan entitlement matrix (super-admin
+      // controlled). Platform staff bypasses.
+      provide: APP_GUARD,
+      useClass: ModuleEntitlementGuard,
     },
     {
       provide: APP_INTERCEPTOR,

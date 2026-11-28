@@ -9,6 +9,7 @@ import { CopilotWidget } from "@/components/copilot/CopilotWidget";
 import { Loader2 } from "lucide-react";
 import { ViewModeProvider, useViewMode } from "@/context/ViewModeContext";
 import { PermissionProvider } from "@/context/PermissionContext";
+import { PlanModulesProvider } from "@/context/PlanModulesContext";
 
 function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -60,7 +61,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <ViewModeProvider>
       <PermissionProvider>
-        <WorkspaceShell>{children}</WorkspaceShell>
+        <PlanModulesProvider>
+          <WorkspaceShell>{children}</WorkspaceShell>
+        </PlanModulesProvider>
       </PermissionProvider>
     </ViewModeProvider>
   );

@@ -181,6 +181,9 @@ export class EmployeeService {
       },
     });
 
+    // Annual seat billing: charge the new seat prorated until contract end
+    await this.limits.chargeNewSeats(companyId, 1);
+
     // Automatically create statutory profile if UAN / ESIC IP number is provided
     if (dto.establishmentId || dto.esicIpNumber || dto.uanNumber) {
       try {
@@ -1384,6 +1387,11 @@ export class EmployeeService {
           reason: err.message || 'Database error during employee creation',
         });
       }
+    }
+
+    // Bill the seats actually created on an annual prorated basis
+    if (imported.length > 0) {
+      await this.limits.chargeNewSeats(companyId, imported.length);
     }
 
     return {

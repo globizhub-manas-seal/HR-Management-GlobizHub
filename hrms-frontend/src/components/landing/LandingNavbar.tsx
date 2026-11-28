@@ -7,6 +7,17 @@ import Logo from "@/components/brand/Logo";
 import { cn } from "@/lib/utils";
 import { Menu, X, ArrowRight } from "lucide-react";
 
+const NAV_LINKS = [
+  { href: "#core-hr", label: "Core HR" },
+  { href: "#attendance", label: "Attendance & Leave" },
+  { href: "#payroll", label: "Payroll & Payslips" },
+  { href: "#operations", label: "Shifts & Tasks" },
+  { href: "#onboarding", label: "Onboarding" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#faq", label: "FAQ" },
+  { href: "/careers", label: "Careers" },
+];
+
 export default function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -17,6 +28,20 @@ export default function LandingNavbar() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Lock body scroll while the mobile menu is open; close on escape
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <nav
@@ -36,27 +61,15 @@ export default function LandingNavbar() {
 
         {/* Desktop Nav Links */}
         <div className="hidden lg:flex items-center space-x-1 text-sm font-medium">
-          <Link href="#core-hr" className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200">
-            Core HR
-          </Link>
-          <Link href="#attendance" className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200">
-            Attendance &amp; Leave
-          </Link>
-          <Link href="#payroll" className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200">
-            Payroll &amp; Payslips
-          </Link>
-          <Link href="#operations" className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200">
-            Shifts &amp; Tasks
-          </Link>
-          <Link href="#onboarding" className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200">
-            Onboarding
-          </Link>
-          <Link href="#faq" className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200">
-            FAQ
-          </Link>
-          <Link href="/careers" className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200">
-            Careers
-          </Link>
+          {NAV_LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="px-3.5 py-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-200"
+            >
+              {l.label}
+            </Link>
+          ))}
         </div>
 
         {/* Desktop Action Buttons */}
@@ -90,14 +103,26 @@ export default function LandingNavbar() {
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-card/95 backdrop-blur-2xl border-b border-border shadow-2xl px-6 py-6 space-y-4 animate-in slide-in-from-top-2 duration-200">
+        <div className="lg:hidden bg-card/95 backdrop-blur-2xl border-b border-border shadow-2xl px-6 py-6 space-y-4 max-h-[calc(100vh-72px)] overflow-y-auto animate-in slide-in-from-top-2 duration-200">
           <div className="flex flex-col space-y-1 font-medium text-sm">
-            <Link href="#core-hr" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">Core HR &amp; Directory</Link>
-            <Link href="#attendance" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">Attendance &amp; Leaves</Link>
-            <Link href="#payroll" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">Payroll &amp; Payslips</Link>
-            <Link href="#operations" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">Shifts &amp; Tasks</Link>
-            <Link href="#onboarding" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">Onboarding &amp; Documents</Link>
-            <Link href="#faq" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">FAQ &amp; Help</Link>
+            {[
+              { href: "#core-hr", label: "Core HR & Directory" },
+              { href: "#attendance", label: "Attendance & Leaves" },
+              { href: "#payroll", label: "Payroll & Payslips" },
+              { href: "#operations", label: "Shifts & Tasks" },
+              { href: "#onboarding", label: "Onboarding & Documents" },
+              { href: "#pricing", label: "Pricing" },
+              { href: "#faq", label: "FAQ & Help" },
+            ].map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                {l.label}
+              </Link>
+            ))}
           </div>
           <div className="pt-4 border-t border-border flex flex-col gap-2.5">
             <Link href="/login" onClick={() => setMobileMenuOpen(false)}>

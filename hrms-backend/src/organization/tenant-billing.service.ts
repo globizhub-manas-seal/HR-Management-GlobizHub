@@ -6,11 +6,18 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformSettingsService } from '../platform/settings/platform-settings.service';
 import { RazorpayService } from '../platform/billing/razorpay.service';
 import { PlatformBillingService } from '../platform/billing/platform-billing.service';
 import { SubscriptionGuard } from '../platform/subscriptions/guards/subscription.guard';
+import { FREEMIUM_CORE_MODULES } from '../platform/subscriptions/module-registry';
+import { computeGst } from '../common/gst';
+import { renderTaxInvoicePdf } from '../common/pdf/tax-invoice-pdf';
+import { loadLogoBuffer } from '../common/pdf/pdf.util';
+import { addMonths } from '../common/time';
 
 /**
  * Tenant self-service billing: real per-user metered checkout with Razorpay.
@@ -49,20 +56,124 @@ export class TenantBillingService {
   }
 
   /**
-   * Compute the current metered amount for a company (server-side truth).
+   * Effective module availability for the tenant's plan — used by the
+   * frontend to filter navigation and show upgrade prompts.
+   * Order: org overrides > plan entitlements > tier defaults.
+   */
+  async getCompanyModules(companyId: string) {
+    const [subscription, overrides] = await Promise.all([
+      this.prisma.subscription.findUnique({
+        where: { companyId },
+        include: { plan: { include: { entitlements: true } } },
+      }),
+      this.prisma.organizationFeatureOverride.findMany({
+        where: { companyId },
+        select: { moduleKey: true, isEnabled: true },
+      }),
+    ]);
+
+    const plan = subscription?.plan ?? null;
+    const isPaidPlan = plan ? Number(plan.monthlyPrice) > 0 : true;
+    const overrideMap = new Map(
+      overrides.map((o) => [o.moduleKey.toLowerCase(), o.isEnabled]),
+    );
+    const entitlementMap = new Map<string, boolean>();
+    for (const e of plan?.entitlements ?? []) {
+      entitlementMap.set(e.moduleKey.toLowerCase(), e.isEnabled);
+    }
+    const planHasMatrix = entitlementMap.size > 0;
+
+    const freemiumEndsAt = subscription?.freemiumEndsAt ?? null;
+    const freemiumActive =
+      plan?.code === 'PLAN_FREE' &&
+      !!freemiumEndsAt &&
+      new Date(freemiumEndsAt) > new Date();
+
+    const allKeys = new Set<string>([
+      ...overrideMap.keys(),
+      ...entitlementMap.keys(),
+      ...FREEMIUM_CORE_MODULES,
+      'payroll',
+      'recruitment',
+      'training',
+      'credentials',
+      'india',
+    ]);
+
+    const modules = [...allKeys]
+      .sort()
+      .map((key) => {
+        let enabled: boolean;
+        if (overrideMap.has(key)) {
+          enabled = overrideMap.get(key)!;
+        } else if (entitlementMap.has(key)) {
+          enabled = entitlementMap.get(key)!;
+        } else {
+          enabled = planHasMatrix
+            ? false
+            : isPaidPlan || FREEMIUM_CORE_MODULES.has(key);
+        }
+        return { key, enabled };
+      });
+
+    return {
+      plan: plan
+        ? {
+            id: plan.id,
+            code: plan.code,
+            name: plan.name,
+            monthlyPrice: Number(plan.monthlyPrice),
+            isPaid: isPaidPlan,
+          }
+        : null,
+      subscriptionStatus: subscription?.status ?? null,
+      freemiumEndsAt,
+      freemiumActive,
+      modules,
+    };
+  }
+
+  /**
+   * Compute the current ANNUAL amount for a company (server-side truth):
+   * activeUsers x pricePerUserPerMonth x contractMonths, billed upfront for
+   * the whole contract term.
    */
   async quote(companyId: string) {
     const config = await this.settings.getConfig();
-    const [activeUsers, subscription] = await Promise.all([
+    const [activeUsers, subscription, company] = await Promise.all([
       this.prisma.employee.count({ where: { companyId, exitRecord: null } }),
       this.prisma.subscription.findUnique({ where: { companyId } }),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { state: true, gstin: true },
+      }),
     ]);
     const billable = Math.max(config.minUsersPerInvoice, activeUsers);
-    const amount = billable * config.pricePerUserPerMonth;
+    const baseAmount =
+      billable * config.pricePerUserPerMonth * config.contractMonths;
+    const gst = computeGst(
+      baseAmount,
+      config.gstPercent,
+      company?.state,
+      config.sellerState,
+      config.gstEnabled,
+    );
+    const amount = Math.round((baseAmount + gst.taxAmount) * 100) / 100;
     return {
       activeUsers,
       billableUsers: billable,
       perUserPrice: config.pricePerUserPerMonth,
+      contractMonths: config.contractMonths,
+      baseAmount: Math.round(baseAmount * 100) / 100,
+      tax: {
+        label: gst.taxLabel,
+        rate: gst.taxRate,
+        amount: gst.taxAmount,
+        cgst: gst.cgstAmount,
+        sgst: gst.sgstAmount,
+        igst: gst.igstAmount,
+        placeOfSupply: gst.placeOfSupply,
+      },
       amount,
       currency: config.currency,
       gstPercent: config.gstPercent,
@@ -140,43 +251,48 @@ export class TenantBillingService {
       return this.buildCheckoutResponse(pendingInvoice, null);
     }
 
-    // Server-side amount computation
+    // Server-side amount computation (annual: users x perUser x contractMonths)
+    // GST (when enabled) is computed on the discounted base; the invoice
+    // total = base + tax. Tax snapshot fields are stored on the invoice for
+    // the PDF/tax-invoice design.
     const quote = await this.quote(companyId);
-    let amount = quote.amount;
+    let baseAmount = quote.baseAmount;
     let couponCode: string | null = null;
 
     if (dto.couponCode && dto.couponCode.trim()) {
       const validated = await this.platformBilling.validateCoupon(
         dto.couponCode,
-        amount,
+        baseAmount,
       );
-      amount = validated.finalAmount;
+      baseAmount = validated.finalAmount;
       couponCode = validated.code;
     }
 
-    if (amount <= 0) {
+    if (baseAmount <= 0) {
       throw new BadRequestException('Computed amount must be greater than zero');
     }
 
-    // Reuse an open invoice for the current period if one exists (payment retry)
-    const monthStart = new Date(
-      new Date().getFullYear(),
-      new Date().getMonth(),
-      1,
+    const gst = computeGst(
+      baseAmount,
+      config.gstPercent,
+      company.state,
+      config.sellerState,
+      config.gstEnabled,
     );
-    const monthEnd = new Date(
-      new Date().getFullYear(),
-      new Date().getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-    );
+    const amount = Math.round((baseAmount + gst.taxAmount) * 100) / 100;
+
+    // Contract term for this invoice (annual: now -> now + contractMonths)
+    const now = new Date();
+    const contractStartsAt = now;
+    const contractEndsAt = addMonths(now, config.contractMonths);
+
+    // Reuse an open invoice for the current term if one exists (payment retry)
     let invoice = await this.prisma.invoice.findFirst({
       where: {
         companyId,
         status: 'ISSUED',
-        periodStart: { gte: monthStart, lte: monthEnd },
+        periodStart: contractStartsAt,
+        periodEnd: contractEndsAt,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -189,33 +305,62 @@ export class TenantBillingService {
           couponCode,
           perUserPrice: config.pricePerUserPerMonth,
           userCount: quote.billableUsers,
-          dueDate: new Date(Date.now() + config.invoiceDueDays * 86400000),
+          dueDate: new Date(now.getTime() + config.invoiceDueDays * 86400000),
+          taxableAmount: gst.taxableAmount,
+          taxLabel: gst.taxLabel,
+          taxRate: gst.taxRate,
+          taxAmount: gst.taxAmount,
+          cgstAmount: gst.cgstAmount,
+          sgstAmount: gst.sgstAmount,
+          igstAmount: gst.igstAmount,
+          placeOfSupply: gst.placeOfSupply,
+          sellerName: config.sellerLegalName,
+          sellerAddress: config.sellerAddress,
+          sellerGstin: config.sellerGstin ?? null,
+          buyerGstin: company.gstin ?? null,
+          sacCode: config.invoiceSacCode,
+          notes: config.invoiceNotes ?? null,
         },
       });
     } else {
-      const year = new Date().getFullYear();
-      const count = await this.prisma.invoice.count();
+      const year = now.getFullYear();
+      const invoiceNumber = await this.nextInvoiceNumber(
+        config.invoicePrefix,
+        year,
+      );
       invoice = await this.prisma.invoice.create({
         data: {
-          invoiceNumber: `${config.invoicePrefix}-${year}-${(count + 1)
-            .toString()
-            .padStart(5, '0')}`,
+          invoiceNumber,
           companyId,
           subscriptionId: subscription.id,
           amountDue: amount,
           currency: config.currency,
           status: 'ISSUED',
-          dueDate: new Date(Date.now() + config.invoiceDueDays * 86400000),
+          dueDate: new Date(now.getTime() + config.invoiceDueDays * 86400000),
           couponCode,
-          periodStart: monthStart,
-          periodEnd: monthEnd,
+          periodStart: contractStartsAt,
+          periodEnd: contractEndsAt,
           perUserPrice: config.pricePerUserPerMonth,
           userCount: quote.billableUsers,
+          taxableAmount: gst.taxableAmount,
+          taxLabel: gst.taxLabel,
+          taxRate: gst.taxRate,
+          taxAmount: gst.taxAmount,
+          cgstAmount: gst.cgstAmount,
+          sgstAmount: gst.sgstAmount,
+          igstAmount: gst.igstAmount,
+          placeOfSupply: gst.placeOfSupply,
+          sellerName: config.sellerLegalName,
+          sellerAddress: config.sellerAddress,
+          sellerGstin: config.sellerGstin ?? null,
+          buyerGstin: company.gstin ?? null,
+          sacCode: config.invoiceSacCode,
+          notes: config.invoiceNotes ?? null,
         },
       });
     }
 
-    // Activate the paid plan for the annual contract (metered monthly)
+    // Activate the paid plan for the annual contract
     const paidPlanRow = await this.prisma.platformPlan.findFirst({
       where: { code: 'PLAN_STARTER', isActive: true },
     });
@@ -226,9 +371,10 @@ export class TenantBillingService {
           planId: paidPlanRow.id,
           billingCycle: 'ANNUAL',
           status: 'ACTIVE',
-          contractStartsAt: new Date(),
-          contractEndsAt: new Date(Date.now() + 365 * 86400000),
-          currentPeriodEnd: monthEnd,
+          contractStartsAt,
+          contractEndsAt,
+          currentPeriodEnd: contractEndsAt,
+          freemiumEndsAt: null,
         },
       });
     }
@@ -257,6 +403,33 @@ export class TenantBillingService {
       .catch(() => {});
 
     return this.buildCheckoutResponse(invoice, null);
+  }
+
+  /**
+   * Collision-free invoice number: MAX existing sequence for this year + 1
+   * (count()-based numbering duplicates after voided/deleted invoices).
+   * Retries once on the rare concurrent-creation race.
+   */
+  private async nextInvoiceNumber(prefix: string, year: number): Promise<string> {
+    const padded = (n: number) => String(n).padStart(5, '0');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const last = await this.prisma.invoice.findFirst({
+        where: { invoiceNumber: { startsWith: `${prefix}-${year}-` } },
+        orderBy: { invoiceNumber: 'desc' },
+        select: { invoiceNumber: true },
+      });
+      const lastSeq = last
+        ? parseInt(last.invoiceNumber.split('-').pop() ?? '0', 10)
+        : 0;
+      const candidate = `${prefix}-${year}-${padded(lastSeq + 1)}`;
+      const exists = await this.prisma.invoice.findUnique({
+        where: { invoiceNumber: candidate },
+        select: { id: true },
+      });
+      if (!exists) return candidate;
+    }
+    // Last resort: timestamp suffix keeps uniqueness without blocking billing
+    return `${prefix}-${year}-${Date.now().toString().slice(-8)}`;
   }
 
   private async buildCheckoutResponse(invoice: any, order: any) {
@@ -318,7 +491,67 @@ export class TenantBillingService {
         pricePerUserPerMonth: config.pricePerUserPerMonth,
         gstPercent: config.gstPercent,
       },
+      tax: invoice.taxLabel
+        ? {
+            label: invoice.taxLabel,
+            rate: invoice.taxRate ? Number(invoice.taxRate) : 0,
+            amount: invoice.taxAmount ? Number(invoice.taxAmount) : 0,
+            cgst: invoice.cgstAmount ? Number(invoice.cgstAmount) : 0,
+            sgst: invoice.sgstAmount ? Number(invoice.sgstAmount) : 0,
+            igst: invoice.igstAmount ? Number(invoice.igstAmount) : 0,
+            placeOfSupply: invoice.placeOfSupply,
+          }
+        : null,
     };
+  }
+
+  /**
+   * Render the GST tax invoice PDF (letterhead + tax breakup) for a tenant
+   * invoice. Ownership is enforced: the invoice must belong to the company.
+   */
+  async renderInvoicePdf(companyId: string, invoiceId: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+    });
+    if (!invoice) throw new BadRequestException('Invoice not found');
+
+    const [company, config] = await Promise.all([
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          name: true,
+          address: true,
+          city: true,
+          state: true,
+          pincode: true,
+          gstin: true,
+          email: true,
+          settings: { select: { companyLogo: true } },
+        },
+      }),
+      this.settings.getConfig(),
+    ]);
+
+    const logo = await loadLogoBuffer(company?.settings?.companyLogo ?? null);
+    const buffer = await renderTaxInvoicePdf(
+      invoice as any,
+      company ?? { name: 'Customer' },
+      logo,
+    );
+
+    // Best-effort persistent copy so the invoice list can deep-link later
+    try {
+      const uploadsDir = path.resolve(process.cwd(), 'uploads', 'invoices');
+      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+      fs.writeFileSync(path.join(uploadsDir, `${invoice.invoiceNumber}.pdf`), buffer);
+      await this.prisma.invoice
+        .update({ where: { id: invoice.id }, data: { pdfUrl: `/uploads/invoices/${invoice.invoiceNumber}.pdf` } })
+        .catch(() => {});
+    } catch {
+      // streaming response works regardless
+    }
+
+    return buffer;
   }
 
   /**
@@ -416,14 +649,30 @@ export class TenantBillingService {
       },
     });
 
-    // Restore/activate subscription
+    // Restore/activate subscription + extend contract on RENEWAL payments
+    // (a renewal invoice's period covers the NEXT contract term)
     const sub = await this.prisma.subscription.findUnique({
       where: { companyId },
     });
-    if (sub && sub.status !== 'ACTIVE') {
+    if (sub) {
+      const periodEnd = invoice.periodEnd ? new Date(invoice.periodEnd) : null;
+      const isRenewal =
+        periodEnd &&
+        (!sub.contractEndsAt || periodEnd > new Date(sub.contractEndsAt));
       await this.prisma.subscription.update({
         where: { id: sub.id },
-        data: { status: 'ACTIVE' },
+        data: {
+          status: 'ACTIVE',
+          ...(isRenewal
+            ? {
+                contractStartsAt: invoice.periodStart
+                  ? new Date(invoice.periodStart)
+                  : new Date(),
+                contractEndsAt: periodEnd,
+                currentPeriodEnd: periodEnd,
+              }
+            : {}),
+        },
       });
     }
 

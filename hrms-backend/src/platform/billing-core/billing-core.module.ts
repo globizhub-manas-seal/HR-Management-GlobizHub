@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { PlatformSettingsService } from '../settings/platform-settings.service';
 import { PlatformSettingsController } from '../settings/platform-settings.controller';
+import { PlatformPublicController } from '../settings/platform-public.controller';
 import { RazorpayService } from '../billing/razorpay.service';
 import { SubscriptionLimitsService } from '../subscriptions/subscription-limits.service';
 import { SubscriptionGuard } from '../subscriptions/guards/subscription.guard';
@@ -12,7 +13,7 @@ import { SubscriptionGuard } from '../subscriptions/guards/subscription.guard';
  */
 @Global()
 @Module({
-  controllers: [PlatformSettingsController],
+  controllers: [PlatformSettingsController, PlatformPublicController],
   providers: [
     PlatformSettingsService,
     RazorpayService,

@@ -8,6 +8,7 @@ import { PlatformUsersModule } from './users/platform-users.module';
 import { PlatformMonitoringModule } from './monitoring/platform-monitoring.module';
 import { PlatformSupportModule } from './support/platform-support.module';
 import { PlatformSystemModule } from './system/platform-system.module';
+import { PlatformReportsModule } from './reports/platform-reports.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PlatformSystemModule } from './system/platform-system.module';
     PlatformMonitoringModule,
     PlatformSupportModule,
     PlatformSystemModule,
+    PlatformReportsModule,
   ],
   exports: [
     PlatformAuthModule,
@@ -31,6 +33,7 @@ import { PlatformSystemModule } from './system/platform-system.module';
     PlatformMonitoringModule,
     PlatformSupportModule,
     PlatformSystemModule,
+    PlatformReportsModule,
   ],
 })
 export class PlatformModule {}

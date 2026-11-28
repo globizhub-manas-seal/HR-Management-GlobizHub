@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { OrganizationQueryDto } from './dto/organization-query.dto';
+import { addMonths } from '../../common/time';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationStatusDto } from './dto/update-organization-status.dto';
 import { CreateAccessSessionDto } from './dto/create-access-session.dto';
@@ -421,23 +422,29 @@ export class PlatformOrgService {
         },
       });
 
-      // Assign initial subscription if a plan exists
+      // Assign the Freemium plan to platform-created organizations (paid
+      // upgrade happens in tenant Billing; duration from SystemConfig)
       const defaultPlan = await tx.platformPlan.findFirst({
-        where: { isPublic: true },
-        orderBy: { monthlyPrice: 'asc' },
+        where: { code: 'PLAN_FREE', isActive: true },
       });
 
       if (defaultPlan) {
-        const periodEnd = new Date();
-        periodEnd.setDate(periodEnd.getDate() + (defaultPlan.trialDays || 14));
+        const config = await tx.systemConfig.findUnique({
+          where: { singletonKey: 'GLOBAL' },
+        });
+        const freemiumEndsAt = addMonths(
+          new Date(),
+          Number(config?.freemiumMonths ?? 3),
+        );
 
         await tx.subscription.create({
           data: {
             companyId: company.id,
             planId: defaultPlan.id,
-            status: 'TRIAL',
-            currentPeriodEnd: periodEnd,
-            trialEndsAt: periodEnd,
+            billingCycle: 'ANNUAL',
+            status: 'ACTIVE',
+            freemiumEndsAt,
+            currentPeriodEnd: freemiumEndsAt,
           },
         });
       }

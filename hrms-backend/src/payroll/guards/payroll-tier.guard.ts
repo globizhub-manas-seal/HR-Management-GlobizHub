@@ -77,14 +77,11 @@ export class PayrollTierGuard implements CanActivate {
       include: { plan: { select: { code: true } } },
     });
 
-    // Full preview during an active trial
-    const inTrial =
-      usage.isTrial &&
-      usage.trialEndsAt &&
-      new Date(usage.trialEndsAt) > new Date();
-
+    // Weight comes from the plan code only (no trial concept: freemium gets
+    // its own plan weight; paid plans unlock higher tiers)
+    void usage;
     const planCode = subscription?.plan?.code || 'PLAN_FREE';
-    const currentWeight = inTrial ? 3 : (PLAN_WEIGHTS[planCode] ?? 1);
+    const currentWeight = PLAN_WEIGHTS[planCode] ?? 1;
     const requiredWeight = TIER_WEIGHTS[requiredTier] ?? 1;
 
     if (currentWeight < requiredWeight) {

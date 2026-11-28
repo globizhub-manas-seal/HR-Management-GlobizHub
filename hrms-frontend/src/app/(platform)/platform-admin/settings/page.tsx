@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Mail,
   Server,
+  FileText,
+  Landmark,
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
@@ -27,19 +29,29 @@ interface SystemConfig {
   invoicePrefix: string;
   paymentGateway: string;
   freemiumMaxUsers: number;
+  freemiumMonths: number;
+  contractMonths: number;
+  renewalLeadDays: number;
   requireBusinessEmail: boolean;
   freeEmailDomains: string;
-  trialDays: number;
   maxUsersHardCap: number;
   selfSignupEnabled: boolean;
   publicCareersPage: boolean;
+  gstEnabled: boolean;
+  sellerLegalName: string;
+  sellerAddress: string;
+  sellerGstin: string | null;
+  sellerState: string;
+  invoiceSacCode: string;
+  invoiceNotes: string | null;
   updatedAt: string;
   updatedBy: string | null;
 }
 
 const TABS = [
   { key: "billing", label: "Pricing & Billing", icon: IndianRupee },
-  { key: "freemium", label: "Freemium & Trials", icon: Users },
+  { key: "freemium", label: "Freemium & Contracts", icon: Users },
+  { key: "gst", label: "GST & Invoicing", icon: FileText },
   { key: "access", label: "Access & Domains", icon: ShieldCheck },
 ] as const;
 
@@ -92,7 +104,9 @@ export default function PlatformSettingsPage() {
         "minUsersPerInvoice",
         "gstPercent",
         "freemiumMaxUsers",
-        "trialDays",
+        "freemiumMonths",
+        "contractMonths",
+        "renewalLeadDays",
         "maxUsersHardCap",
       ]) {
         if (payload[k] !== undefined && payload[k] !== "") {
@@ -219,11 +233,27 @@ export default function PlatformSettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             label="Price per user per month (₹)"
-            hint="Used for every tenant checkout and monthly invoice. Currently ₹49/user/month as agreed."
+            hint="Used for every tenant checkout and annual invoice (× contract months). Currently ₹49/user/month as agreed."
             value={String(val("pricePerUserPerMonth"))}
             onChange={(v) => set("pricePerUserPerMonth", v as any)}
             type="number"
             icon={IndianRupee}
+          />
+          <Field
+            label="Contract term (months)"
+            hint="Annual contract length for paid plans — invoices cover users × price × this many months, billed upfront. Default 12."
+            value={String(val("contractMonths"))}
+            onChange={(v) => set("contractMonths", v as any)}
+            type="number"
+            icon={Hourglass}
+          />
+          <Field
+            label="Renewal lead days"
+            hint="Days before contract end when the annual renewal invoice is auto-issued (default 30)."
+            value={String(val("renewalLeadDays"))}
+            onChange={(v) => set("renewalLeadDays", v as any)}
+            type="number"
+            icon={Hourglass}
           />
           <Field
             label="Currency"
@@ -278,6 +308,9 @@ export default function PlatformSettingsPage() {
             onChange={(v) => set("paymentGateway", v)}
             icon={Server}
           />
+          <div className="md:col-span-2">
+            <GatewayStatusCard />
+          </div>
         </div>
       )}
 
@@ -293,10 +326,10 @@ export default function PlatformSettingsPage() {
             icon={Users}
           />
           <Field
-            label="Free trial days"
-            hint="Full-feature trial granted to every new organization before auto-downgrading to freemium. Agreed default: 7."
-            value={String(val("trialDays"))}
-            onChange={(v) => set("trialDays", v as any)}
+            label="Free period (months)"
+            hint="How long a new organization stays on the free plan before the workspace locks to billing until they upgrade. There is no separate trial — free IS the trial. Agreed default: 3."
+            value={String(val("freemiumMonths"))}
+            onChange={(v) => set("freemiumMonths", v as any)}
             type="number"
             icon={Hourglass}
           />
@@ -319,6 +352,71 @@ export default function PlatformSettingsPage() {
       )}
 
       {/* Access tab */}
+      {/* GST & invoicing tab */}
+      {activeTab === "gst" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <ToggleField
+              label="Compute GST on invoices"
+              hint="When enabled, every checkout and renewal invoice adds GST at the configured rate and renders an official Tax Invoice PDF with a CGST/SGST split for intra-state supply or IGST for inter-state supply."
+              value={Boolean(val("gstEnabled"))}
+              onChange={(v) => set("gstEnabled", v)}
+              icon={Landmark}
+            />
+          </div>
+          <Field
+            label="GST rate (%)"
+            hint="Applied on the discounted base amount (standard Indian SaaS rate: 18)."
+            value={String(val("gstPercent"))}
+            onChange={(v) => set("gstPercent", v as any)}
+            type="number"
+            icon={Landmark}
+          />
+          <Field
+            label="SAC code"
+            hint="Services classification printed on tax invoices (default 998314 — IT & software services)."
+            value={val("invoiceSacCode")}
+            onChange={(v) => set("invoiceSacCode", v)}
+            icon={FileText}
+          />
+          <Field
+            label="Seller legal name"
+            hint="The biller identity shown on every tax invoice (your platform entity)."
+            value={val("sellerLegalName")}
+            onChange={(v) => set("sellerLegalName", v)}
+            icon={Server}
+          />
+          <Field
+            label="Seller GSTIN"
+            hint="Your GST identification number — shown in the seller block of every invoice."
+            value={val("sellerGstin") ?? ""}
+            onChange={(v) => set("sellerGstin", v)}
+            icon={Landmark}
+          />
+          <Field
+            label="Seller registered address"
+            hint="Printed in the letterhead of tax invoices and report exports."
+            value={val("sellerAddress")}
+            onChange={(v) => set("sellerAddress", v)}
+            icon={FileText}
+          />
+          <Field
+            label="Seller state (place of registration)"
+            hint="Compared with the tenant's state to decide CGST+SGST (same state) vs IGST (different state)."
+            value={val("sellerState")}
+            onChange={(v) => set("sellerState", v)}
+            icon={Landmark}
+          />
+          <Field
+            label="Invoice footer note"
+            hint="Custom note printed at the bottom of every tax invoice."
+            value={val("invoiceNotes") ?? ""}
+            onChange={(v) => set("invoiceNotes", v)}
+            icon={FileText}
+          />
+        </div>
+      )}
+
       {activeTab === "access" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ToggleField
@@ -378,6 +476,67 @@ export default function PlatformSettingsPage() {
               Save & Apply
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GatewayStatusCard() {
+  const [status, setStatus] = useState<any>(null);
+
+  useEffect(() => {
+    platformApi
+      .get("/platform/system/payment-gateway")
+      .then((res: any) => setStatus(res.data))
+      .catch(() => setStatus(null));
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Server className="h-3.5 w-3.5 text-primary" />
+            Razorpay connection (easy connect)
+          </label>
+          <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed max-w-xl">
+            Tenant checkout, annual invoices and loan repayments all run through Razorpay.
+            Set <code className="font-mono">RAZORPAY_KEY_ID</code>,{" "}
+            <code className="font-mono">RAZORPAY_KEY_SECRET</code> and{" "}
+            <code className="font-mono">RAZORPAY_WEBHOOK_SECRET</code> in the backend .env, then restart —
+            checkout verifies payments with HMAC signatures and webhooks are signature-checked too.
+          </p>
+          {status?.connectInstructions?.webhookUrl && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Webhook URL: <code className="font-mono text-foreground">{status.connectInstructions.webhookUrl}</code>
+            </p>
+          )}
+        </div>
+        <span
+          className={`shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border ${
+            status?.configured
+              ? "bg-status-green/15 text-status-green border-status-green/30"
+              : "bg-status-yellow/15 text-status-yellow border-status-yellow/30"
+          }`}
+        >
+          {status ? (status.configured ? "CONNECTED" : "NOT CONFIGURED") : "CHECKING…"}
+        </span>
+      </div>
+      {status && (
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+          <span className="px-2 py-1 rounded-lg bg-muted text-muted-foreground font-mono">
+            {status.keyIdPreview ?? "no key id"}
+          </span>
+          <span className={`px-2 py-1 rounded-lg font-mono ${status.keySecretConfigured ? "bg-status-green/10 text-status-green" : "bg-destructive/10 text-destructive"}`}>
+            key secret {status.keySecretConfigured ? "set" : "missing"}
+          </span>
+          <span className={`px-2 py-1 rounded-lg font-mono ${status.webhookSecretConfigured ? "bg-status-green/10 text-status-green" : "bg-destructive/10 text-destructive"}`}>
+            webhook secret {status.webhookSecretConfigured ? "set" : "missing"}
+          </span>
+          {status.sandboxPayments && (
+            <span className="px-2 py-1 rounded-lg bg-blue-500/10 text-blue-500 font-mono">sandbox simulator ON</span>
+          )}
         </div>
       )}
     </div>

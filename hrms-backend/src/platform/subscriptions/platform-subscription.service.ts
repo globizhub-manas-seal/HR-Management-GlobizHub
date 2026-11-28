@@ -6,10 +6,12 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlatformSettingsService } from '../settings/platform-settings.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { UpdateEntitlementsDto } from './dto/update-entitlements.dto';
 import { AssignSubscriptionDto } from './dto/assign-subscription.dto';
+import { addMonths } from '../../common/time';
 
 export const ALL_HRMS_MODULES = [
   {
@@ -68,7 +70,10 @@ export const ALL_HRMS_MODULES = [
 export class PlatformSubscriptionService implements OnModuleInit {
   private readonly logger = new Logger(PlatformSubscriptionService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private settings: PlatformSettingsService,
+  ) {}
 
   async onModuleInit() {
     await this.seedDefaultPlans();
@@ -99,23 +104,10 @@ export class PlatformSubscriptionService implements OnModuleInit {
 
       const defaultTiers = [
         {
-          name: 'Free Trial',
-          code: 'PLAN_TRIAL',
-          description:
-            'Full-featured trial (duration configured by the platform). Downgrades to Freemium automatically when it ends.',
-          monthlyPrice: 0,
-          annualPrice: 0,
-          maxEmployees: 50,
-          maxStorageGb: 5,
-          trialDays: 7,
-          isPublic: false,
-          enabledModules: allModuleKeys,
-        },
-        {
           name: 'Freemium',
           code: 'PLAN_FREE',
           description:
-            'Free forever for small teams: limited to the platform-configured user cap (default 5) with verified business emails.',
+            'Free account: up to the platform-configured user cap (default 5) with verified business emails, for the platform-configured duration (default 3 months).',
           monthlyPrice: 0,
           annualPrice: 0,
           maxEmployees: 5,
@@ -128,7 +120,7 @@ export class PlatformSubscriptionService implements OnModuleInit {
           name: 'Pay As You Grow',
           code: 'PLAN_STARTER',
           description:
-            'Per-user pricing (price/user/month configured by the platform, default Rs.49) billed monthly against an annual contract.',
+            'Per-user pricing (price/user/month configured by the platform, default Rs.49) billed annually — ₹588/user/year. Seats added mid-term are invoiced prorated until contract end.',
           monthlyPrice: 49,
           annualPrice: 588,
           maxEmployees: 10000,
@@ -205,6 +197,34 @@ export class PlatformSubscriptionService implements OnModuleInit {
    */
   async backfillMissingSubscriptions() {
     try {
+      // ── Legacy repair (pre-freemium rows): subscriptions created while
+      // trialEndsAt existed. Once that column is dropped they are left with
+      // no window at all — assign the configured free months so nothing is
+      // silently locked after a schema sync on an existing database.
+      const legacySubs = await this.prisma.subscription.findMany({
+        where: { freemiumEndsAt: null },
+        select: { id: true, startDate: true },
+      });
+      if (legacySubs.length > 0) {
+        const config = await this.settings.getConfig();
+        const months = config.freemiumMonths || 3;
+        const now = Date.now();
+        for (const sub of legacySubs) {
+          const end = addMonths(sub.startDate || new Date(), months);
+          await this.prisma.subscription.update({
+            where: { id: sub.id },
+            data: {
+              freemiumEndsAt: end,
+              currentPeriodEnd: end,
+              status: end.getTime() < now ? 'EXPIRED' : 'ACTIVE',
+            },
+          });
+        }
+        this.logger.log(
+          `Repaired ${legacySubs.length} legacy subscription(s): freemium window assigned.`,
+        );
+      }
+
       const companiesWithoutSub = await this.prisma.company.findMany({
         where: {
           subscriptions: {
@@ -220,47 +240,39 @@ export class PlatformSubscriptionService implements OnModuleInit {
         `Found ${companiesWithoutSub.length} companies without active Subscription records. Auto-provisioning...`,
       );
 
-      const trialPlan =
-        (await this.prisma.platformPlan.findFirst({
-          where: { code: 'PLAN_TRIAL' },
-        })) ||
+      const freePlan =
         (await this.prisma.platformPlan.findFirst({
           where: { code: 'PLAN_FREE' },
+        })) ||
+        (await this.prisma.platformPlan.findFirst({
+          where: { isActive: true },
+          orderBy: { monthlyPrice: 'asc' },
         }));
 
-      if (!trialPlan) return;
+      if (!freePlan) return;
+
+      const config = await this.settings.getConfig();
 
       for (const comp of companiesWithoutSub) {
-        const trialDays = trialPlan.trialDays || 7;
         const start = comp.createdAt || new Date();
-        const trialEndsAt = new Date(
-          start.getTime() + trialDays * 24 * 60 * 60 * 1000,
+        const freemiumEndsAt = addMonths(
+          start,
+          config.freemiumMonths || 3,
         );
-        const isPast = trialEndsAt.getTime() < Date.now();
+        const isPast = freemiumEndsAt.getTime() < Date.now();
 
         await this.prisma.subscription.create({
           data: {
             companyId: comp.id,
-            planId: trialPlan.id,
-            billingCycle: 'MONTHLY',
-            status: isPast ? 'ACTIVE' : 'TRIAL',
+            planId: freePlan.id,
+            billingCycle: 'ANNUAL',
+            // Already-past backfills land directly on freemium-expired
+            status: isPast ? 'EXPIRED' : 'ACTIVE',
             startDate: start,
-            trialEndsAt,
-            currentPeriodEnd: trialEndsAt,
+            freemiumEndsAt,
+            currentPeriodEnd: freemiumEndsAt,
           },
         });
-        if (isPast) {
-          // Already-past backfills land directly on freemium
-          const freePlan = await this.prisma.platformPlan.findFirst({
-            where: { code: 'PLAN_FREE' },
-          });
-          if (freePlan) {
-            await this.prisma.subscription.update({
-              where: { companyId: comp.id },
-              data: { planId: freePlan.id, status: 'ACTIVE' },
-            });
-          }
-        }
       }
 
       this.logger.log(
@@ -534,7 +546,8 @@ export class PlatformSubscriptionService implements OnModuleInit {
         status: sub.status,
         startDate: sub.startDate,
         currentPeriodEnd: sub.currentPeriodEnd,
-        trialEndsAt: sub.trialEndsAt,
+        freemiumEndsAt: (sub as any).freemiumEndsAt,
+        contractEndsAt: sub.contractEndsAt,
       })),
       meta: {
         page,
@@ -546,7 +559,8 @@ export class PlatformSubscriptionService implements OnModuleInit {
   }
 
   /**
-   * Assign or transition a company's subscription plan / extend trial
+   * Assign or transition a company's subscription plan (freemium period
+   * extension for the FREE plan; seat/term management for paid plans)
    */
   async assignOrUpdateSubscription(
     dto: AssignSubscriptionDto,
@@ -573,6 +587,7 @@ export class PlatformSubscriptionService implements OnModuleInit {
         billingCycle: (dto.billingCycle as any) || 'MONTHLY',
         status: (dto.status as any) || 'ACTIVE',
         currentPeriodEnd: periodEnd,
+        ...(plan.code === 'PLAN_FREE' ? { freemiumEndsAt: periodEnd } : {}),
       },
       create: {
         companyId: dto.companyId,
@@ -580,7 +595,7 @@ export class PlatformSubscriptionService implements OnModuleInit {
         billingCycle: (dto.billingCycle as any) || 'MONTHLY',
         status: (dto.status as any) || 'ACTIVE',
         currentPeriodEnd: periodEnd,
-        trialEndsAt: dto.status === 'TRIAL' ? periodEnd : null,
+        freemiumEndsAt: plan.code === 'PLAN_FREE' ? periodEnd : null,
       },
       include: { plan: true },
     });

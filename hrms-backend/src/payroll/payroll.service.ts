@@ -832,6 +832,9 @@ export class PayrollService {
           month,
           year,
           status: 'PAID',
+          method: 'PAYROLL',
+          paidAt: new Date(),
+          reference: `payroll:${record.id}`,
         },
       });
       await this.prisma.employeeLoan.update({

@@ -35,6 +35,8 @@ interface CompanyAccessState {
   allowed: boolean;
   reason?: 'SUSPENDED' | 'UNVERIFIED' | 'PAST_DUE' | 'INACTIVE';
   graceUntil?: Date;
+  /** Custom upgrade message for expired freemium accounts */
+  freemiumMessage?: string;
   invoice?: { id: string; amountDue: number; dueDate: Date; invoiceNumber: string };
 }
 
@@ -45,12 +47,14 @@ interface CompanyAccessState {
  * the JWT (controller guards like AuthGuard run later and will still reject
  * invalid tokens), then applies the company's subscription state:
  *
- *  - TRIAL (within window)  -> full access
+ *  - FREEMIUM (PLAN_FREE, within freemiumEndsAt) -> full access
  *  - ACTIVE                 -> full access
  *  - PAST_DUE               -> full access during grace window (SystemConfig
  *                              gracePeriodDays after the unpaid invoice due
  *                              date), then 402 locked to billing endpoints
- *  - EXPIRED / CANCELLED    -> 402 locked to billing endpoints
+ *  - EXPIRED (freemium period over) -> 402 locked to billing endpoints with
+ *                              an upgrade message
+ *  - EXPIRED / CANCELLED (paid) -> 402 locked to billing endpoints
  *  - SUSPENDED company      -> 403 everywhere
  *
  * All thresholds come from SystemConfig — nothing is hardcoded.
@@ -127,6 +131,7 @@ export class SubscriptionGuard implements CanActivate {
         statusCode: HttpStatus.PAYMENT_REQUIRED,
         error: 'PAYMENT_REQUIRED',
         message:
+          state.freemiumMessage ||
           'Your subscription payment is overdue. Complete the pending invoice to restore full workspace access.',
         invoice: state.invoice
           ? {
@@ -165,11 +170,21 @@ export class SubscriptionGuard implements CanActivate {
 
     const now = new Date();
 
-    if (subscription.status === 'TRIAL') {
-      // Expired trials behave as freemium until the cron transitions them;
-      // freemium limits are enforced at user-creation points.
-      return { allowed: true };
+    // Freemium accounts whose free period has ended are locked immediately
+    // (lazy check — the cron transition also flips status to EXPIRED).
+    if (
+      subscription.plan?.code === 'PLAN_FREE' &&
+      (subscription as any).freemiumEndsAt &&
+      new Date((subscription as any).freemiumEndsAt) < now
+    ) {
+      const config = await this.settings.getConfig();
+      return this.cache(companyId, {
+        allowed: false,
+        reason: 'INACTIVE',
+        freemiumMessage: `Your ${config.freemiumMonths}-month free period ended on ${new Date((subscription as any).freemiumEndsAt).toDateString()}. Upgrade to the paid annual plan (${config.currency} ${config.pricePerUserPerMonth}/user/month, billed annually) to restore full access.`,
+      });
     }
+
     if (subscription.status === 'ACTIVE') {
       return this.cache(companyId, { allowed: true });
     }

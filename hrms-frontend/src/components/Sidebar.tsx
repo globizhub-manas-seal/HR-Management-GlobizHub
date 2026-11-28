@@ -25,10 +25,13 @@ import {
   Network,
   CreditCard,
   Wallet,
+  FileBarChart2,
+  PiggyBank,
   type LucideIcon,
 } from "lucide-react";
 import { useViewMode } from "@/context/ViewModeContext";
 import { usePermissions } from "@/context/PermissionContext";
+import { usePlanModules } from "@/context/PlanModulesContext";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/brand/Logo";
 
@@ -39,6 +42,8 @@ interface NavItem {
   icon: LucideIcon;
   badge?: string;
   adminOnly?: boolean;
+  /** Plan-wise gating: hide when the module is not in the tenant's plan */
+  planModuleKey?: string;
 }
 
 interface NavSection {
@@ -56,6 +61,7 @@ export default function Sidebar({
   const pathname = usePathname();
   const { user, isViewAsUser } = useViewMode();
   const { sidebarModuleKeys, designation, canAccessModule } = usePermissions();
+  const { isEnabled: planModuleEnabled } = usePlanModules();
 
   const isManagerMode = user?.role === "MANAGER" && !isViewAsUser;
   const isSimulatedUser = user?.role === "MANAGER" && isViewAsUser;
@@ -75,6 +81,14 @@ export default function Sidebar({
           href: "/workspace/dashboard",
           icon: LayoutDashboard,
         },
+        {
+          key: "reports",
+          name: "Reports",
+          href: "/workspace/reports",
+          icon: FileBarChart2,
+          adminOnly: true,
+          planModuleKey: "reports",
+        },
       ],
     },
     {
@@ -91,6 +105,7 @@ export default function Sidebar({
           name: "Recruitment",
           href: "/workspace/recruitment",
           icon: Briefcase,
+          planModuleKey: "recruitment",
         },
         {
           key: "training",
@@ -98,6 +113,7 @@ export default function Sidebar({
           href: "/workspace/training",
           icon: GraduationCap,
           adminOnly: true,
+          planModuleKey: "training",
         },
       ],
     },
@@ -186,12 +202,14 @@ export default function Sidebar({
               name: "Payroll Processing",
               href: "/workspace/payroll/admin",
               icon: Calculator,
+              planModuleKey: "payroll",
             }
           : {
               key: "payslips",
               name: "My Payslips",
               href: "/workspace/my-payslips",
               icon: Banknote,
+              planModuleKey: "payroll",
             },
         // Payroll console overview (HR/admin) — links payslip dispatch & statutory quick actions
         ...(isAdminOrHR
@@ -201,9 +219,18 @@ export default function Sidebar({
                 name: "Payroll Console",
                 href: "/workspace/payroll",
                 icon: Wallet,
+                planModuleKey: "payroll",
               },
             ]
           : []),
+        // Loans & salary advances (admin console / employee self-service)
+        {
+          key: "loans",
+          name: "Loans & Advances",
+          href: "/workspace/loans",
+          icon: PiggyBank,
+          planModuleKey: "loans",
+        },
         // For Admin: Documents (Admin); For Employee: Documents
         isAdminOrHR
           ? {
@@ -244,6 +271,11 @@ export default function Sidebar({
   // Helper to test if a user has access to a nav item
   const isItemVisible = (item: NavItem): boolean => {
     if (item.adminOnly && !isAdminOrHR) return false;
+
+    // Plan-wise gating: hide modules not included in the tenant's plan
+    if (item.planModuleKey && !planModuleEnabled(item.planModuleKey)) {
+      return false;
+    }
 
     // Designations is accessible for Admins and HR
     if (item.key === "designations") {

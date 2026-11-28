@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Request, Res, UseGuards } from '@nestjs/common';
 import { IsOptional, IsString } from 'class-validator';
 import { TenantBillingService } from './tenant-billing.service';
 import { PlatformSettingsService } from '../platform/settings/platform-settings.service';
@@ -29,6 +29,34 @@ export class TenantBillingController {
   @Get('billing/config')
   async getBillingConfig() {
     return this.settings.getPublicConfig();
+  }
+
+  /**
+   * Module availability for the tenant's plan — the frontend uses this to
+   * filter navigation and render upgrade prompts (plan-wise gating).
+   */
+  @Get('subscription/modules')
+  async getSubscriptionModules(@Request() req) {
+    return this.tenantBilling.getCompanyModules(req.user.companyId);
+  }
+
+  /** GST tax invoice PDF download (letterhead + tax breakup) */
+  @Get('billing/invoices/:id/pdf')
+  async downloadInvoicePdf(
+    @Request() req,
+    @Param('id') invoiceId: string,
+    @Res() res: any,
+  ) {
+    const buffer = await this.tenantBilling.renderInvoicePdf(
+      req.user.companyId,
+      invoiceId,
+    );
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="invoice-${invoiceId}.pdf"`,
+    );
+    res.end(buffer);
   }
 
   /** Live quote: active users x price per user (server-computed) */

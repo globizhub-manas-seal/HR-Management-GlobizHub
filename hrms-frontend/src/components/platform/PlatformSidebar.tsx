@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   BarChart3,
+  FileBarChart2,
   Activity,
   Building2,
   UserPlus,
@@ -66,6 +67,7 @@ const SECTIONS: PlatformNavSection[] = [
     items: [
       { name: "Executive Dashboard", href: "/platform-admin/dashboard", icon: LayoutDashboard },
       { name: "Platform Analytics", href: "/platform-admin/analytics", icon: BarChart3, badge: "30D", badgeVariant: "default" },
+      { name: "Global Reports", href: "/platform-admin/reports", icon: FileBarChart2 },
       { name: "System Health", href: "/platform-admin/health", icon: Activity, badge: "Live", badgeVariant: "success" },
     ],
   },

@@ -11,6 +11,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { RecordPaymentDto } from './dto/record-payment.dto';
 import { SubscriptionGuard } from '../subscriptions/guards/subscription.guard';
+import { PlatformSettingsService } from '../settings/platform-settings.service';
+import { renderTaxInvoicePdf } from '../../common/pdf/tax-invoice-pdf';
+import { loadLogoBuffer } from '../../common/pdf/pdf.util';
 import { InvoiceStatus, PaymentStatus } from '../../../generated/prisma/enums';
 
 export interface PlatformCoupon {
@@ -33,7 +36,46 @@ export class PlatformBillingService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private subGuard: SubscriptionGuard,
+    private settings: PlatformSettingsService,
   ) {}
+
+  /**
+   * Render the GST tax invoice PDF for any tenant invoice (super admin
+   * export from the platform billing console).
+   */
+  async renderInvoicePdf(invoiceId: string): Promise<Buffer> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        company: {
+          select: {
+            name: true,
+            address: true,
+            city: true,
+            state: true,
+            pincode: true,
+            gstin: true,
+            email: true,
+            settings: { select: { companyLogo: true } },
+          },
+        },
+      },
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    const config = await this.settings.getConfig();
+    // Super-admin downloads carry the PLATFORM seller identity (SystemConfig)
+    const enriched = {
+      ...invoice,
+      sellerName: config.sellerLegalName,
+      sellerAddress: config.sellerAddress,
+      sellerGstin: config.sellerGstin ?? null,
+      sacCode: invoice.sacCode ?? config.invoiceSacCode,
+      notes: invoice.notes ?? config.invoiceNotes ?? null,
+    };
+    const logo = await loadLogoBuffer(invoice.company?.settings?.companyLogo ?? null);
+    return renderTaxInvoicePdf(enriched as any, invoice.company, logo);
+  }
 
   async onModuleInit() {
     await this.seedDefaultCoupons();

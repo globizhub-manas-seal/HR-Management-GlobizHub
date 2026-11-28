@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { PlatformLoginDto } from './dto/platform-login.dto';
 import { PlatformRegisterDto } from './dto/platform-register.dto';
 import { PlatformRoleType } from '../../../generated/prisma/enums';
+import { UserService } from '../../user/user.service';
 
 @Injectable()
 export class PlatformAuthService {
@@ -19,6 +20,7 @@ export class PlatformAuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private userHub: UserService,
   ) {}
 
   async onModuleInit() {
@@ -52,6 +54,11 @@ export class PlatformAuthService {
           },
         });
 
+        // Mirror the super admin into the unified User hub
+        await this.userHub
+          .syncForPlatformUser(defaultEmail)
+          .catch(() => {});
+
         this.logger.log(
           `Initialized default Platform Super Admin: ${defaultEmail}`,
         );
@@ -81,6 +88,12 @@ export class PlatformAuthService {
             lastLoginIp: ipAddress || null,
           },
         });
+
+        // Unified User hub: sync + login timestamp
+        await this.userHub.syncForPlatformUser(user.email).catch(() => {});
+        await this.prisma.user
+          .updateMany({ where: { email: user.email }, data: { lastLoginAt: now } })
+          .catch(() => {});
 
         // Record audit event asynchronously
         this.prisma.platformAuditLog
@@ -220,6 +233,9 @@ export class PlatformAuthService {
         createdAt: true,
       },
     });
+
+    // Mirror the new platform user into the unified User hub
+    await this.userHub.syncForPlatformUser(email).catch(() => {});
 
     if (actorId && actorEmail) {
       this.prisma.platformAuditLog

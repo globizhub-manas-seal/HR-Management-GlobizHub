@@ -4,7 +4,7 @@ import { PlatformRolesGuard } from '../auth/guards/platform-roles.guard';
 import { PlatformRoles } from '../auth/decorators/platform-roles.decorator';
 import { CurrentPlatformUser } from '../auth/decorators/current-platform-user.decorator';
 import { PlatformSettingsService } from './platform-settings.service';
-import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 
 export class UpdateSystemConfigDto {
   @IsOptional() @IsString() currency?: string;
@@ -16,12 +16,22 @@ export class UpdateSystemConfigDto {
   @IsOptional() @IsString() invoicePrefix?: string;
   @IsOptional() @IsString() paymentGateway?: string;
   @IsOptional() @IsInt() @Min(1) freemiumMaxUsers?: number;
+  @IsOptional() @IsInt() @Min(1) freemiumMonths?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(60) contractMonths?: number;
+  @IsOptional() @IsInt() @Min(0) renewalLeadDays?: number;
   @IsOptional() @IsBoolean() requireBusinessEmail?: boolean;
   @IsOptional() @IsString() @MinLength(1) freeEmailDomains?: string;
-  @IsOptional() @IsInt() @Min(0) trialDays?: number;
   @IsOptional() @IsInt() @Min(1) maxUsersHardCap?: number;
   @IsOptional() @IsBoolean() selfSignupEnabled?: boolean;
   @IsOptional() @IsBoolean() publicCareersPage?: boolean;
+  // ---- GST / tax invoice identity ----
+  @IsOptional() @IsBoolean() gstEnabled?: boolean;
+  @IsOptional() @IsString() @MinLength(2) sellerLegalName?: string;
+  @IsOptional() @IsString() sellerAddress?: string;
+  @IsOptional() @IsString() sellerGstin?: string;
+  @IsOptional() @IsString() sellerState?: string;
+  @IsOptional() @IsString() invoiceSacCode?: string;
+  @IsOptional() @IsString() invoiceNotes?: string;
 }
 
 @Controller('platform/settings')

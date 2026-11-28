@@ -20,7 +20,9 @@ import {
   TicketPercent,
   BadgeCheck,
   Hourglass,
+  FileDown,
 } from "lucide-react";
+import api from "@/lib/api";
 import { organizationApi } from "@/lib/api/organization";
 import InvoiceReceiptModal, { InvoiceDetail } from "@/components/billing/InvoiceReceiptModal";
 import { useToast } from "@/components/ToastProvider";
@@ -92,7 +94,9 @@ interface BillingConfig {
   currency: string;
   pricePerUserPerMonth: number;
   freemiumMaxUsers: number;
-  trialDays: number;
+  freemiumMonths: number;
+  contractMonths: number;
+  gstPercent: number;
   requireBusinessEmail: boolean;
   paymentGateway: string;
 }
@@ -127,6 +131,7 @@ export default function WorkspaceBillingPage() {
   const [quote, setQuote] = useState<{
     billableUsers: number;
     perUserPrice: number;
+    contractMonths: number;
     amount: number;
     currency: string;
     gstPercent: number;
@@ -183,6 +188,27 @@ export default function WorkspaceBillingPage() {
       toast("Failed to load invoice receipt details.", "error");
     } finally {
       setIsLoadingInvoice(false);
+    }
+  };
+
+  // Download the official GST tax-invoice PDF (server-rendered with the
+  // platform letterhead + CGST/SGST or IGST breakup).
+  const handleDownloadInvoicePdf = async (invoiceId: string) => {
+    try {
+      const res = await api.get(`/organization/billing/invoices/${invoiceId}/pdf`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `tax-invoice-${invoiceId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download invoice PDF", err);
+      toast("Could not download the tax invoice PDF.", "error");
     }
   };
 
@@ -358,7 +384,7 @@ export default function WorkspaceBillingPage() {
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Per-user pricing invoiced monthly on an annual contract. Every limit is controlled by the platform console.
+            Per-user annual billing: {`₹${config?.pricePerUserPerMonth ?? 49}`}/user/month × {config?.contractMonths ?? 12} months invoiced upfront. Seats added mid-term are billed annually from their start date. Every limit is controlled by the platform console.
           </p>
         </div>
 
@@ -427,7 +453,7 @@ export default function WorkspaceBillingPage() {
                 <span className="text-[10px] text-muted-foreground font-medium">
                   {isTrial
                     ? `${sub?.daysRemaining ?? 0} days left in trial`
-                    : "per user / month"}
+                    : `per user / month · billed annually (₹${(config?.pricePerUserPerMonth ?? 49) * (config?.contractMonths ?? 12)}/user/yr)`}
                 </span>
               </div>
             </div>
@@ -439,7 +465,7 @@ export default function WorkspaceBillingPage() {
               </div>
               <div className="rounded-xl bg-card border border-border p-3">
                 <p className="text-[10px] text-muted-foreground font-medium">
-                  {isTrial ? "Trial ends" : "Period ends"}
+                  {isTrial ? "Free period ends" : "Contract ends"}
                 </p>
                 <p className="text-xs font-bold text-foreground mt-0.5">
                   {(isTrial ? sub?.trialEndsAt : sub?.currentPeriodEnd)
@@ -452,7 +478,7 @@ export default function WorkspaceBillingPage() {
               <div className="rounded-xl bg-card border border-border p-3">
                 <p className="text-[10px] text-muted-foreground font-medium">Billing</p>
                 <p className="text-xs font-bold text-foreground mt-0.5">
-                  {isTrial ? "—" : sub?.billingCycle === "ANNUAL" ? "Monthly / Annual contract" : sub?.billingCycle}
+                  {sub?.billingCycle === "ANNUAL" ? "Annual contract" : sub?.billingCycle || "—"}
                 </p>
               </div>
               <div className="rounded-xl bg-card border border-border p-3">
@@ -604,15 +630,25 @@ export default function WorkspaceBillingPage() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleOpenReceipt(inv.id)}
-                        disabled={isLoadingInvoice}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-[11px] font-medium text-foreground hover:border-primary hover:text-primary transition-colors shadow-2xs"
-                        title="View printable tax invoice"
-                      >
-                        <Download className="h-3 w-3" />
-                        Tax Receipt
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleDownloadInvoicePdf(inv.id)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-[11px] font-medium text-foreground hover:border-primary hover:text-primary transition-colors shadow-2xs"
+                          title="Download official GST tax invoice PDF"
+                        >
+                          <FileDown className="h-3 w-3" />
+                          PDF
+                        </button>
+                        <button
+                          onClick={() => handleOpenReceipt(inv.id)}
+                          disabled={isLoadingInvoice}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-[11px] font-medium text-foreground hover:border-primary hover:text-primary transition-colors shadow-2xs"
+                          title="View printable tax invoice"
+                        >
+                          <Download className="h-3 w-3" />
+                          Tax Receipt
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -669,8 +705,8 @@ export default function WorkspaceBillingPage() {
                     <span className="text-sm font-semibold text-muted-foreground">/ user / month</span>
                   </h2>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Annual contract, invoiced monthly for your actual active users. Cancel anytime
-                    before the next billing cycle.
+                    {config?.contractMonths ?? 12}-month annual contract — billed upfront for all your active
+                    users. Seats added later are billed annually from their start date, prorated to your contract end.
                   </p>
                 </div>
 
@@ -682,18 +718,26 @@ export default function WorkspaceBillingPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Rate per user</span>
                     <strong className="text-foreground font-mono">
-                      ₹{quote?.perUserPrice ?? config?.pricePerUserPerMonth ?? 49}
+                      ₹{quote?.perUserPrice ?? config?.pricePerUserPerMonth ?? 49} / month
+                    </strong>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Contract term</span>
+                    <strong className="text-foreground font-mono">
+                      {quote?.contractMonths ?? config?.contractMonths ?? 12} months
                     </strong>
                   </div>
                   <div className="flex justify-between items-center border-t border-border pt-2.5">
-                    <span className="text-muted-foreground font-semibold">Monthly total</span>
+                    <span className="text-muted-foreground font-semibold">
+                      Annual total ({quote?.billableUsers ?? "…"} users × ₹{quote?.perUserPrice ?? config?.pricePerUserPerMonth ?? 49} × {quote?.contractMonths ?? config?.contractMonths ?? 12} mo)
+                    </span>
                     <strong className="text-primary font-mono text-base">
                       ₹{quote?.amount?.toLocaleString() ?? "…"}
                     </strong>
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    GST {"("}{quote?.gstPercent ?? 18}%{"}"} is included in your tax invoice as per
-                    applicable law. Amount is computed on the server and cannot be altered here.
+                    GST ({quote?.gstPercent ?? 18}%) is included in your tax invoice as per applicable
+                    law. Amount is computed on the server and cannot be altered here.
                   </p>
                 </div>
 

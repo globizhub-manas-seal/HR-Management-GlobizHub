@@ -380,6 +380,10 @@ export class CandidateConversionService {
       };
     });
 
+    // Annual seat billing: the converted candidate consumes a seat — charge it
+    // prorated until contract end (no-op for freemium/expired orgs)
+    await this.limits.chargeNewSeats(companyId, 1);
+
     // 3. POST-COMMIT WELCOME EMAIL DISPATCH (Safe outside transaction)
     const magicLink = `${
       process.env.FRONTEND_URL || 'http://localhost:3000'

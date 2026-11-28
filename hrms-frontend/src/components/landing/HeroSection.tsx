@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import ScrollReveal from "@/components/ui/ScrollReveal";
+import { usePublicConfig } from "@/hooks/usePublicConfig";
 import {
   ArrowRight,
   Clock,
@@ -14,6 +15,8 @@ import {
 } from "lucide-react";
 
 export default function HeroSection() {
+  const cfg = usePublicConfig();
+
   return (
     <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 overflow-hidden bg-gradient-to-b from-card via-background/40 to-background border-b border-border/40">
 
@@ -57,9 +60,9 @@ export default function HeroSection() {
           </Link>
         </div>
 
-        {/* Reassurance Badges */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground font-medium">
-          <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Complete Setup Wizard</span>
+        {/* Reassurance Badges (free-period figures live from SystemConfig) */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground font-medium">
+          <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> {cfg.freemiumMonths}-month free plan — {cfg.freemiumMaxUsers} users, no card required</span>
           <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Role-Based Access Control</span>
           <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Secure Cloud Document Vault</span>
         </div>

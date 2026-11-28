@@ -2,23 +2,29 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlatformSettingsService } from '../settings/platform-settings.service';
+import { computeGst } from '../../common/gst';
+import { addMonths } from '../../common/time';
 
 /**
- * Subscription lifecycle & metered billing cron.
+ * Subscription lifecycle & ANNUAL billing cron.
  *
  * Model (all thresholds from SystemConfig — super-admin controlled):
- *  1. TRIAL (trialDays, default 7) expires  -> downgrade to PLAN_FREE (freemium,
- *     status ACTIVE, freemiumMaxUsers cap). Never locks the tenant out.
- *  2. Metered monthly invoicing: every ACTIVE paid subscription (plan is not
- *     PLAN_FREE) gets ONE invoice per calendar month for
- *     activeUsers x pricePerUserPerMonth, due invoiceDueDays later.
- *  3. Overdue invoices past gracePeriodDays flip the subscription to PAST_DUE
+ *  1. Freemium: new companies start on PLAN_FREE with `freemiumMaxUsers` seats
+ *     for `freemiumMonths` months (default 5 users / 3 months). When the free
+ *     period ends the workspace locks to billing endpoints until they upgrade.
+ *  2. Annual billing: upgrade = ONE invoice for
+ *        activeUsers x pricePerUserPerMonth x contractMonths
+ *     covering the full contract term. Seats added mid-term are invoiced
+ *     prorated from their add date until contract end (see
+ *     SubscriptionLimitsService.chargeNewSeats).
+ *  3. Renewal: `renewalLeadDays` before contract end, ONE renewal invoice for
+ *     the next term is issued; paying it extends the contract.
+ *  4. Overdue invoices past gracePeriodDays flip the subscription to PAST_DUE
  *     (SubscriptionGuard locks non-billing endpoints). Payment restores ACTIVE.
  */
 @Injectable()
 export class PlatformSubscriptionCron {
   private readonly logger = new Logger(PlatformSubscriptionCron.name);
-  private lastInvoiceMonthKey = ''; // guard against duplicate monthly runs
 
   constructor(
     private prisma: PrismaService,
@@ -31,9 +37,9 @@ export class PlatformSubscriptionCron {
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleSubscriptionLifecycle() {
-    await this.transitionExpiredTrials();
+    await this.expireFreemiumAccounts();
     await this.evaluatePastDue();
-    await this.generateMonthlyInvoices();
+    await this.generateRenewalInvoices();
     await this.refreshPaidPeriods();
   }
 
@@ -43,117 +49,122 @@ export class PlatformSubscriptionCron {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleDailyLifecycle() {
     this.logger.log('Running daily subscription lifecycle sweep...');
-    await this.transitionExpiredTrials();
+    await this.expireFreemiumAccounts();
     await this.evaluatePastDue();
-    await this.generateMonthlyInvoices();
+    await this.generateRenewalInvoices();
   }
 
-  private async transitionExpiredTrials() {
+  /**
+   * Freemium expiry: PLAN_FREE accounts whose freemiumEndsAt has passed flip
+   * to EXPIRED (guard locks everything except billing until they upgrade).
+   */
+  private async expireFreemiumAccounts() {
     const now = new Date();
-    const config = await this.settings.getConfig();
     try {
-      const expiredTrials = await this.prisma.subscription.findMany({
-        where: { status: 'TRIAL', trialEndsAt: { lt: now } },
-        select: { id: true, companyId: true },
-      });
-      if (expiredTrials.length === 0) return;
-
-      const freePlan = await this.prisma.platformPlan.findFirst({
-        where: { code: 'PLAN_FREE' },
-        select: { id: true },
-      });
-      if (!freePlan) {
-        this.logger.warn('PLAN_FREE missing; cannot downgrade expired trials.');
-        return;
-      }
-
-      // Batched: ONE update + ONE audit insert + ONE notification insert,
-      // regardless of how many trials expired (was 3 queries per trial).
-      const periodEnd = new Date(now.getTime() + 30 * 86400000);
-      await this.prisma.subscription.updateMany({
-        where: { id: { in: expiredTrials.map((s) => s.id) } },
-        data: {
+      const expired = await this.prisma.subscription.findMany({
+        where: {
           status: 'ACTIVE',
-          planId: freePlan.id,
-          billingCycle: 'MONTHLY',
-          currentPeriodEnd: periodEnd,
+          freemiumEndsAt: { lt: now },
+          plan: { code: 'PLAN_FREE' },
         },
+        select: { id: true, companyId: true, freemiumEndsAt: true },
+      });
+      if (expired.length === 0) return;
+
+      const config = await this.settings.getConfig();
+
+      await this.prisma.subscription.updateMany({
+        where: { id: { in: expired.map((s) => s.id) } },
+        data: { status: 'EXPIRED' },
       });
 
       await this.prisma.platformAuditLog
         .createMany({
-          data: expiredTrials.map((sub) => ({
+          data: expired.map((sub) => ({
             actorEmail: 'system@globizhr.saas',
             actorRole: 'SUPER_ADMIN',
-            action: 'TRIAL_DOWNGRADED_TO_FREEMIUM',
+            action: 'FREEMIUM_EXPIRED',
             targetEntity: 'Subscription',
             targetId: sub.id,
             companyId: sub.companyId,
-            reason: `Trial expired after ${config.trialDays} days; freemium limit is ${config.freemiumMaxUsers} users`,
-            afterState: { planCode: 'PLAN_FREE', status: 'ACTIVE' },
+            reason: `Free period (${config.freemiumMonths} months, ${config.freemiumMaxUsers} users) ended`,
+            afterState: { planCode: 'PLAN_FREE', status: 'EXPIRED' },
           })),
         })
         .catch(() => {});
 
-      // Notify company admins (single find + single createMany across ALL companies)
       await this.notifyCompaniesAdmins(
-        expiredTrials.map((s) => s.companyId),
-        'Your free trial has ended',
-        `Your 7-day trial of GlobizHR is over. Your workspace is now on the Free plan (up to ${config.freemiumMaxUsers} users with verified business emails). Upgrade any time from Billing to unlock unlimited seats and invoiced monthly at ₹${config.pricePerUserPerMonth}/user/month.`,
+        expired.map((s) => s.companyId),
+        'Your free period has ended',
+        (companyId) =>
+          `Your ${config.freemiumMonths}-month free period of GlobizHR has ended. Your workspace is locked until you upgrade. Continue on the paid annual plan (${config.currency} ${config.pricePerUserPerMonth}/user/month, billed annually at ${config.currency} ${config.pricePerUserPerMonth * config.contractMonths}/user) from Settings > Billing.`,
       ).catch(() => {});
+
       this.logger.log(
-        `Downgraded ${expiredTrials.length} expired trial(s) to freemium.`,
+        `Locked ${expired.length} freemium account(s) whose free period ended.`,
       );
     } catch (err: any) {
-      this.logger.error(`Trial transition failed: ${err?.message}`);
+      this.logger.error(`Freemium expiry sweep failed: ${err?.message}`);
     }
   }
 
   /**
-   * Metered monthly invoices for paid subscriptions (annual contract term).
-   * Idempotent: one invoice per subscription per (year, month) via
-   * periodStart periodEnd range matching.
+   * Annual renewal invoices: `renewalLeadDays` before contract end, issue ONE
+   * renewal invoice for the NEXT contract term (idempotent via periodStart ==
+   * current contractEndsAt).
    */
-  private async generateMonthlyInvoices() {
+  private async generateRenewalInvoices() {
     try {
       const config = await this.settings.getConfig();
       const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      const dueDate = new Date(now.getTime() + config.invoiceDueDays * 86400000);
+      const leadCutoff = new Date(
+        now.getTime() + config.renewalLeadDays * 86400000,
+      );
 
-      const paidSubs = await this.prisma.subscription.findMany({
+      const dueForRenewal = await this.prisma.subscription.findMany({
         where: {
           status: 'ACTIVE',
-          // Paid plans only (freemium & trial plans are priced at 0)
-          plan: { monthlyPrice: { gt: 0 } },
-          OR: [
-            { contractEndsAt: null },
-            { contractEndsAt: { gte: now } },
-          ],
+          contractEndsAt: { lte: leadCutoff, gte: now },
+          plan: { code: { not: 'PLAN_FREE' }, monthlyPrice: { gt: 0 } },
         },
         select: {
           id: true,
           companyId: true,
-          company: { select: { name: true } },
+          contractEndsAt: true,
+          company: { select: { name: true, state: true, gstin: true } },
         },
       });
-      if (paidSubs.length === 0) return;
+      if (dueForRenewal.length === 0) return;
 
-      // ---- Batched idempotency check: ONE query instead of one findFirst per sub
+      // Idempotency: one query for existing renewal invoices (periodStart on
+      // or after the current contract end = renewal for the next term)
       const existing = await this.prisma.invoice.findMany({
         where: {
-          subscriptionId: { in: paidSubs.map((s) => s.id) },
-          periodStart,
+          subscriptionId: { in: dueForRenewal.map((s) => s.id) },
           status: { not: 'VOID' },
+          periodStart: {
+            gte: new Date(
+              Math.min(...dueForRenewal.map((s) => s.contractEndsAt!.getTime())),
+            ),
+          },
         },
-        select: { subscriptionId: true },
+        select: { subscriptionId: true, periodStart: true },
       });
-      const alreadyInvoiced = new Set(existing.map((e) => e.subscriptionId));
-      const pending = paidSubs.filter((s) => !alreadyInvoiced.has(s.id));
+      const alreadyRenewing = new Set(
+        existing
+          .filter((e) => {
+            if (!e.periodStart) return false;
+            const sub = dueForRenewal.find((s) => s.id === e.subscriptionId);
+            return (
+              sub && e.periodStart.getTime() >= sub.contractEndsAt!.getTime()
+            );
+          })
+          .map((e) => e.subscriptionId),
+      );
+      const pending = dueForRenewal.filter((s) => !alreadyRenewing.has(s.id));
       if (pending.length === 0) return;
 
-      // ---- Batched usage counts: ONE groupBy instead of one count per company
+      // ONE groupBy for active-user counts across all pending companies
       const counts = await this.prisma.employee.groupBy({
         by: ['companyId'],
         where: {
@@ -164,36 +175,91 @@ export class PlatformSubscriptionCron {
       });
       const usageMap = new Map(counts.map((c) => [c.companyId, c._count._all]));
 
-      // ---- Sequential invoice numbers from a single count
-      const base = await this.prisma.invoice.count();
       const prefix = config.invoicePrefix || 'INV';
       const year = now.getFullYear();
 
-      await this.prisma.invoice.createMany({
-        data: pending.map((sub, i) => {
-          const activeUsers = usageMap.get(sub.companyId) ?? 0;
-          const billable = Math.max(config.minUsersPerInvoice, activeUsers);
-          const amount = billable * config.pricePerUserPerMonth;
-          return {
-            invoiceNumber: `${prefix}-${year}-${String(base + i + 1).padStart(5, '0')}`,
-            companyId: sub.companyId,
-            subscriptionId: sub.id,
-            amountDue: amount,
-            currency: config.currency,
-            status: 'ISSUED',
-            dueDate,
-            periodStart,
-            periodEnd,
-            perUserPrice: config.pricePerUserPerMonth,
-            userCount: billable,
-          };
-        }),
+      // Sequence base: MAX existing invoice number for this year (collision
+      // safe even after voided invoices) — createMany assigns base+1..+N.
+      const yearPrefix = `${prefix}-${year}-`;
+      const lastInvoice = await this.prisma.invoice.findFirst({
+        where: { invoiceNumber: { startsWith: yearPrefix } },
+        orderBy: { invoiceNumber: 'desc' },
+        select: { invoiceNumber: true },
+      });
+      const baseCount = lastInvoice
+        ? parseInt(lastInvoice.invoiceNumber.split('-').pop() ?? '0', 10)
+        : 0;
+      const usedNumbers = new Set<string>();
+
+      const rows: any[] = pending.map((sub, i) => {
+        const activeUsers = usageMap.get(sub.companyId) ?? 0;
+        const billable = Math.max(config.minUsersPerInvoice, activeUsers);
+        const base =
+          billable * config.pricePerUserPerMonth * config.contractMonths;
+        const gst = computeGst(
+          base,
+          config.gstPercent,
+          sub.company?.state,
+          config.sellerState,
+          config.gstEnabled,
+        );
+        const amount = Math.round((base + gst.taxAmount) * 100) / 100;
+        const nextStart = sub.contractEndsAt!;
+        const nextEnd = addMonths(nextStart, config.contractMonths);
+        const invoiceNumber = `${prefix}-${year}-${String(baseCount + i + 1).padStart(5, '0')}`;
+        if (usedNumbers.has(invoiceNumber)) {
+          this.logger.warn(
+            `Skipping renewal invoice with duplicate number ${invoiceNumber} (will be retried next sweep)`,
+          );
+          return null;
+        }
+        usedNumbers.add(invoiceNumber);
+        return {
+          invoiceNumber: `${prefix}-${year}-${String(baseCount + i + 1).padStart(5, '0')}`,
+          companyId: sub.companyId,
+          subscriptionId: sub.id,
+          amountDue: amount,
+          currency: config.currency,
+          status: 'ISSUED',
+          dueDate: new Date(now.getTime() + config.invoiceDueDays * 86400000),
+          periodStart: nextStart,
+          periodEnd: nextEnd,
+          perUserPrice: config.pricePerUserPerMonth,
+          userCount: billable,
+          taxableAmount: gst.taxableAmount,
+          taxLabel: gst.taxLabel,
+          taxRate: gst.taxRate,
+          taxAmount: gst.taxAmount,
+          cgstAmount: gst.cgstAmount,
+          sgstAmount: gst.sgstAmount,
+          igstAmount: gst.igstAmount,
+          placeOfSupply: gst.placeOfSupply,
+          sellerName: config.sellerLegalName,
+          sellerAddress: config.sellerAddress,
+          sellerGstin: config.sellerGstin ?? null,
+          buyerGstin: sub.company?.gstin ?? null,
+          sacCode: config.invoiceSacCode,
+          notes: config.invoiceNotes ?? null,
+        };
       });
 
-      // Re-fetch just-created rows (ids needed for audit + notifications)
+      const validRows = rows.filter((r): r is any => r !== null);
+      if (validRows.length === 0) return;
+      await this.prisma.invoice.createMany({ data: validRows });
+
+      // Re-fetch created rows for audit + per-company notifications
       const created = await this.prisma.invoice.findMany({
-        where: { subscriptionId: { in: pending.map((s) => s.id) }, periodStart },
-        select: { id: true, invoiceNumber: true, companyId: true, userCount: true, amountDue: true },
+        where: {
+          subscriptionId: { in: pending.map((s) => s.id) },
+          periodStart: { in: pending.map((s) => s.contractEndsAt!) },
+        },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          companyId: true,
+          userCount: true,
+          amountDue: true,
+        },
       });
 
       await this.prisma.platformAuditLog
@@ -201,7 +267,7 @@ export class PlatformSubscriptionCron {
           data: created.map((inv) => ({
             actorEmail: 'system@globizhr.saas',
             actorRole: 'SUPER_ADMIN',
-            action: 'INVOICE_GENERATED',
+            action: 'ANNUAL_RENEWAL_INVOICE_ISSUED',
             targetEntity: 'Invoice',
             targetId: inv.id,
             companyId: inv.companyId,
@@ -210,12 +276,12 @@ export class PlatformSubscriptionCron {
               amount: inv.amountDue,
               userCount: inv.userCount,
               perUserPrice: config.pricePerUserPerMonth,
+              contractMonths: config.contractMonths,
             } as any,
           })),
         })
         .catch(() => {});
 
-      // Grouped notification: one query for admins of ALL affected companies
       const byCompany = new Map<string, { invNumber: string; billable: number; amount: number }>();
       for (const inv of created) {
         byCompany.set(inv.companyId, {
@@ -226,18 +292,18 @@ export class PlatformSubscriptionCron {
       }
       await this.notifyCompaniesAdmins(
         [...byCompany.keys()],
-        'Monthly invoice available',
+        'Annual renewal invoice available',
         (companyId) => {
           const c = byCompany.get(companyId)!;
-          return `Your monthly invoice for ${c.billable} active user(s) x ₹${config.pricePerUserPerMonth}/user is now available: ₹${c.amount}. Due ${dueDate.toDateString()}. Pay from Settings > Billing. Invoice no. ${c.invNumber}.`;
+          return `Your annual renewal invoice for ${c.billable} active user(s) x ${config.currency} ${config.pricePerUserPerMonth}/month x ${config.contractMonths} months is now available: ${config.currency} ${c.amount} (invoice ${c.invNumber}). Due ${new Date(now.getTime() + config.invoiceDueDays * 86400000).toDateString()}. Pay from Settings > Billing to keep your workspace active.`;
         },
       ).catch(() => {});
 
       this.logger.log(
-        `Generated ${created.length} monthly invoice(s) for ${byCompany.size} company(ies).`,
+        `Issued ${created.length} annual renewal invoice(s) for ${byCompany.size} company(ies).`,
       );
     } catch (err: any) {
-      this.logger.error(`Monthly invoice generation failed: ${err?.message}`);
+      this.logger.error(`Renewal invoice generation failed: ${err?.message}`);
     }
   }
 
@@ -339,47 +405,28 @@ export class PlatformSubscriptionCron {
   }
 
   /**
-   * Keep currentPeriodEnd fresh for paid subscriptions (end of current month),
-   * so legacy UI renewals display correctly.
+   * Keep currentPeriodEnd aligned with the contract term for paid
+   * subscriptions so legacy UI displays correctly. Single SQL statement —
+   * no per-subscription loop.
    */
   private async refreshPaidPeriods() {
     try {
-      const now = new Date();
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      await this.prisma.subscription.updateMany({
-        where: {
-          status: 'ACTIVE',
-          plan: { monthlyPrice: { gt: 0 } },
-          currentPeriodEnd: { lt: monthEnd },
-        },
-        data: { currentPeriodEnd: monthEnd },
-      });
+      await this.prisma.$executeRaw`
+        UPDATE "Subscription"
+        SET "currentPeriodEnd" = "contractEndsAt", "updatedAt" = NOW()
+        WHERE "status" = 'ACTIVE'
+          AND "contractEndsAt" IS NOT NULL
+          AND "currentPeriodEnd" IS DISTINCT FROM "contractEndsAt"
+      `;
     } catch (err: any) {
       this.logger.warn(`Period refresh failed: ${err?.message}`);
     }
   }
 
-  private async nextInvoiceNumber(prefix: string): Promise<string> {
-    const year = new Date().getFullYear();
-    const count = await this.prisma.invoice.count();
-    return `${prefix || 'INV'}-${year}-${(count + 1).toString().padStart(5, '0')}`;
-  }
-
   /**
-   * Notify all active admins (OWNER / SUPER_ADMIN / HR_HEAD) of a company.
-   */
-  private async notifyCompanyAdmins(
-    companyId: string,
-    title: string,
-    message: string,
-  ) {
-    return this.notifyCompaniesAdmins([companyId], title, () => message);
-  }
-
-  /**
-   * Batched variant: notify admins of MANY companies with 2 queries total
-   * (one employee lookup + one createMany). `message` may be a function of
-   * companyId so per-company content stays possible.
+   * Notify admins of MANY companies with 2 queries total (one employee
+   * lookup + one createMany). `message` may be a function of companyId so
+   * per-company content stays possible.
    */
   private async notifyCompaniesAdmins(
     companyIds: string[],

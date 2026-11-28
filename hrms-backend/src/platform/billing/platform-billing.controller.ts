@@ -14,6 +14,7 @@ import {
   BadRequestException,
   UnauthorizedException,
   Req,
+  Res,
 } from '@nestjs/common';
 import { PlatformBillingService } from './platform-billing.service';
 import { RazorpayService } from './razorpay.service';
@@ -55,6 +56,19 @@ export class PlatformBillingController {
   @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
   async getInvoiceById(@Param('id') id: string) {
     return this.billingService.getInvoiceById(id);
+  }
+
+  /** GST tax invoice PDF (platform letterhead, super admin download) */
+  @Get('invoices/:id/pdf')
+  @UseGuards(PlatformAuthGuard, PlatformRolesGuard)
+  async downloadInvoicePdf(@Param('id') id: string, @Res() res: any) {
+    const buffer = await this.billingService.renderInvoicePdf(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="tax-invoice-${id}.pdf"`,
+    );
+    res.end(buffer);
   }
 
   @Post('invoices')
